@@ -6,7 +6,13 @@ mod tangent_part;
 pub use normal_part::ContactNormalPart;
 pub use tangent_part::ContactTangentPart;
 
-use crate::{collision::contact_types::ContactId, prelude::*};
+use core::cmp::Ordering;
+
+use crate::{
+    collision::contact_types::ContactId,
+    dynamics::solver::{BodyQueryItem, ContactSoftnessCoefficients},
+    prelude::*,
+};
 #[cfg(feature = "serialize")]
 use bevy::reflect::{ReflectDeserialize, ReflectSerialize};
 use bevy::{
@@ -85,6 +91,9 @@ pub struct ContactConstraint {
     pub tangent_velocity: Vector,
     /// The world-space contact normal shared by all points in the contact manifold.
     pub normal: Vector,
+    /// The first world-space tangent direction shared by all points in the contact manifold.
+    #[cfg(feature = "3d")]
+    pub tangent1: Vector,
     /// The contact points in the manifold. Each point shares the same `normal`.
     // TODO: Use a `SmallVec`
     pub points: Vec<ContactConstraintPoint>,
@@ -97,6 +106,119 @@ pub struct ContactConstraint {
 }
 
 impl ContactConstraint {
+    /// Generates a new [`ContactConstraint`] from the given bodies and contact manifold.
+    pub(super) fn generate(
+        body1_entity: Entity,
+        body2_entity: Entity,
+        body1: BodyQueryItem,
+        body2: BodyQueryItem,
+        contact_id: ContactId,
+        manifold: &ContactManifold,
+        manifold_index: usize,
+        warm_start_enabled: bool,
+        softness: &ContactSoftnessCoefficients,
+    ) -> Self {
+        // Get the solver body inertia if it exists, or use a dummy inertia for static bodies.
+        let inertia1 = body1.inertia.unwrap_or(&SolverBodyInertia::DUMMY);
+        let inertia2 = body2.inertia.unwrap_or(&SolverBodyInertia::DUMMY);
+
+        // Compute the relative dominance of the bodies.
+        let relative_dominance = body1.dominance() - body2.dominance();
+
+        // Compute the inverse mass and angular inertia, taking into account the relative dominance.
+        let (inv_mass1, i1, inv_mass2, i2) = match relative_dominance.cmp(&0) {
+            Ordering::Equal => (
+                inertia1.effective_inv_mass(),
+                inertia1.effective_inv_angular_inertia(),
+                inertia2.effective_inv_mass(),
+                inertia2.effective_inv_angular_inertia(),
+            ),
+            Ordering::Greater => (
+                Vector::ZERO,
+                SymmetricTensor::ZERO,
+                inertia2.effective_inv_mass(),
+                inertia2.effective_inv_angular_inertia(),
+            ),
+            Ordering::Less => (
+                inertia1.effective_inv_mass(),
+                inertia1.effective_inv_angular_inertia(),
+                Vector::ZERO,
+                SymmetricTensor::ZERO,
+            ),
+        };
+
+        let softness = if relative_dominance != 0 {
+            softness.non_dynamic
+        } else {
+            softness.dynamic
+        };
+
+        let effective_inverse_mass_sum = inv_mass1 + inv_mass2;
+
+        let tangents = compute_tangent_directions(
+            manifold.normal,
+            body1.linear_velocity.0,
+            body2.linear_velocity.0,
+        );
+
+        let mut points = Vec::with_capacity(manifold.points.len());
+
+        for point in manifold.points.iter() {
+            // Use fixed world-space anchors.
+            // This improves rolling behavior for shapes like balls and capsules.
+            let anchor1 = point.anchor1;
+            let anchor2 = point.anchor2;
+
+            let point = ContactConstraintPoint {
+                // TODO: Apply warm starting scale here instead of in `warm_start`?
+                normal_part: ContactNormalPart::generate(
+                    effective_inverse_mass_sum,
+                    &i1,
+                    &i2,
+                    anchor1,
+                    anchor2,
+                    manifold.normal,
+                    warm_start_enabled.then_some(point.warm_start_normal_impulse),
+                    softness,
+                ),
+                // There should only be a friction part if the coefficient of friction is non-negative.
+                tangent_part: (manifold.friction > 0.0).then_some(ContactTangentPart::generate(
+                    effective_inverse_mass_sum,
+                    &i1,
+                    &i2,
+                    anchor1,
+                    anchor2,
+                    tangents,
+                    warm_start_enabled.then_some(point.warm_start_tangent_impulse),
+                )),
+                anchor1,
+                anchor2,
+                normal_speed: point.normal_speed,
+                initial_separation: -point.penetration - (anchor2 - anchor1).dot(manifold.normal),
+            };
+
+            points.push(point);
+        }
+
+        ContactConstraint {
+            body1: body1_entity,
+            body2: body2_entity,
+            relative_dominance,
+            friction: manifold.friction,
+            restitution: manifold.restitution,
+            #[cfg(feature = "2d")]
+            tangent_speed: manifold.tangent_speed,
+            #[cfg(feature = "3d")]
+            tangent_velocity: manifold.tangent_velocity,
+            normal: manifold.normal,
+            #[cfg(feature = "3d")]
+            tangent1: tangents[0],
+            points,
+            contact_id,
+            manifold_index,
+        }
+    }
+
     /// Warm starts the contact constraint by applying the impulses from the previous frame or substep.
     pub fn warm_start(
         &self,
@@ -104,14 +226,14 @@ impl ContactConstraint {
         body2: &mut SolverBody,
         inertia1: &SolverBodyInertia,
         inertia2: &SolverBodyInertia,
-        normal: Vector,
-        tangent_directions: [Vector; DIM - 1],
         warm_start_coefficient: Scalar,
     ) {
         let inv_mass1 = inertia1.effective_inv_mass();
         let inv_mass2 = inertia2.effective_inv_mass();
         let inv_angular_inertia1 = inertia1.effective_inv_angular_inertia();
         let inv_angular_inertia2 = inertia2.effective_inv_angular_inertia();
+
+        let tangent_directions = self.tangent_directions();
 
         for point in self.points.iter() {
             // Fixed anchors
@@ -125,10 +247,11 @@ impl ContactConstraint {
 
             #[cfg(feature = "2d")]
             let p = warm_start_coefficient
-                * (point.normal_part.impulse * normal + tangent_impulse * tangent_directions[0]);
+                * (point.normal_part.impulse * self.normal
+                    + tangent_impulse * tangent_directions[0]);
             #[cfg(feature = "3d")]
             let p = warm_start_coefficient
-                * (point.normal_part.impulse * normal
+                * (point.normal_part.impulse * self.normal
                     + tangent_impulse.x * tangent_directions[0]
                     + tangent_impulse.y * tangent_directions[1]);
 
@@ -194,8 +317,7 @@ impl ContactConstraint {
             body2.angular_velocity += inv_angular_inertia2 * cross(r2, impulse);
         }
 
-        let tangent_directions =
-            self.tangent_directions(body1.linear_velocity, body2.linear_velocity);
+        let tangent_directions = self.tangent_directions();
 
         // Friction
         for point in self.points.iter_mut() {
@@ -284,26 +406,45 @@ impl ContactConstraint {
         }
     }
 
-    /// Computes `DIM - 1` tangent directions.
-    #[allow(unused_variables)]
-    pub fn tangent_directions(&self, velocity1: Vector, velocity2: Vector) -> [Vector; DIM - 1] {
+    /// Returns the tangent directions for the contact constraint.
+    #[inline(always)]
+    pub fn tangent_directions(&self) -> [Vector; DIM - 1] {
         #[cfg(feature = "2d")]
         {
             [Vector::new(self.normal.y, -self.normal.x)]
         }
         #[cfg(feature = "3d")]
         {
-            let force_direction = -self.normal;
-            let relative_velocity = velocity1 - velocity2;
-            let tangent_velocity =
-                relative_velocity - force_direction * force_direction.dot(relative_velocity);
-
-            let tangent = tangent_velocity
-                .try_normalize()
-                .unwrap_or(force_direction.any_orthonormal_vector());
-            let bitangent = force_direction.cross(tangent);
-            [tangent, bitangent]
+            // Note: The order is flipped here so that we use `-normal`.
+            [self.tangent1, self.tangent1.cross(self.normal)]
         }
+    }
+}
+
+/// Computes `DIM - 1` tangent directions.
+#[allow(unused_variables)]
+#[inline(always)]
+fn compute_tangent_directions(
+    normal: Vector,
+    velocity1: Vector,
+    velocity2: Vector,
+) -> [Vector; DIM - 1] {
+    #[cfg(feature = "2d")]
+    {
+        [Vector::new(normal.y, -normal.x)]
+    }
+    #[cfg(feature = "3d")]
+    {
+        let force_direction = -normal;
+        let relative_velocity = velocity1 - velocity2;
+        let tangent_velocity =
+            relative_velocity - force_direction * force_direction.dot(relative_velocity);
+
+        let tangent = tangent_velocity
+            .try_normalize()
+            .unwrap_or(force_direction.any_orthonormal_vector());
+        let bitangent = force_direction.cross(tangent);
+        [tangent, bitangent]
     }
 }
 

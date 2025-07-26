@@ -91,6 +91,18 @@ pub struct SolverBody {
 }
 
 impl SolverBody {
+    /// A dummy [`SolverBody`] for static bodies.
+    pub const DUMMY: Self = Self {
+        linear_velocity: Vector::ZERO,
+        #[cfg(feature = "2d")]
+        angular_velocity: 0.0,
+        #[cfg(feature = "3d")]
+        angular_velocity: Vector::ZERO,
+        delta_position: Vector::ZERO,
+        delta_rotation: Rotation::IDENTITY,
+        flags: SolverBodyFlags::empty(),
+    };
+
     /// Computes the velocity at the given `point` relative to the center of the body.
     pub fn velocity_at_point(&self, point: Vector) -> Vector {
         #[cfg(feature = "2d")]
@@ -238,19 +250,24 @@ pub struct SolverBodyInertia {
     flags: InertiaFlags,
 }
 
+impl SolverBodyInertia {
+    /// A dummy [`SolverBodyInertia`] for static bodies.
+    pub const DUMMY: Self = Self {
+        #[cfg(feature = "2d")]
+        effective_inv_mass: Vector::ZERO,
+        #[cfg(feature = "3d")]
+        inv_mass: 0.0,
+        #[cfg(feature = "2d")]
+        effective_inv_angular_inertia: 0.0,
+        #[cfg(feature = "3d")]
+        effective_inv_angular_inertia: SymmetricTensor::ZERO,
+        flags: InertiaFlags::STATIC,
+    };
+}
+
 impl Default for SolverBodyInertia {
     fn default() -> Self {
-        Self {
-            #[cfg(feature = "2d")]
-            effective_inv_mass: Vector::ZERO,
-            #[cfg(feature = "3d")]
-            inv_mass: 0.0,
-            #[cfg(feature = "2d")]
-            effective_inv_angular_inertia: 0.0,
-            #[cfg(feature = "3d")]
-            effective_inv_angular_inertia: SymmetricTensor::ZERO,
-            flags: InertiaFlags::STATIC,
-        }
+        Self::DUMMY
     }
 }
 

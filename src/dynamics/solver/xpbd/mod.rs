@@ -406,13 +406,12 @@ pub fn solve_xpbd_joint<
 
     let mut dummy_body1 = SolverBody::default();
     let mut dummy_body2 = SolverBody::default();
-    let dummy_inertia = SolverBodyInertia::default();
 
     for mut joint in &mut joints {
         let [entity1, entity2] = joint.entities();
 
-        let (mut body1, mut inertia1) = (&mut dummy_body1, &dummy_inertia);
-        let (mut body2, mut inertia2) = (&mut dummy_body2, &dummy_inertia);
+        let (mut body1, mut inertia1) = (&mut dummy_body1, &SolverBodyInertia::DUMMY);
+        let (mut body2, mut inertia2) = (&mut dummy_body2, &SolverBodyInertia::DUMMY);
 
         // Get the solver bodies for the two colliding entities.
         if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(entity1) } {
@@ -426,8 +425,8 @@ pub fn solve_xpbd_joint<
 
         // If a body has a higher dominance, it is treated as a static or kinematic body.
         match joint.relative_dominance().cmp(&0) {
-            Ordering::Greater => inertia1 = &dummy_inertia,
-            Ordering::Less => inertia2 = &dummy_inertia,
+            Ordering::Greater => inertia1 = &SolverBodyInertia::DUMMY,
+            Ordering::Less => inertia2 = &SolverBodyInertia::DUMMY,
             _ => {}
         }
 
