@@ -646,12 +646,10 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
 
                         // Keep the contact if (1) the separation distance is below the required threshold,
                         // or if (2) the bodies are expected to come into contact within the next time step.
-                        let keep_contact = -point.penetration < effective_speculative_margin || {
+                        -point.penetration < effective_speculative_margin || {
                             let delta_distance = normal_speed * delta_secs;
                             delta_distance - point.penetration < effective_speculative_margin
-                        };
-
-                        keep_contact
+                        }
                     });
                 });
 
