@@ -453,7 +453,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         (
                             body.rb.is_static(),
                             collider1.position.0 - body.position.0,
-                            body.position.0 * body.center_of_mass.0,
+                            body.rotation * body.center_of_mass.0,
                             body.linear_velocity.0,
                             body.friction,
                             body.collision_margin,
