@@ -417,14 +417,9 @@ pub struct ContactConstraints(pub Vec<ContactConstraint>);
 #[derive(QueryData)]
 struct BodyQuery {
     rb: Read<RigidBody>,
-    rotation: Read<Rotation>,
-    dominance: Option<Read<Dominance>>,
-    mass: Read<ComputedMass>,
-    angular_inertia: Read<ComputedAngularInertia>,
-    center_of_mass: Read<ComputedCenterOfMass>,
-    locked_axes: Option<Read<LockedAxes>>,
     linear_velocity: Read<LinearVelocity>,
-    angular_velocity: Read<AngularVelocity>,
+    inertia: Option<Read<SolverBodyInertia>>,
+    dominance: Option<Read<Dominance>>,
 }
 
 impl BodyQueryItem<'_> {
@@ -438,24 +433,6 @@ impl BodyQueryItem<'_> {
         } else {
             self.dominance.map_or(0, |dominance| dominance.0) as i16
         }
-    }
-
-    /// Computes the effective world-space angular inertia, taking into account any rotation locking.
-    pub fn effective_global_angular_inertia(&self) -> ComputedAngularInertia {
-        if !self.rb.is_dynamic() {
-            return ComputedAngularInertia::INFINITY;
-        }
-
-        #[cfg(feature = "2d")]
-        let mut angular_inertia = *self.angular_inertia;
-        #[cfg(feature = "3d")]
-        let mut angular_inertia = self.angular_inertia.rotated(self.rotation.0);
-
-        if let Some(locked_axes) = self.locked_axes {
-            angular_inertia = locked_axes.apply_to_angular_inertia(angular_inertia);
-        }
-
-        angular_inertia
     }
 }
 
@@ -482,6 +459,8 @@ fn prepare_contact_constraints(
         .iter_mut()
         .filter(|color| !color.manifold_handles.is_empty())
         .collect::<Vec<&mut GraphColor>>();
+
+    let dummy_inertia = SolverBodyInertia::default();
 
     // Generate contact constraints for each contact pair, parallelizing over graph colors.
     crate::utils::par_for_each(&mut active_colors, 2, |_i, color| {
@@ -520,29 +499,32 @@ fn prepare_contact_constraints(
                 continue;
             }
 
+            // Get the solver body inertia if it exists, or use a dummy inertia for static bodies.
+            let inertia1 = body1.inertia.unwrap_or(&dummy_inertia);
+            let inertia2 = body2.inertia.unwrap_or(&dummy_inertia);
+
             // Compute the relative dominance of the bodies.
             let relative_dominance = body1.dominance() - body2.dominance();
 
             // Compute the inverse mass and angular inertia, taking into account the relative dominance.
-            // TODO: Handle locked axes.
             let (inv_mass1, i1, inv_mass2, i2) = match relative_dominance.cmp(&0) {
                 Ordering::Equal => (
-                    body1.mass.inverse(),
-                    body1.effective_global_angular_inertia(),
-                    body2.mass.inverse(),
-                    body2.effective_global_angular_inertia(),
+                    inertia1.effective_inv_mass(),
+                    inertia1.effective_inv_angular_inertia(),
+                    inertia2.effective_inv_mass(),
+                    inertia2.effective_inv_angular_inertia(),
                 ),
                 Ordering::Greater => (
-                    0.0,
-                    ComputedAngularInertia::INFINITY,
-                    body2.mass.inverse(),
-                    body2.effective_global_angular_inertia(),
+                    Vector::ZERO,
+                    SymmetricTensor::ZERO,
+                    inertia2.effective_inv_mass(),
+                    inertia2.effective_inv_angular_inertia(),
                 ),
                 Ordering::Less => (
-                    body1.mass.inverse(),
-                    body1.effective_global_angular_inertia(),
-                    0.0,
-                    ComputedAngularInertia::INFINITY,
+                    inertia1.effective_inv_mass(),
+                    inertia1.effective_inv_angular_inertia(),
+                    Vector::ZERO,
+                    SymmetricTensor::ZERO,
                 ),
             };
 
@@ -552,7 +534,7 @@ fn prepare_contact_constraints(
                 contact_softness.dynamic
             };
 
-            let inverse_mass_sum = inv_mass1 + inv_mass2;
+            let effective_inverse_mass_sum = inv_mass1 + inv_mass2;
 
             // Generate a contact constraint for each contact manifold.
             let mut constraint = ContactConstraint {
@@ -583,9 +565,9 @@ fn prepare_contact_constraints(
                 let point = ContactConstraintPoint {
                     // TODO: Apply warm starting scale here instead of in `warm_start`?
                     normal_part: ContactNormalPart::generate(
-                        inverse_mass_sum,
-                        i1,
-                        i2,
+                        effective_inverse_mass_sum,
+                        &i1,
+                        &i2,
                         anchor1,
                         anchor2,
                         constraint.normal,
@@ -597,9 +579,9 @@ fn prepare_contact_constraints(
                     // There should only be a friction part if the coefficient of friction is non-negative.
                     tangent_part: (manifold.friction > 0.0).then_some(
                         ContactTangentPart::generate(
-                            inverse_mass_sum,
-                            i1,
-                            i2,
+                            effective_inverse_mass_sum,
+                            &i1,
+                            &i2,
                             anchor1,
                             anchor2,
                             tangents,

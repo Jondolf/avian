@@ -37,19 +37,17 @@ impl ContactNormalPart {
     /// Generates a new [`ContactNormalPart`].
     #[allow(clippy::too_many_arguments)]
     pub fn generate(
-        inv_mass_sum: Scalar,
-        angular_inertia1: impl Into<ComputedAngularInertia>,
-        angular_inertia2: impl Into<ComputedAngularInertia>,
+        effective_inverse_mass_sum: Vector,
+        inverse_angular_inertia1: &SymmetricTensor,
+        inverse_angular_inertia2: &SymmetricTensor,
         r1: Vector,
         r2: Vector,
         normal: Vector,
         warm_start_impulse: Option<NormalImpulse>,
         softness: SoftnessCoefficients,
     ) -> Self {
-        let angular_inertia1: ComputedAngularInertia = angular_inertia1.into();
-        let angular_inertia2: ComputedAngularInertia = angular_inertia2.into();
-        let i1 = angular_inertia1.inverse();
-        let i2 = angular_inertia2.inverse();
+        let i1 = inverse_angular_inertia1;
+        let i2 = inverse_angular_inertia2;
 
         // Derivation for the projected normal mass. This is for 3D, but the 2D version is basically equivalent.
         //
@@ -99,10 +97,11 @@ impl ContactNormalPart {
         let r1_cross_n = cross(r1, normal);
         let r2_cross_n = cross(r2, normal);
 
+        let k_linear = normal.dot(effective_inverse_mass_sum * normal);
         #[cfg(feature = "2d")]
-        let k = inv_mass_sum + i1 * r1_cross_n * r1_cross_n + i2 * r2_cross_n * r2_cross_n;
+        let k = k_linear + i1 * r1_cross_n * r1_cross_n + i2 * r2_cross_n * r2_cross_n;
         #[cfg(feature = "3d")]
-        let k = inv_mass_sum + r1_cross_n.dot(i1 * r1_cross_n) + r2_cross_n.dot(i2 * r2_cross_n);
+        let k = k_linear + r1_cross_n.dot(i1 * r1_cross_n) + r2_cross_n.dot(i2 * r2_cross_n);
 
         Self {
             impulse: warm_start_impulse.unwrap_or_default(),
