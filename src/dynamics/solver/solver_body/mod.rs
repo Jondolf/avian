@@ -14,11 +14,7 @@ pub use plugin::SolverBodyPlugin;
 use bevy::prelude::*;
 
 use super::{Rotation, Vector};
-use crate::{
-    SymmetricTensor,
-    math::{AngularVector, Scalar},
-    prelude::LockedAxes,
-};
+use crate::{SymmetricTensor, math::Scalar, prelude::LockedAxes};
 #[cfg(feature = "3d")]
 use crate::{math::Quaternion, prelude::ComputedAngularInertia};
 
@@ -98,7 +94,10 @@ impl SolverBody {
     /// A dummy [`SolverBody`] for static bodies.
     pub const DUMMY: Self = Self {
         linear_velocity: Vector::ZERO,
-        angular_velocity: AngularVector::ZERO,
+        #[cfg(feature = "2d")]
+        angular_velocity: 0.0,
+        #[cfg(feature = "3d")]
+        angular_velocity: Vector::ZERO,
         delta_position: Vector::ZERO,
         delta_rotation: Rotation::IDENTITY,
         flags: SolverBodyFlags::empty(),
