@@ -556,7 +556,7 @@ fn prepare_contact_constraints(
             let tangents =
                 constraint.tangent_directions(body1.linear_velocity.0, body2.linear_velocity.0);
 
-            for point in manifold.points.iter().copied() {
+            for point in manifold.points.iter() {
                 // Use fixed world-space anchors.
                 // This improves rolling behavior for shapes like balls and capsules.
                 let anchor1 = point.anchor1;
