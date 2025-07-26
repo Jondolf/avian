@@ -41,6 +41,7 @@ struct RigidBodyQuery {
     rotation: Read<Rotation>,
     center_of_mass: Read<ComputedCenterOfMass>,
     linear_velocity: Read<LinearVelocity>,
+    angular_velocity: Read<AngularVelocity>,
     // TODO: We should define these as purely collider components and not query for them here.
     friction: Option<Read<Friction>>,
     restitution: Option<Read<Restitution>>,
@@ -418,7 +419,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
             };
 
             // Check if the AABBs of the colliders still overlap and the contact pair is valid.
-            let overlap = collider1.aabb.intersects(&collider2.aabb);
+            let overlap = collider1.aabb.intersects(collider2.aabb);
 
             // Also check if the collision layers are still compatible and the contact pair is valid.
             // TODO: Ideally, we would have fine-grained change detection for `CollisionLayers`
@@ -444,6 +445,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     collider_offset1,
                     world_com1,
                     mut lin_vel1,
+                    ang_vel1,
                     rb_friction1,
                     rb_collision_margin1,
                     rb_speculative_margin1,
@@ -455,6 +457,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                             collider1.position.0 - body.position.0,
                             body.rotation * body.center_of_mass.0,
                             body.linear_velocity.0,
+                            body.angular_velocity.0,
                             body.friction,
                             body.collision_margin,
                             body.speculative_margin,
@@ -466,6 +469,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     collider_offset2,
                     world_com2,
                     mut lin_vel2,
+                    ang_vel2,
                     rb_friction2,
                     rb_collision_margin2,
                     rb_speculative_margin2,
@@ -477,6 +481,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                             collider2.position.0 - body.position.0,
                             body.rotation * body.center_of_mass.0,
                             body.linear_velocity.0,
+                            body.angular_velocity.0,
                             body.friction,
                             body.collision_margin,
                             body.speculative_margin,
@@ -571,7 +576,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     relative_linear_velocity = lin_vel2 - lin_vel1;
                     delta_secs * relative_linear_velocity.length()
                 };
-                contacts.effective_speculative_margin = effective_speculative_margin;
 
                 // The maximum distance at which contacts are detected.
                 // At least as large as the contact tolerance.
@@ -603,9 +607,9 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     context,
                 );
 
-                // Set the initial surface properties and transform the contact points.
-                // TODO: This could be done in `contact_manifolds` to avoid the extra iteration.
+                // Transform and prune contact data.
                 contacts.manifolds.iter_mut().for_each(|manifold| {
+                    // Set the initial surface properties.
                     manifold.friction = friction;
                     manifold.restitution = restitution;
                     #[cfg(feature = "2d")]
@@ -617,13 +621,37 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         manifold.tangent_velocity = Vector::ZERO;
                     }
 
-                    manifold.points.iter_mut().for_each(|point| {
+                    let normal = manifold.normal;
+
+                    // Transform and prune contact points.
+                    manifold.retain_points_mut(|point| {
                         // Transform contact points to be relative to the centers of mass of the bodies.
                         point.anchor1 = point.anchor1 + collider_offset1 - world_com1;
                         point.anchor2 = point.anchor2 + collider_offset2 - world_com2;
 
                         // Add the collision margin to the penetration depth.
                         point.penetration += collision_margin_sum;
+
+                        // Relative velocity at the contact point.
+                        // body2.velocity_at_point(r2) - body1.velocity_at_point(r1)
+                        #[cfg(feature = "2d")]
+                        let relative_velocity = relative_linear_velocity
+                            + ang_vel2 * point.anchor2.perp()
+                            - ang_vel1 * point.anchor1.perp();
+                        #[cfg(feature = "3d")]
+                        let relative_velocity = relative_linear_velocity
+                            + ang_vel2.cross(point.anchor2)
+                            - ang_vel1.cross(point.anchor1);
+                        let normal_speed = relative_velocity.dot(normal);
+
+                        // Keep the contact if (1) the separation distance is below the required threshold,
+                        // or if (2) the bodies are expected to come into contact within the next time step.
+                        let keep_contact = -point.penetration < effective_speculative_margin || {
+                            let delta_distance = normal_speed * delta_secs;
+                            delta_distance - point.penetration < effective_speculative_margin
+                        };
+
+                        keep_contact
                     });
                 });
 

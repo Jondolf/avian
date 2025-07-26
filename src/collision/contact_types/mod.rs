@@ -465,6 +465,22 @@ impl ContactManifold {
                 .unwrap_or(core::cmp::Ordering::Equal)
         })
     }
+
+    /// Retains only the elements specified by the predicate.
+    #[inline]
+    pub(crate) fn retain_points_mut<F>(&mut self, f: F)
+    where
+        F: FnMut(&mut ContactPoint) -> bool,
+    {
+        #[cfg(feature = "2d")]
+        {
+            self.points.retain(f);
+        }
+        #[cfg(feature = "3d")]
+        {
+            self.points.retain_mut(f);
+        }
+    }
 }
 
 /// Data associated with a contact point in a [`ContactManifold`].

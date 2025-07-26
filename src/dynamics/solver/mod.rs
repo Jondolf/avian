@@ -466,11 +466,8 @@ fn prepare_contact_constraints(
     bodies: Query<BodyQuery, RigidBodyActiveFilter>,
     narrow_phase_config: Res<NarrowPhaseConfig>,
     contact_softness: Res<ContactSoftnessCoefficients>,
-    time: Res<Time>,
 ) {
     let start = crate::utils::Instant::now();
-
-    let delta_secs = time.delta_seconds_adjusted();
 
     for color in constraint_graph.colors.iter_mut() {
         // TODO: Instead of clearing the vector, we could resize it, and just overwrite the old values in the loop below.
@@ -577,38 +574,11 @@ fn prepare_contact_constraints(
             let tangents =
                 constraint.tangent_directions(body1.linear_velocity.0, body2.linear_velocity.0);
 
-            for contact in manifold.points.iter().copied() {
-                let effective_distance = -contact.penetration;
-
+            for point in manifold.points.iter().copied() {
                 // Use fixed world-space anchors.
                 // This improves rolling behavior for shapes like balls and capsules.
-                let anchor1 = contact.anchor1;
-                let anchor2 = contact.anchor2;
-
-                // Relative velocity at the contact point.
-                // body2.velocity_at_point(r2) - body1.velocity_at_point(r1)
-                #[cfg(feature = "2d")]
-                let relative_velocity = body2.linear_velocity.0 - body1.linear_velocity.0
-                    + body2.angular_velocity.0 * anchor2.perp()
-                    - body1.angular_velocity.0 * anchor1.perp();
-                #[cfg(feature = "3d")]
-                let relative_velocity = body2.linear_velocity.0 - body1.linear_velocity.0
-                    + body2.angular_velocity.0.cross(anchor2)
-                    - body1.angular_velocity.0.cross(anchor1);
-                let normal_speed = relative_velocity.dot(constraint.normal);
-
-                // Keep the contact if (1) the separation distance is below the required threshold,
-                // or if (2) the bodies are expected to come into contact within the next frame.
-                let keep_contact = effective_distance < contact_pair.effective_speculative_margin
-                    || {
-                        let delta_distance = normal_speed * delta_secs;
-                        effective_distance + delta_distance
-                            < contact_pair.effective_speculative_margin
-                    };
-
-                if !keep_contact {
-                    continue;
-                }
+                let anchor1 = point.anchor1;
+                let anchor2 = point.anchor2;
 
                 let point = ContactConstraintPoint {
                     // TODO: Apply warm starting scale here instead of in `warm_start`?
@@ -621,7 +591,7 @@ fn prepare_contact_constraints(
                         constraint.normal,
                         narrow_phase_config
                             .match_contacts
-                            .then_some(contact.warm_start_normal_impulse),
+                            .then_some(point.warm_start_normal_impulse),
                         contact_softness,
                     ),
                     // There should only be a friction part if the coefficient of friction is non-negative.
@@ -635,13 +605,13 @@ fn prepare_contact_constraints(
                             tangents,
                             narrow_phase_config
                                 .match_contacts
-                                .then_some(contact.warm_start_tangent_impulse),
+                                .then_some(point.warm_start_tangent_impulse),
                         ),
                     ),
                     anchor1,
                     anchor2,
-                    normal_speed,
-                    initial_separation: -contact.penetration
+                    normal_speed: point.normal_speed,
+                    initial_separation: -point.penetration
                         - (anchor2 - anchor1).dot(constraint.normal),
                 };
 
