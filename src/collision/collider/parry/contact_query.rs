@@ -211,7 +211,7 @@ pub fn contact_manifolds(
         // The contact point is the midpoint of the two points in world space.
         // The anchors are relative to the positions of the colliders.
         let point1 = rotation1 * local_point1;
-        let anchor1 = point1 + normal * contact.dist * 0.5; // TODO: Is this accurate?
+        let anchor1 = point1 + normal * contact.dist * 0.5;
         let anchor2 = anchor1 + (position1.0 - position2.0);
         let world_point = position1.0 + anchor1;
         let points = [ContactPoint::new(
@@ -247,7 +247,7 @@ pub fn contact_manifolds(
             // The contact point is the midpoint of the two points in world space.
             // The anchors are relative to the positions of the colliders.
             let point1 = rotation1 * Vector::from(subpos1.transform_point(&contact.local_p1));
-            let anchor1 = point1 + normal * contact.dist * 0.5; // TODO: Is this accurate?
+            let anchor1 = point1 + normal * contact.dist * 0.5;
             let anchor2 = anchor1 + (position1.0 - position2.0);
             let world_point = position1.0 + anchor1;
             ContactPoint::new(anchor1, anchor2, world_point, -contact.dist)
