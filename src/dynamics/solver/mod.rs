@@ -12,7 +12,6 @@ pub mod xpbd;
 
 mod diagnostics;
 use constraint_graph::ConstraintGraph;
-use contact::{ContactConstraintPoint, ContactNormalPart, ContactTangentPart};
 pub use diagnostics::SolverDiagnostics;
 use solver_body::{SolverBody, SolverBodyInertia, SolverBodyPlugin};
 use xpbd::EntityConstraint;
@@ -460,8 +459,6 @@ fn prepare_contact_constraints(
         .filter(|color| !color.manifold_handles.is_empty())
         .collect::<Vec<&mut GraphColor>>();
 
-    let dummy_inertia = SolverBodyInertia::default();
-
     // Generate contact constraints for each contact pair, parallelizing over graph colors.
     crate::utils::par_for_each(&mut active_colors, 2, |_i, color| {
         for handle in color.manifold_handles.iter() {
@@ -499,106 +496,17 @@ fn prepare_contact_constraints(
                 continue;
             }
 
-            // Get the solver body inertia if it exists, or use a dummy inertia for static bodies.
-            let inertia1 = body1.inertia.unwrap_or(&dummy_inertia);
-            let inertia2 = body2.inertia.unwrap_or(&dummy_inertia);
-
-            // Compute the relative dominance of the bodies.
-            let relative_dominance = body1.dominance() - body2.dominance();
-
-            // Compute the inverse mass and angular inertia, taking into account the relative dominance.
-            let (inv_mass1, i1, inv_mass2, i2) = match relative_dominance.cmp(&0) {
-                Ordering::Equal => (
-                    inertia1.effective_inv_mass(),
-                    inertia1.effective_inv_angular_inertia(),
-                    inertia2.effective_inv_mass(),
-                    inertia2.effective_inv_angular_inertia(),
-                ),
-                Ordering::Greater => (
-                    Vector::ZERO,
-                    SymmetricTensor::ZERO,
-                    inertia2.effective_inv_mass(),
-                    inertia2.effective_inv_angular_inertia(),
-                ),
-                Ordering::Less => (
-                    inertia1.effective_inv_mass(),
-                    inertia1.effective_inv_angular_inertia(),
-                    Vector::ZERO,
-                    SymmetricTensor::ZERO,
-                ),
-            };
-
-            let contact_softness = if relative_dominance != 0 {
-                contact_softness.non_dynamic
-            } else {
-                contact_softness.dynamic
-            };
-
-            let effective_inverse_mass_sum = inv_mass1 + inv_mass2;
-
-            // Generate a contact constraint for each contact manifold.
-            let mut constraint = ContactConstraint {
-                body1: body1_entity,
-                body2: body2_entity,
-                relative_dominance,
-                friction: manifold.friction,
-                restitution: manifold.restitution,
-                #[cfg(feature = "2d")]
-                tangent_speed: manifold.tangent_speed,
-                #[cfg(feature = "3d")]
-                tangent_velocity: manifold.tangent_velocity,
-                normal: manifold.normal,
-                points: Vec::with_capacity(manifold.points.len()),
-                contact_id: contact_pair.contact_id,
+            let constraint = ContactConstraint::generate(
+                body1_entity,
+                body2_entity,
+                body1,
+                body2,
+                contact_pair.contact_id,
+                &manifold,
                 manifold_index,
-            };
-
-            let tangents =
-                constraint.tangent_directions(body1.linear_velocity.0, body2.linear_velocity.0);
-
-            for point in manifold.points.iter() {
-                // Use fixed world-space anchors.
-                // This improves rolling behavior for shapes like balls and capsules.
-                let anchor1 = point.anchor1;
-                let anchor2 = point.anchor2;
-
-                let point = ContactConstraintPoint {
-                    // TODO: Apply warm starting scale here instead of in `warm_start`?
-                    normal_part: ContactNormalPart::generate(
-                        effective_inverse_mass_sum,
-                        &i1,
-                        &i2,
-                        anchor1,
-                        anchor2,
-                        constraint.normal,
-                        narrow_phase_config
-                            .match_contacts
-                            .then_some(point.warm_start_normal_impulse),
-                        contact_softness,
-                    ),
-                    // There should only be a friction part if the coefficient of friction is non-negative.
-                    tangent_part: (manifold.friction > 0.0).then_some(
-                        ContactTangentPart::generate(
-                            effective_inverse_mass_sum,
-                            &i1,
-                            &i2,
-                            anchor1,
-                            anchor2,
-                            tangents,
-                            narrow_phase_config
-                                .match_contacts
-                                .then_some(point.warm_start_tangent_impulse),
-                        ),
-                    ),
-                    anchor1,
-                    anchor2,
-                    normal_speed: point.normal_speed,
-                    initial_separation: -point.penetration
-                        - (anchor2 - anchor1).dot(constraint.normal),
-                };
-
-                constraint.points.push(point);
-            }
+                narrow_phase_config.match_contacts,
+                &contact_softness,
+            );
 
             if !constraint.points.is_empty() {
                 color.contact_constraints.push(constraint);
@@ -655,12 +563,11 @@ fn warm_start_internal(
 ) {
     debug_assert!(!constraint.points.is_empty());
 
-    let mut dummy_body1 = SolverBody::default();
-    let mut dummy_body2 = SolverBody::default();
-    let dummy_inertia = SolverBodyInertia::default();
+    let mut dummy_body1 = SolverBody::DUMMY;
+    let mut dummy_body2 = SolverBody::DUMMY;
 
-    let (mut body1, mut inertia1) = (&mut dummy_body1, &dummy_inertia);
-    let (mut body2, mut inertia2) = (&mut dummy_body2, &dummy_inertia);
+    let (mut body1, mut inertia1) = (&mut dummy_body1, &SolverBodyInertia::DUMMY);
+    let (mut body2, mut inertia2) = (&mut dummy_body2, &SolverBodyInertia::DUMMY);
 
     // Get the solver bodies for the two colliding entities.
     if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(constraint.body1) } {
@@ -674,24 +581,12 @@ fn warm_start_internal(
 
     // If a body has a higher dominance, it is treated as a static or kinematic body.
     match constraint.relative_dominance.cmp(&0) {
-        Ordering::Greater => inertia1 = &dummy_inertia,
-        Ordering::Less => inertia2 = &dummy_inertia,
+        Ordering::Greater => inertia1 = &SolverBodyInertia::DUMMY,
+        Ordering::Less => inertia2 = &SolverBodyInertia::DUMMY,
         _ => {}
     }
 
-    let normal = constraint.normal;
-    let tangent_directions =
-        constraint.tangent_directions(body1.linear_velocity, body2.linear_velocity);
-
-    constraint.warm_start(
-        body1,
-        body2,
-        inertia1,
-        inertia2,
-        normal,
-        tangent_directions,
-        warm_start_coefficient,
-    );
+    constraint.warm_start(body1, body2, inertia1, inertia2, warm_start_coefficient);
 }
 
 /// Solves contacts by iterating through the given contact constraints
@@ -764,12 +659,11 @@ fn solve_contacts_internal<const USE_BIAS: bool>(
     max_overlap_solve_speed: Scalar,
     delta_secs: Scalar,
 ) {
-    let mut dummy_body1 = SolverBody::default();
-    let mut dummy_body2 = SolverBody::default();
-    let dummy_inertia = SolverBodyInertia::default();
+    let mut dummy_body1 = SolverBody::DUMMY;
+    let mut dummy_body2 = SolverBody::DUMMY;
 
-    let (mut body1, mut inertia1) = (&mut dummy_body1, &dummy_inertia);
-    let (mut body2, mut inertia2) = (&mut dummy_body2, &dummy_inertia);
+    let (mut body1, mut inertia1) = (&mut dummy_body1, &SolverBodyInertia::DUMMY);
+    let (mut body2, mut inertia2) = (&mut dummy_body2, &SolverBodyInertia::DUMMY);
 
     // Get the solver bodies for the two colliding entities.
     if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(constraint.body1) } {
@@ -783,8 +677,8 @@ fn solve_contacts_internal<const USE_BIAS: bool>(
 
     // If a body has a higher dominance, it is treated as a static or kinematic body.
     match constraint.relative_dominance.cmp(&0) {
-        Ordering::Greater => inertia1 = &dummy_inertia,
-        Ordering::Less => inertia2 = &dummy_inertia,
+        Ordering::Greater => inertia1 = &SolverBodyInertia::DUMMY,
+        Ordering::Less => inertia2 = &SolverBodyInertia::DUMMY,
         _ => {}
     }
 
@@ -865,12 +759,11 @@ fn solve_restitution_internal(
         return;
     }
 
-    let mut dummy_body1 = SolverBody::default();
-    let mut dummy_body2 = SolverBody::default();
-    let dummy_inertia = SolverBodyInertia::default();
+    let mut dummy_body1 = SolverBody::DUMMY;
+    let mut dummy_body2 = SolverBody::DUMMY;
 
-    let (mut body1, mut inertia1) = (&mut dummy_body1, &dummy_inertia);
-    let (mut body2, mut inertia2) = (&mut dummy_body2, &dummy_inertia);
+    let (mut body1, mut inertia1) = (&mut dummy_body1, &SolverBodyInertia::DUMMY);
+    let (mut body2, mut inertia2) = (&mut dummy_body2, &SolverBodyInertia::DUMMY);
 
     // Get the solver bodies for the two colliding entities.
     if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(constraint.body1) } {
@@ -884,8 +777,8 @@ fn solve_restitution_internal(
 
     // If a body has a higher dominance, it is treated as a static or kinematic body.
     match constraint.relative_dominance.cmp(&0) {
-        Ordering::Greater => inertia1 = &dummy_inertia,
-        Ordering::Less => inertia2 = &dummy_inertia,
+        Ordering::Greater => inertia1 = &SolverBodyInertia::DUMMY,
+        Ordering::Less => inertia2 = &SolverBodyInertia::DUMMY,
         _ => {}
     }
 
