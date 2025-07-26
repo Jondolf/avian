@@ -632,8 +632,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         // Add the collision margin to the penetration depth.
                         point.penetration += collision_margin_sum;
 
-                        // Relative velocity at the contact point.
-                        // body2.velocity_at_point(r2) - body1.velocity_at_point(r1)
+                        // Compute the relative velocity along the contact normal.
                         #[cfg(feature = "2d")]
                         let relative_velocity = relative_linear_velocity
                             + ang_vel2 * point.anchor2.perp()
@@ -643,6 +642,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                             + ang_vel2.cross(point.anchor2)
                             - ang_vel1.cross(point.anchor1);
                         let normal_speed = relative_velocity.dot(normal);
+                        point.normal_speed = normal_speed;
 
                         // Keep the contact if (1) the separation distance is below the required threshold,
                         // or if (2) the bodies are expected to come into contact within the next time step.

@@ -947,7 +947,6 @@ fn store_contact_impulses(
                     .as_ref()
                     .map_or(default(), |part| part.impulse);
                 contact.normal_impulse = constraint_point.normal_part.total_impulse;
-                contact.normal_speed = constraint_point.normal_speed;
             }
         }
     }

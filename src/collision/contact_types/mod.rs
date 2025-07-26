@@ -154,10 +154,6 @@ pub struct ContactPair {
     ///
     /// [`ConstraintGraph`]: crate::dynamics::solver::constraint_graph::ConstraintGraph
     pub(crate) manifold_count_change: i16,
-    /// The effective speculative margin computed for this contact pair.
-    ///
-    /// This is computed in the narrow phase and reused during constraint preparation.
-    pub(crate) effective_speculative_margin: Scalar,
     /// Flag indicating the status and type of the contact pair.
     pub flags: ContactPairFlags,
 }
@@ -202,7 +198,6 @@ impl ContactPair {
             body2: None,
             manifolds: Vec::new(),
             manifold_count_change: 0,
-            effective_speculative_margin: 0.0,
             flags: ContactPairFlags::empty(),
         }
     }
