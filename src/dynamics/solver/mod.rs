@@ -502,7 +502,7 @@ fn prepare_contact_constraints(
                 body1,
                 body2,
                 contact_pair.contact_id,
-                &manifold,
+                manifold,
                 manifold_index,
                 narrow_phase_config.match_contacts,
                 &contact_softness,

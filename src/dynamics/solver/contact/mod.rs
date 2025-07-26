@@ -3,10 +3,10 @@
 mod normal_part;
 mod tangent_part;
 
-use std::cmp::Ordering;
-
 pub use normal_part::ContactNormalPart;
 pub use tangent_part::ContactTangentPart;
+
+use core::cmp::Ordering;
 
 use crate::{
     collision::contact_types::ContactId,
@@ -214,7 +214,7 @@ impl ContactConstraint {
             #[cfg(feature = "3d")]
             tangent1: tangents[0],
             points,
-            contact_id: contact_id,
+            contact_id,
             manifold_index,
         }
     }
