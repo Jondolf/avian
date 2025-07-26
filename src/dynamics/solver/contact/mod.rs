@@ -415,8 +415,8 @@ impl ContactConstraint {
         }
         #[cfg(feature = "3d")]
         {
-            // TODO: Does the bitangent sign matter here?
-            [self.tangent1, (-self.normal).cross(self.tangent1)]
+            // Note: The order is flipped here so that we use `-normal`.
+            [self.tangent1, self.tangent1.cross(self.normal)]
         }
     }
 }
