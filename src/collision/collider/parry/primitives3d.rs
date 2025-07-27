@@ -14,7 +14,7 @@ impl IntoCollider<Collider> for Sphere {
 
 impl IntoCollider<Collider> for Plane3d {
     fn collider(&self) -> Collider {
-        let half_size = 10_000.0;
+        let half_size = self.half_size;
         let rotation = Quaternion::from_rotation_arc(Vector::Y, self.normal.adjust_precision());
         let vertices = vec![
             rotation * Vector::new(half_size, 0.0, -half_size),
