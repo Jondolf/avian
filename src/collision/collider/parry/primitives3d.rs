@@ -17,10 +17,10 @@ impl IntoCollider<Collider> for Plane3d {
         let half_size = self.half_size;
         let rotation = Quaternion::from_rotation_arc(Vector::Y, self.normal.adjust_precision());
         let vertices = vec![
-            rotation * Vector::new(half_size, 0.0, -half_size),
-            rotation * Vector::new(-half_size, 0.0, -half_size),
-            rotation * Vector::new(-half_size, 0.0, half_size),
-            rotation * Vector::new(half_size, 0.0, half_size),
+            rotation * Vector::new(half_size.x, 0.0, -half_size.y),
+            rotation * Vector::new(-half_size.x, 0.0, -half_size.y),
+            rotation * Vector::new(-half_size.x, 0.0, half_size.y),
+            rotation * Vector::new(half_size.x, 0.0, half_size.y),
         ];
 
         Collider::trimesh(vertices, vec![[0, 1, 2], [1, 2, 0]])
