@@ -35,39 +35,38 @@ fn spawn_tumbler(
 
     let wall_material = materials.add(Color::srgb(0.7, 0.7, 0.8));
 
-    commands
-        .spawn((
-            RigidBody::Kinematic,
-            AngularVelocity((25.0 as Scalar).to_radians()),
-            Transform::default(),
-            Visibility::default(),
-        ))
-        .with_children(|child_builder| {
-            child_builder.spawn((
+    commands.spawn((
+        RigidBody::Kinematic,
+        AngularVelocity((25.0 as Scalar).to_radians()),
+        Transform::default(),
+        Visibility::default(),
+        children![
+            (
                 Collider::from(horizontal_wall),
                 Mesh2d(horizontal_wall_mesh.clone()),
                 MeshMaterial2d(wall_material.clone()),
                 Transform::from_xyz(0.0, 10.0, 0.0),
-            ));
-            child_builder.spawn((
+            ),
+            (
                 Collider::from(horizontal_wall),
                 Mesh2d(horizontal_wall_mesh.clone()),
                 MeshMaterial2d(wall_material.clone()),
                 Transform::from_xyz(0.0, -10.0, 0.0),
-            ));
-            child_builder.spawn((
+            ),
+            (
                 Collider::from(vertical_wall),
                 Mesh2d(vertical_wall_mesh.clone()),
                 MeshMaterial2d(wall_material.clone()),
                 Transform::from_xyz(10.0, 0.0, 0.0),
-            ));
-            child_builder.spawn((
+            ),
+            (
                 Collider::from(vertical_wall),
                 Mesh2d(vertical_wall_mesh),
                 MeshMaterial2d(wall_material),
                 Transform::from_xyz(-10.0, 0.0, 0.0),
-            ));
-        });
+            ),
+        ],
+    ));
 
     let grid_count = 45;
 
