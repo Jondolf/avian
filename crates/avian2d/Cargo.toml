@@ -172,5 +172,13 @@ name = "revolute_joint_2d"
 required-features = ["2d", "default-collider"]
 
 [[example]]
+name = "sensor"
+required-features = ["2d", "default-collider"]
+
+[[example]]
+name = "tumbler"
+required-features = ["2d", "default-collider"]
+
+[[example]]
 name = "debugdump_2d"
 required-features = ["2d"]
