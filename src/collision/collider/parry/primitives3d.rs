@@ -29,7 +29,7 @@ impl IntoCollider<Collider> for InfinitePlane3d {
 
 impl IntoCollider<Collider> for Plane3d {
     fn collider(&self) -> Collider {
-        let half_size = self.half_size;
+        let half_size = self.half_size.adjust_precision();
         let rotation = Quaternion::from_rotation_arc(Vector::Y, self.normal.adjust_precision());
         let vertices = vec![
             rotation * Vector::new(half_size.x, 0.0, -half_size.y),
