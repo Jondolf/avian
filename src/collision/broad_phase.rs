@@ -419,6 +419,8 @@ fn sweep_and_prune<H: CollisionHooks>(
             // Create a new contact pair as non-touching.
             // The narrow phase will determine if the entities are touching and compute contact data.
             let mut contact_edge = ContactEdge::new(*entity1, *entity2);
+            contact_edge.body1 = Some(collider_of1.body);
+            contact_edge.body2 = Some(collider_of2.body);
             contact_edge.flags.set(
                 ContactEdgeFlags::CONTACT_EVENTS,
                 flags1

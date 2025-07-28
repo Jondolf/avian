@@ -4,6 +4,7 @@
 
 pub mod constraint_graph;
 pub mod contact;
+pub mod island_manager;
 pub mod joints;
 pub mod schedule;
 pub mod softness_parameters;
