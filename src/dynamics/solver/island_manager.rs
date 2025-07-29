@@ -44,10 +44,12 @@ use bevy::{
     ecs::{component::HookContext, world::DeferredWorld},
     prelude::*,
 };
+use slab::Slab;
 
 use crate::{
-    collision::contact_types::ContactId, dynamics::solver::solver_body::SolverBody,
-    prelude::ContactGraph,
+    collision::contact_types::ContactId,
+    dynamics::solver::solver_body::SolverBody,
+    prelude::{ContactGraph, PhysicsSchedule, PhysicsStepSet},
 };
 
 /// A plugin for managing [`PhysicsIsland`]s.
@@ -55,6 +57,8 @@ pub struct PhysicsIslandPlugin;
 
 impl Plugin for PhysicsIslandPlugin {
     fn build(&self, app: &mut App) {
+        app.init_resource::<PhysicsIslands>();
+
         // Insert `IslandBodyData` for each `SolverBody`.
         app.register_required_components::<SolverBody, IslandBodyData>();
 
@@ -66,11 +70,27 @@ impl Plugin for PhysicsIslandPlugin {
                     .try_remove::<IslandBodyData>();
             },
         );
+
+        app.add_systems(PhysicsSchedule, split_island.in_set(PhysicsStepSet::Last));
+    }
+}
+
+fn split_island(
+    mut islands: ResMut<PhysicsIslands>,
+    mut body_islands: Query<&mut IslandBodyData>,
+    mut contact_graph: ResMut<ContactGraph>,
+) {
+    islands.split_island_id = islands
+        .iter()
+        .max_by(|a, b| a.constraints_removed.cmp(&b.constraints_removed))
+        .map(|island| island.id);
+    if let Some(island_id) = islands.split_island_id {
+        islands.split_island(island_id, &mut body_islands, &mut contact_graph);
     }
 }
 
 /// A simulation island that contains bodies, contacts, and joints.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct PhysicsIsland {
     pub(crate) id: u32,
 
@@ -116,6 +136,7 @@ impl PhysicsIsland {
 
     // TODO: Use errors rather than panics.
     /// Validates the island.
+    #[inline]
     pub fn validate(&self, body_islands: &Query<&IslandBodyData>, contact_graph: &ContactGraph) {
         self.validate_bodies(body_islands);
         self.validate_contacts(contact_graph);
@@ -178,7 +199,7 @@ impl PhysicsIsland {
             let contact_island = contact
                 .island
                 .as_ref()
-                .expect("Contact edge {contact:?} has no island");
+                .unwrap_or_else(|| panic!("Contact {id:?} has no island"));
             assert_eq!(contact_island.island_id, self.id);
 
             count += 1;
@@ -195,10 +216,10 @@ impl PhysicsIsland {
 }
 
 /// A resource for the [`PhysicsIsland`]s in the simulation.
-#[derive(Resource)]
+#[derive(Resource, Debug, Default, Clone)]
 pub struct PhysicsIslands {
     /// The list of islands.
-    islands: Vec<PhysicsIsland>,
+    islands: Slab<PhysicsIsland>,
     ///The island of the island that is being split.
     pub split_island_id: Option<u32>,
 }
@@ -211,43 +232,35 @@ impl PhysicsIslands {
         F: FnOnce(&mut PhysicsIsland),
     {
         // Create a new island.
-        let island_id = self.islands.len() as u32;
+        let island_id = self.next_id();
         let mut island = PhysicsIsland::new(island_id);
 
         // Initialize the island with the provided function.
         init(&mut island);
 
         // Add the island to the list.
-        self.islands.push(island);
-
-        island_id
+        self.islands.insert(island) as u32
     }
 
-    /// Removes an island with the given ID.
-    ///
-    /// This uses [`swap_remove`](Vec::swap_remove) and updates the ID of the moved island.
+    /// Removes a [`PhysicsIsland`] with the given ID. The island is assumed to be empty,
     ///
     /// # Panics
     ///
     /// Panics if `island_id` is out of bounds.
     #[inline]
-    pub fn remove_island(&mut self, island_id: u32) -> Option<PhysicsIsland> {
+    pub fn remove_island(&mut self, island_id: u32) -> PhysicsIsland {
         if self.split_island_id == Some(island_id) {
             self.split_island_id = None;
         }
 
         // Assume the island is empty, and remove it.
-        let moved_index = self.islands.len() - 1;
-        let island = self.islands.swap_remove(island_id as usize);
+        self.islands.remove(island_id as usize)
+    }
 
-        if moved_index != island_id as usize {
-            // Fix moved island ID.
-            let moved_island = &mut self.islands[island_id as usize];
-            debug_assert!(moved_island.id == moved_index as u32);
-            moved_island.id = island.id;
-        }
-
-        Some(island)
+    /// Returns the next available island ID.
+    #[inline]
+    pub fn next_id(&self) -> u32 {
+        self.islands.vacant_key() as u32
     }
 
     /// Returns a reference to the [`PhysicsIsland`] with the given ID.
@@ -260,6 +273,18 @@ impl PhysicsIslands {
     #[inline]
     pub fn get_mut(&mut self, island_id: u32) -> Option<&mut PhysicsIsland> {
         self.islands.get_mut(island_id as usize)
+    }
+
+    /// Returns an iterator over all [`PhysicsIsland`]s.
+    #[inline]
+    pub fn iter(&self) -> impl Iterator<Item = &PhysicsIsland> {
+        self.islands.iter().map(|(_, island)| island)
+    }
+
+    /// Returns a mutable iterator over all [`PhysicsIsland`]s.
+    #[inline]
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut PhysicsIsland> {
+        self.islands.iter_mut().map(|(_, island)| island)
     }
 
     /// Adds a contact to the island manager. Called when a touching contact is created.
@@ -277,20 +302,12 @@ impl PhysicsIslands {
         debug_assert!(contact.island.is_none());
         debug_assert!(contact.is_touching());
 
-        // Get the islands of the bodies involved in the contact.
         let (Some(body1), Some(body2)) = (contact.body1, contact.body2) else {
             return;
         };
-        let body_island1 = body_islands.get(body1).unwrap();
-        let body_island2 = body_islands.get(body2).unwrap();
 
         // Merge the islands.
-        let island_id = self.merge_islands(
-            body_island1.island_id,
-            body_island2.island_id,
-            body_islands,
-            contact_graph,
-        );
+        let island_id = self.merge_islands(body1, body2, body_islands, contact_graph);
 
         // Link the contact to the island.
         let island = self.islands.get_mut(island_id as usize).unwrap_or_else(|| {
@@ -322,6 +339,10 @@ impl PhysicsIslands {
             island.tail_contact = island.head_contact;
         }
 
+        // TODO: Can we avoid this second lookup?
+        let contact = contact_graph.get_edge_mut_by_id(contact_id).unwrap();
+        contact.island = Some(contact_island);
+
         island.contact_count += 1;
 
         #[cfg(debug_assertions)]
@@ -346,8 +367,8 @@ impl PhysicsIslands {
 
         debug_assert!(contact.island.is_some());
 
-        // Get the island of the contact.
-        let contact_island = contact.island.unwrap();
+        // Remove the island from the contact edge.
+        let contact_island = contact.island.take().unwrap();
 
         // Remove the contact from the island.
         if let Some(prev_contact_id) = contact_island.prev {
@@ -398,39 +419,33 @@ impl PhysicsIslands {
         }
     }
 
-    /// Merges the [`PhysicsIsland`]s associated with the given IDs. Returns the ID of the resulting island.
+    /// Merges the [`PhysicsIsland`]s associated with the given bodies. Returns the ID of the resulting island.
     ///
     /// The bodies and contacts of the smaller island are transferred to the larger island,
     /// and the smaller island is removed.
     pub fn merge_islands(
         &mut self,
-        island_id1: u32,
-        island_id2: u32,
+        body1: Entity,
+        body2: Entity,
         body_islands: &mut Query<&mut IslandBodyData>,
         contact_graph: &mut ContactGraph,
     ) -> u32 {
+        let Ok(island_id1) = body_islands.get(body1).map(|island| island.island_id) else {
+            let island2 = body_islands.get(body2).unwrap_or_else(|_| {
+                panic!("Neither body {body1:?} nor {body2:?} is in an island");
+            });
+            return island2.island_id;
+        };
+
+        let Ok(island_id2) = body_islands.get(body2).map(|island| island.island_id) else {
+            let island1 = body_islands.get(body1).unwrap_or_else(|_| {
+                panic!("Neither body {body1:?} nor {body2:?} is in an island");
+            });
+            return island1.island_id;
+        };
+
         if island_id1 == island_id2 {
             // Merging an island with itself is a no-op.
-            return island_id1;
-        }
-
-        if island_id1 == u32::MAX {
-            assert!(
-                island_id2 < self.islands.len() as u32,
-                "Island ID out of bounds ({} >= {})",
-                island_id2,
-                self.islands.len()
-            );
-            return island_id2;
-        }
-
-        if island_id2 == u32::MAX {
-            assert!(
-                island_id1 < self.islands.len() as u32,
-                "Island ID out of bounds ({} >= {})",
-                island_id1,
-                self.islands.len()
-            );
             return island_id1;
         }
 
@@ -465,7 +480,7 @@ impl PhysicsIslands {
 
         // TODO: Joints
 
-        // 2. Connect body and constraint lists such that `self` is appended to `big`.
+        // 2. Connect body and constraint lists such that `small` is appended to `big`.
 
         // Bodies
         let tail_body_id = big.tail_body.expect("Island {island_id1} has no tail body");
@@ -482,7 +497,7 @@ impl PhysicsIslands {
         big.body_count += small.body_count;
 
         // Contacts
-        if big.head_body.is_none() {
+        if big.head_contact.is_none() {
             // The big island has no contacts.
             debug_assert!(big.tail_contact.is_none() && big.contact_count == 0);
 
@@ -530,7 +545,12 @@ impl PhysicsIslands {
             big.validate(&body_islands.as_readonly(), &contact_graph);
         }
 
-        big.id
+        // 3. Remove the small island.
+        let big_id = big.id;
+        let small_id = small.id;
+        self.remove_island(small_id);
+
+        big_id
     }
 
     /// Splits the [`PhysicsIsland`] associated with the given ID.
@@ -616,7 +636,7 @@ impl PhysicsIslands {
             seed.is_visited = true;
 
             // Create a new island.
-            let island_id = self.islands.len() as u32;
+            let island_id = self.next_id();
             let mut island = PhysicsIsland::new(island_id);
 
             // Initialize the stack with the seed body.
@@ -641,10 +661,8 @@ impl PhysicsIslands {
                 body.next = None;
                 island.tail_body = Some(body_id);
 
-                if let Some(head_body_id) = island.head_body {
-                    unsafe {
-                        body_islands.get_unchecked(head_body_id).unwrap().prev = Some(body_id);
-                    }
+                if island.head_body.is_none() {
+                    island.head_body = Some(body_id);
                 }
 
                 island.body_count += 1;
@@ -654,9 +672,7 @@ impl PhysicsIslands {
                 let contact_edges: Vec<(ContactId, Entity, Entity)> = contact_graph
                     .contact_edges_with(body_id)
                     .filter_map(|contact_edge| {
-                        let contact_island = contact_edge.island.as_ref().unwrap();
-
-                        if contact_island.is_visited {
+                        if contact_edge.island.is_some_and(|island| island.is_visited) {
                             // Only consider contacts that have not been visited yet.
                             return None;
                         }
@@ -680,9 +696,9 @@ impl PhysicsIslands {
                 for (contact_id, body1, body2) in contact_edges {
                     // Maybe add the other body to the stack.
                     let other_body_id = if body1 == body_id { body2 } else { body1 };
-                    let mut other_body = body_islands.get_mut(other_body_id).unwrap();
-                    if !other_body.is_visited {
-                        debug_assert!(stack.len() < island.body_count as usize);
+                    if let Ok(mut other_body) = body_islands.get_mut(other_body_id)
+                        && !other_body.is_visited
+                    {
                         stack.push(other_body_id);
                         other_body.is_visited = true;
                     }
@@ -699,7 +715,6 @@ impl PhysicsIslands {
                     }
 
                     let contact_edge = contact_graph.get_edge_mut_by_id(contact_id).unwrap();
-
                     let contact_island = contact_edge
                         .island
                         .as_mut()
@@ -729,7 +744,7 @@ impl PhysicsIslands {
             }
 
             // Add the new island to the list.
-            self.islands.push(island);
+            self.islands.insert(island);
         }
     }
 }
@@ -836,7 +851,9 @@ impl IslandBodyData {
         if !island_removed {
             // Validate the island.
             world.commands().queue(move |world: &mut World| {
-                let _ = world.run_system_cached(
+                use bevy::ecs::system::RunSystemOnce;
+                // TODO: This is probably quite inefficient.
+                let _ = world.run_system_once(
                     move |bodies: Query<&IslandBodyData>,
                           contact_graph: Res<ContactGraph>,
                           islands: Res<PhysicsIslands>| {

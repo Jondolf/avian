@@ -813,6 +813,7 @@ impl PluginGroup for PhysicsPlugins {
             .add(IntegratorPlugin::default())
             .add(SolverPlugin::new_with_length_unit(self.length_unit))
             .add(SolverSchedulePlugin)
+            .add(PhysicsIslandPlugin)
             .add(CcdPlugin)
             .add(SleepingPlugin)
             .add(SpatialQueryPlugin)

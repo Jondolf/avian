@@ -4,7 +4,10 @@ use core::cell::RefCell;
 use crate::{
     collision::contact_types::{ContactEdgeFlags, ContactId},
     data_structures::{bit_vec::BitVec, pair_key::PairKey},
-    dynamics::solver::constraint_graph::ConstraintGraph,
+    dynamics::solver::{
+        constraint_graph::ConstraintGraph,
+        island_manager::{IslandBodyData, PhysicsIslands},
+    },
     prelude::*,
 };
 use bevy::{
@@ -64,8 +67,10 @@ pub struct NarrowPhase<'w, 's, C: AnyCollider> {
     collider_query: Query<'w, 's, ColliderQuery<C>, Without<ColliderDisabled>>,
     colliding_entities_query: Query<'w, 's, &'static mut CollidingEntities>,
     body_query: Query<'w, 's, RigidBodyQuery, Without<RigidBodyDisabled>>,
+    body_islands: Query<'w, 's, &'static mut IslandBodyData>,
     pub contact_graph: ResMut<'w, ContactGraph>,
     pub constraint_graph: ResMut<'w, ConstraintGraph>,
+    pub island_manager: ResMut<'w, PhysicsIslands>,
     contact_status_bits: ResMut<'w, ContactStatusBits>,
     #[cfg(feature = "parallel")]
     thread_local_contact_status_bits: ResMut<'w, ThreadLocalContactStatusBits>,
@@ -165,6 +170,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         contact_pair.collider2.index(),
                     );
 
+                    let has_island = contact_edge.island.is_some();
+
                     // Remove the contact pair from the constraint graph.
                     if !contact_pair.is_sensor()
                         && let (Some(body1), Some(body2)) = (contact_pair.body1, contact_pair.body2)
@@ -178,6 +185,17 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                             );
                         }
                     }
+
+                    // Unlink the contact pair from its island.
+                    if has_island {
+                        self.island_manager.remove_contact(
+                            contact_id,
+                            &mut self.body_islands,
+                            &mut self.contact_graph,
+                        );
+                    }
+
+                    // Remove the contact edge from the contact graph.
                     self.contact_graph.remove_edge_by_id(&pair_key, contact_id);
                 } else if contact_pair.collision_started() {
                     // Send collision started event.
@@ -222,6 +240,13 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                                 .push_manifold(contact_edge, contact_pair);
                         }
                     }
+
+                    // Link the contact pair to an island.
+                    self.island_manager.add_contact(
+                        contact_id,
+                        &mut self.body_islands,
+                        &mut self.contact_graph,
+                    );
                 } else if contact_pair
                     .flags
                     .contains(ContactPairFlags::STOPPED_TOUCHING)
@@ -275,6 +300,13 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                             );
                         }
                     }
+
+                    // Unlink the contact pair from its island.
+                    self.island_manager.remove_contact(
+                        contact_id,
+                        &mut self.body_islands,
+                        &mut self.contact_graph,
+                    );
                 } else if contact_pair.is_touching()
                     && !contact_pair.is_sensor()
                     && contact_pair.manifold_count_change > 0
