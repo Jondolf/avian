@@ -98,7 +98,13 @@ pub mod prelude {
         sleeping::{DeactivationTime, SleepingPlugin, SleepingThreshold, WakeUpBody},
         solver::{
             PhysicsLengthUnit, SolverPlugin,
-            island_manager::PhysicsIslandPlugin,
+            islands::{
+                PhysicsIslandPlugin,
+                sleeping::{
+                    PhysicsIslandSleepingPlugin, SleepIslands, SleepThreshold, SleepTimer,
+                    TimeToSleep, WakeIslands,
+                },
+            },
             joints::*,
             schedule::{SolverSchedulePlugin, SolverSet, SubstepCount, SubstepSchedule},
             solver_body::SolverBodyPlugin,

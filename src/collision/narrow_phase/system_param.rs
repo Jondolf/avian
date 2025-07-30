@@ -6,7 +6,7 @@ use crate::{
     data_structures::{bit_vec::BitVec, pair_key::PairKey},
     dynamics::solver::{
         constraint_graph::ConstraintGraph,
-        island_manager::{IslandBodyData, PhysicsIslands},
+        islands::{IslandBodyData, PhysicsIslands, sleeping::WakeIslands},
     },
     prelude::*,
 };
@@ -127,6 +127,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         // Update contacts for all contact pairs.
         self.update_contacts::<H>(delta_secs, hooks, context, commands);
 
+        let mut islands_to_wake: Vec<u32> = Vec::with_capacity(128);
+
         // Process contact status changes, iterating over set bits serially to maintain determinism.
         //
         // Iterating over set bits is done efficiently with the "count trailing zeros" method:
@@ -213,17 +215,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         contact_pair.collider2,
                     );
 
-                    // Wake up the bodies.
-                    // TODO: When we have simulation islands, this will be more efficient.
-                    commands.command_scope(|mut commands| {
-                        commands.queue(WakeUpBody(
-                            contact_pair.body1.unwrap_or(contact_pair.collider1),
-                        ));
-                        commands.queue(WakeUpBody(
-                            contact_pair.body2.unwrap_or(contact_pair.collider2),
-                        ));
-                    });
-
                     debug_assert!(
                         !contact_pair.manifolds.is_empty(),
                         "Manifolds should not be empty when colliders start touching"
@@ -242,11 +233,18 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     }
 
                     // Link the contact pair to an island.
-                    self.island_manager.add_contact(
+                    let island = self.island_manager.add_contact(
                         contact_id,
                         &mut self.body_islands,
                         &mut self.contact_graph,
                     );
+
+                    if let Some(island) = island
+                        && island.is_sleeping
+                    {
+                        // Wake up the island if it was previously sleeping.
+                        islands_to_wake.push(island.id);
+                    }
                 } else if contact_pair
                     .flags
                     .contains(ContactPairFlags::STOPPED_TOUCHING)
@@ -265,17 +263,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         contact_pair.collider1,
                         contact_pair.collider2,
                     );
-
-                    // Wake up the bodies.
-                    // TODO: When we have simulation islands, this will be more efficient.
-                    commands.command_scope(|mut commands| {
-                        commands.queue(WakeUpBody(
-                            contact_pair.body1.unwrap_or(contact_pair.collider1),
-                        ));
-                        commands.queue(WakeUpBody(
-                            contact_pair.body2.unwrap_or(contact_pair.collider2),
-                        ));
-                    });
 
                     debug_assert!(
                         contact_pair.manifolds.is_empty(),
@@ -302,11 +289,17 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     }
 
                     // Unlink the contact pair from its island.
-                    self.island_manager.remove_contact(
+                    let island = self.island_manager.remove_contact(
                         contact_id,
                         &mut self.body_islands,
                         &mut self.contact_graph,
                     );
+
+                    // TODO: Do we need this?
+                    if island.is_sleeping {
+                        // Wake up the island if it was previously sleeping.
+                        islands_to_wake.push(island.id);
+                    }
                 } else if contact_pair.is_touching()
                     && !contact_pair.is_sensor()
                     && contact_pair.manifold_count_change > 0
@@ -343,6 +336,16 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 bits &= bits - 1;
             }
         }
+
+        islands_to_wake.sort_unstable();
+        islands_to_wake.dedup();
+
+        // Wake up the islands that were previously sleeping.
+        commands.command_scope(|mut commands| {
+            commands.queue(|world: &mut World| {
+                WakeIslands(islands_to_wake).apply(world);
+            });
+        });
     }
 
     /// Adds the colliding entities to their respective [`CollidingEntities`] components.

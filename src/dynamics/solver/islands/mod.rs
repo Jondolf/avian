@@ -40,6 +40,8 @@
 // The implementation is largely based on Box2D:
 // https://github.com/erincatto/box2d/blob/df9787b59e4480135fbd73d275f007b5d931a83f/src/island.c#L57
 
+pub mod sleeping;
+
 use bevy::{
     ecs::{component::HookContext, world::DeferredWorld},
     prelude::*,
@@ -49,7 +51,7 @@ use slab::Slab;
 use crate::{
     collision::contact_types::ContactId,
     dynamics::solver::solver_body::SolverBody,
-    prelude::{ContactGraph, PhysicsSchedule, PhysicsStepSet},
+    prelude::{ContactGraph, PhysicsSchedule, SolverSet},
 };
 
 /// A plugin for managing [`PhysicsIsland`]s.
@@ -63,15 +65,16 @@ impl Plugin for PhysicsIslandPlugin {
         app.register_required_components::<SolverBody, IslandBodyData>();
 
         // Remove `IslandBodyData` when `SolverBody` is removed.
-        app.add_observer(
+        // TODO: Rwmove `IslandBodyData` when the rigid body is no longer dynamic or kinematic.
+        /*app.add_observer(
             |trigger: Trigger<OnRemove, SolverBody>, mut commands: Commands| {
                 commands
                     .entity(trigger.target())
                     .try_remove::<IslandBodyData>();
             },
-        );
+        );*/
 
-        app.add_systems(PhysicsSchedule, split_island.in_set(PhysicsStepSet::Last));
+        app.add_systems(PhysicsSchedule, split_island.in_set(SolverSet::Finalize));
     }
 }
 
@@ -80,11 +83,8 @@ fn split_island(
     mut body_islands: Query<&mut IslandBodyData>,
     mut contact_graph: ResMut<ContactGraph>,
 ) {
-    islands.split_island_id = islands
-        .iter()
-        .max_by(|a, b| a.constraints_removed.cmp(&b.constraints_removed))
-        .map(|island| island.id);
-    if let Some(island_id) = islands.split_island_id {
+    // Splitting is only done when bodies want to sleep.
+    if let Some(island_id) = islands.split_candidate {
         islands.split_island(island_id, &mut body_islands, &mut contact_graph);
     }
 }
@@ -220,8 +220,12 @@ impl PhysicsIsland {
 pub struct PhysicsIslands {
     /// The list of islands.
     islands: Slab<PhysicsIsland>,
-    ///The island of the island that is being split.
-    pub split_island_id: Option<u32>,
+    /// The current island candidate for splitting.
+    ///
+    /// This is chosen based on which island is the sleepiest,
+    pub split_candidate: Option<u32>,
+    /// The largest [`SleepTimer`](sleeping::SleepTimer) of the split candidate.
+    pub split_candidate_sleep_timer: f32,
 }
 
 impl PhysicsIslands {
@@ -249,8 +253,8 @@ impl PhysicsIslands {
     /// Panics if `island_id` is out of bounds.
     #[inline]
     pub fn remove_island(&mut self, island_id: u32) -> PhysicsIsland {
-        if self.split_island_id == Some(island_id) {
-            self.split_island_id = None;
+        if self.split_candidate == Some(island_id) {
+            self.split_candidate = None;
         }
 
         // Assume the island is empty, and remove it.
@@ -287,23 +291,31 @@ impl PhysicsIslands {
         self.islands.iter_mut().map(|(_, island)| island)
     }
 
-    /// Adds a contact to the island manager. Called when a touching contact is created.
+    /// Returns the number of [`PhysicsIsland`]s.
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.islands.len()
+    }
+
+    /// Adds a contact to the island manager. Returns a reference to the island that the contact was added to.
     ///
     /// This will merge the islands of the bodies involved in the contact,
     /// and link the contact to the resulting island.
+    ///
+    /// Called when a touching contact is created between two bodies.
     pub fn add_contact(
         &mut self,
         contact_id: ContactId,
         body_islands: &mut Query<&mut IslandBodyData>,
         contact_graph: &mut ContactGraph,
-    ) {
+    ) -> Option<&PhysicsIsland> {
         let contact = contact_graph.get_edge_mut_by_id(contact_id).unwrap();
 
         debug_assert!(contact.island.is_none());
         debug_assert!(contact.is_touching());
 
         let (Some(body1), Some(body2)) = (contact.body1, contact.body2) else {
-            return;
+            return None;
         };
 
         // Merge the islands.
@@ -350,19 +362,23 @@ impl PhysicsIslands {
             // Validate the island.
             island.validate(&body_islands.as_readonly(), &contact_graph);
         }
+
+        Some(island)
     }
 
-    /// Removes a contact from the island manager. Called when a contact is no longer touching.
+    /// Removes a contact from the island manager. Returns a reference to the island that the contact was removed from.
     ///
     /// This will unlink the contact from the island and update the island's contact list.
     /// The [`PhysicsIsland::constraints_removed`] counter is incremented and used later
     /// as a heuristic for island splitting.
+    ///
+    /// Called when a contact is destroyed or no longer touching.
     pub fn remove_contact(
         &mut self,
         contact_id: ContactId,
         body_islands: &mut Query<&mut IslandBodyData>,
         contact_graph: &mut ContactGraph,
-    ) {
+    ) -> &PhysicsIsland {
         let contact = contact_graph.get_edge_mut_by_id(contact_id).unwrap();
 
         debug_assert!(contact.island.is_some());
@@ -417,6 +433,8 @@ impl PhysicsIslands {
             // Validate the island.
             island.validate(&body_islands.as_readonly(), &contact_graph);
         }
+
+        island
     }
 
     /// Merges the [`PhysicsIsland`]s associated with the given bodies. Returns the ID of the resulting island.

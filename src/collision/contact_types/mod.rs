@@ -11,7 +11,7 @@ pub use system_param::Collisions;
 
 use crate::{
     data_structures::graph::EdgeIndex,
-    dynamics::solver::{constraint_graph::ContactConstraintHandle, island_manager::IslandNode},
+    dynamics::solver::{constraint_graph::ContactConstraintHandle, islands::IslandNode},
     prelude::*,
 };
 use bevy::prelude::*;
