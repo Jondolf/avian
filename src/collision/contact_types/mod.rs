@@ -527,7 +527,7 @@ impl ContactManifold {
             }
         }
 
-        // C*onstruct the manifold, ensuring the order is correct to form a convex polygon.
+        // Construct the manifold, ensuring the order is correct to form a convex polygon.
         // TODO: The points in the manifold should be in an `ArrayVec`, and the input points should be separate.
         let points = core::mem::take(&mut self.points);
         self.points.push(points[point1_index]);
