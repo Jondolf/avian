@@ -325,6 +325,7 @@ pub struct ContactManifold {
     ///
     /// Each point in a manifold shares the same `normal`.
     #[cfg(feature = "3d")]
+    // TODO: Store a maximum of 4 points in 3D in an `ArrayVec`.
     pub points: Vec<ContactPoint>,
     /// The unit contact normal in world space, pointing from the first shape to the second.
     ///
@@ -443,6 +444,100 @@ impl ContactManifold {
                     break;
                 }
             }
+        }
+    }
+
+    /// Prunes the contact points in the manifold to a maximum of 4 points.
+    /// This is done to improve performance and stability.
+    #[inline]
+    #[cfg(feature = "3d")]
+    pub fn prune_points(&mut self) {
+        // Based on `PruneContactPoints` in Jolt by Jorrit Rouwe.
+        // https://github.com/jrouwe/JoltPhysics/blob/f3dbdd2dadac4a5510391f103f264c0427d55c50/Jolt/Physics/Collision/ManifoldBetweenTwoFaces.cpp#L16
+
+        debug_assert!(
+            self.points.len() > 4,
+            "`ContactManifold::prune_points` called on a manifold with 4 or fewer points"
+        );
+
+        // We use a heuristic of `distance_to_com * penetration` to find the points we should keep.
+        // Neither of these should become zero, so we clamp the minimum distance.
+        const MIN_DISTANCE_SQUARED: Scalar = 1e-6;
+
+        // Project the contact points onto the contact normal and compute the squared penetrations depths.
+        let (projected, penetrations_squared): (Vec<Vector>, Vec<Scalar>) = self
+            .points
+            .iter()
+            .map(|point| {
+                (
+                    point.anchor1.reject_from_normalized(self.normal),
+                    (point.penetration * point.penetration).max(MIN_DISTANCE_SQUARED),
+                )
+            })
+            .unzip();
+
+        // Find the point that is farthest from the center of mass, as its torque has the largest influence,
+        // while also taking into account the penetration depth heuristic.
+        let mut point1_index = 0;
+        let mut value = Scalar::MIN;
+        for (i, point) in projected.iter().enumerate() {
+            let v = point.length_squared().max(MIN_DISTANCE_SQUARED) * penetrations_squared[i];
+            if v > value {
+                value = v;
+                point1_index = i;
+            }
+        }
+        let point1 = projected[point1_index];
+
+        // Find the point farthest from the first point, forming a line segment.
+        // Also consider the penetration depth heuristic.
+        let mut point2_index = usize::MAX;
+        let mut max_distance = Scalar::MIN;
+        for (i, point) in projected.iter().enumerate() {
+            if i == point1_index {
+                continue;
+            }
+            let v =
+                point.distance_squared(point1).max(MIN_DISTANCE_SQUARED) * penetrations_squared[i];
+            if v > max_distance {
+                max_distance = v;
+                point2_index = i;
+            }
+        }
+        debug_assert!(point2_index != usize::MAX, "No second point found");
+        let point2 = projected[point2_index as usize];
+
+        // Find the farthest points on both sides of the line segment in order to maximize the area.
+        let mut point3_index = usize::MAX;
+        let mut point4_index = usize::MAX;
+        let mut min_value = 0.0;
+        let mut max_value = 0.0;
+        let perp = (point2 - point1).cross(self.normal);
+        for (i, point) in projected.iter().enumerate() {
+            if i == point1_index || i == point2_index {
+                continue;
+            }
+            let v = perp.dot(point - point1);
+            if v < min_value {
+                min_value = v;
+                point3_index = i;
+            } else if v > max_value {
+                max_value = v;
+                point4_index = i;
+            }
+        }
+
+        // C*onstruct the manifold, ensuring the order is correct to form a convex polygon.
+        // TODO: The points in the manifold should be in an `ArrayVec`, and the input points should be separate.
+        let points = core::mem::take(&mut self.points);
+        self.points.push(points[point1_index]);
+        if point3_index != usize::MAX {
+            self.points.push(points[point3_index]);
+        }
+        self.points.push(points[point2_index]);
+        if point4_index != usize::MAX {
+            debug_assert_ne!(point3_index, point4_index);
+            self.points.push(points[point4_index]);
         }
     }
 
