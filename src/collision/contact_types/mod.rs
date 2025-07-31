@@ -505,7 +505,7 @@ impl ContactManifold {
             }
         }
         debug_assert!(point2_index != usize::MAX, "No second point found");
-        let point2 = projected[point2_index as usize];
+        let point2 = projected[point2_index];
 
         // Find the farthest points on both sides of the line segment in order to maximize the area.
         let mut point3_index = usize::MAX;
