@@ -464,7 +464,7 @@ impl ContactManifold {
         // Neither of these should become zero, so we clamp the minimum distance.
         const MIN_DISTANCE_SQUARED: Scalar = 1e-6;
 
-        // Project the contact points onto the contact normal and compute the squared penetrations depths.
+        // Project the contact points onto the contact normal and compute the squared penetration depths.
         let (projected, penetrations_squared): (Vec<Vector>, Vec<Scalar>) = self
             .points
             .iter()
