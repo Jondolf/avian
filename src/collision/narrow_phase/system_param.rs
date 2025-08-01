@@ -651,6 +651,12 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                             delta_distance - point.penetration < effective_speculative_margin
                         }
                     });
+
+                    // Prune extra contact points.
+                    #[cfg(feature = "3d")]
+                    if manifold.points.len() > 4 {
+                        manifold.prune_points();
+                    }
                 });
 
                 // Check if the colliders are now touching.
