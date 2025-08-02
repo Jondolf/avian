@@ -1,4 +1,7 @@
-use avian3d::{math::*, prelude::*};
+use avian3d::{
+    math::*,
+    prelude::{joint_graph::JointGraph, *},
+};
 use bevy::prelude::*;
 use examples_common_3d::ExampleCommonPlugin;
 
@@ -76,6 +79,7 @@ fn collect_collision_pairs(
     colliders: Query<(Entity, &ColliderAabb, &ColliderOf)>,
     bodies: Query<&RigidBody>,
     mut contact_graph: ResMut<ContactGraph>,
+    joint_graph: Res<JointGraph>,
 ) {
     // Loop through all entity combinations and create contact pairs for overlapping AABBs.
     for [
@@ -101,8 +105,18 @@ fn collect_collision_pairs(
             continue;
         }
 
+        // Optional: Check if a joint disables contacts between the two bodies.
+        if joint_graph
+            .joints_between(collider_of1.body, collider_of2.body)
+            .any(|edge| edge.collision_disabled)
+        {
+            continue;
+        }
+
         // Create a contact pair as non-touching by adding an edge between the entities in the contact graph.
-        let contact_edge = ContactEdge::new(collider1, collider2);
+        let mut contact_edge = ContactEdge::new(collider1, collider2);
+        contact_edge.body1 = Some(collider_of1.body);
+        contact_edge.body2 = Some(collider_of2.body);
         contact_graph.add_edge_with(contact_edge, |contact_pair| {
             contact_pair.body1 = Some(collider_of1.body);
             contact_pair.body2 = Some(collider_of2.body);

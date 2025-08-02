@@ -159,7 +159,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         contact_pair.collider2,
                     );
 
-                    // Remove the contact pair from the contact graph.
                     let pair_key = PairKey::new(
                         contact_pair.collider1.index(),
                         contact_pair.collider2.index(),
@@ -178,6 +177,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                             );
                         }
                     }
+
+                    // Remove the contact pair from the contact graph.
                     self.contact_graph.remove_edge_by_id(&pair_key, contact_id);
                 } else if contact_pair.collision_started() {
                     // Send collision started event.
@@ -216,6 +217,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         .flags
                         .set(ContactPairFlags::STARTED_TOUCHING, false);
 
+                    // Add the contact pair to the constraint graph.
                     if !contact_pair.is_sensor() {
                         for _ in contact_pair.manifolds.iter() {
                             self.constraint_graph

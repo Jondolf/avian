@@ -5,7 +5,7 @@ use avian3d::{
         xpbd::*,
     },
     math::*,
-    prelude::*,
+    prelude::{joint_graph::JointGraphPlugin, *},
 };
 use bevy::{
     ecs::entity::{EntityMapper, MapEntities},
@@ -21,6 +21,9 @@ fn main() {
         DefaultPlugins,
         ExampleCommonPlugin,
         PhysicsPlugins::default(),
+        // Consider our custom joint type for the joint graph.
+        // This is required for sleeping and the `JointCollisionDisabled` component to work.
+        JointGraphPlugin::<CenterDistanceConstraint>::default(),
     ))
     .add_systems(Startup, setup);
 
