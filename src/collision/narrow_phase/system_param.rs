@@ -166,7 +166,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         contact_pair.collider2,
                     );
 
-                    // Remove the contact pair from the contact graph.
                     let pair_key = PairKey::new(
                         contact_pair.collider1.index(),
                         contact_pair.collider2.index(),
@@ -225,6 +224,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         .flags
                         .set(ContactPairFlags::STARTED_TOUCHING, false);
 
+                    // Add the contact pair to the constraint graph.
                     if !contact_pair.is_sensor() {
                         for _ in contact_pair.manifolds.iter() {
                             self.constraint_graph
@@ -686,6 +686,12 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                             delta_distance - point.penetration < effective_speculative_margin
                         }
                     });
+
+                    // Prune extra contact points.
+                    #[cfg(feature = "3d")]
+                    if manifold.points.len() > 4 {
+                        manifold.prune_points();
+                    }
                 });
 
                 // Check if the colliders are now touching.
