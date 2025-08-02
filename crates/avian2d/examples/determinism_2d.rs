@@ -19,8 +19,8 @@ use avian2d::{
     prelude::*,
 };
 use bevy::{
-    color::palettes::tailwind::CYAN_400, ecs::system::SystemParam,
-    input::common_conditions::input_just_pressed, prelude::*, render::camera::ScalingMode,
+    color::palettes::tailwind::CYAN_400, input::common_conditions::input_just_pressed, prelude::*,
+    render::camera::ScalingMode,
 };
 use bytemuck::{Pod, Zeroable};
 
