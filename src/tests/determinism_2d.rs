@@ -21,7 +21,7 @@ use crate::{
     math::{PI, Vector},
     prelude::*,
 };
-use bevy::{ecs::system::SystemParam, prelude::*, time::TimeUpdateStrategy};
+use bevy::{prelude::*, time::TimeUpdateStrategy};
 use bytemuck::{Pod, Zeroable};
 
 // How many steps to record the hash for.
