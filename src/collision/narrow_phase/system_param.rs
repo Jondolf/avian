@@ -5,7 +5,7 @@ use crate::{
     collision::contact_types::{ContactEdgeFlags, ContactId},
     data_structures::{bit_vec::BitVec, pair_key::PairKey},
     dynamics::solver::constraint_graph::ConstraintGraph,
-    prelude::*,
+    prelude::{joint_graph::JointGraph, *},
 };
 use bevy::{
     ecs::{
@@ -66,6 +66,7 @@ pub struct NarrowPhase<'w, 's, C: AnyCollider> {
     body_query: Query<'w, 's, RigidBodyQuery, Without<RigidBodyDisabled>>,
     pub contact_graph: ResMut<'w, ContactGraph>,
     pub constraint_graph: ResMut<'w, ConstraintGraph>,
+    joint_graph: Res<'w, JointGraph>,
     contact_status_bits: ResMut<'w, ContactStatusBits>,
     #[cfg(feature = "parallel")]
     thread_local_contact_status_bits: ResMut<'w, ThreadLocalContactStatusBits>,
@@ -424,7 +425,16 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
             // Also check if the collision layers are still compatible and the contact pair is valid.
             // TODO: Ideally, we would have fine-grained change detection for `CollisionLayers`
             //       rather than checking it for every pair here.
-            if !overlap || !collider1.layers.interacts_with(*collider2.layers) {
+            if !overlap
+                || !collider1.layers.interacts_with(*collider2.layers)
+                || collider1.of.zip(collider2.of).is_none_or(|(c1, c2)| {
+                    // If a joint disables contacts, skip this pair.
+                    // TODO: Do this with hooks when adding/removing `JointCollisionDisabled`.
+                    self.joint_graph
+                        .joints_between(c1.body, c2.body)
+                        .any(|edge| edge.collision_disabled)
+                })
+            {
                 // The AABBs no longer overlap. The contact pair should be removed.
                 contacts.flags.set(ContactPairFlags::DISJOINT_AABB, true);
                 status_change_bits.set(contact_id);

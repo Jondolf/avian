@@ -128,6 +128,10 @@
 //! Now, just spawn an instance of the constraint, give it the participating entities, and the constraint should be getting
 //! solved automatically according to the `solve` method!
 //!
+//! If the constraint is a [joint](crate::dynamics::solver::joints), it is recommended to also add an instance
+//! of [`JointGraphPlugin`](crate::dynamics::solver::joints::joint_graph::JointGraphPlugin) for the constraint type.
+//! This is required for sleeping and the `JointCollisionDisabled` component to work.
+//!
 //! You can find a working example of a custom constraint
 //! [here](https://github.com/Jondolf/avian/blob/main/crates/avian3d/examples/custom_constraint.rs).
 //!

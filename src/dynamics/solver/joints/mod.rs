@@ -33,7 +33,7 @@
 #![cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
 #![cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 //! use bevy::prelude::*;
-
+//!
 //! fn setup(mut commands: Commands) {
 //!     let entity1 = commands.spawn(RigidBody::Dynamic).id();
 //!     let entity2 = commands.spawn(RigidBody::Dynamic).id();
@@ -42,6 +42,9 @@
 //!     commands.spawn(FixedJoint::new(entity1, entity2));
 //! }
 //! ```
+//!
+//! By default, the attached bodies can still collide with each other.
+//! This behavior can be disabled with the [`JointCollisionDisabled`] component.
 //!
 //! ## Stiffness
 //!
@@ -93,6 +96,8 @@ mod revolute;
 #[cfg(feature = "3d")]
 mod spherical;
 
+pub mod joint_graph;
+
 pub use fixed_angle_constraint::*;
 pub use point_constraint::*;
 
@@ -103,8 +108,14 @@ pub use revolute::*;
 #[cfg(feature = "3d")]
 pub use spherical::*;
 
-use crate::{dynamics::solver::xpbd::*, prelude::*};
-use bevy::prelude::*;
+use crate::{
+    dynamics::solver::xpbd::*,
+    prelude::{joint_graph::JointGraph, *},
+};
+use bevy::{
+    ecs::{component::HookContext, world::DeferredWorld},
+    prelude::*,
+};
 
 /// A trait for [joints](self).
 pub trait Joint: Component + PositionConstraint + AngularConstraint {
@@ -303,3 +314,51 @@ impl AngleLimit {
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, Default)]
 pub struct JointDisabled;
+
+/// A marker component that disables collision for [rigid bodies](RigidBody)
+/// connected by a [joint](self). Must be on the same entity as the joint.
+///
+/// # Example
+///
+/// ```
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
+/// use bevy::prelude::*;
+///
+/// fn setup(mut commands: Commands) {
+///     let entity1 = commands.spawn(RigidBody::Dynamic).id();
+///     let entity2 = commands.spawn(RigidBody::Dynamic).id();
+///     
+///     // Connect the bodies with a fixed joint.
+///     // Disables collision between the two bodies.
+///     commands.spawn((
+///         FixedJoint::new(entity1, entity2),
+///         JointCollisionDisabled,
+///     ));
+/// }
+/// ```
+#[derive(Component)]
+#[component(on_add = JointCollisionDisabled::on_add, on_remove = JointCollisionDisabled::on_remove)]
+pub struct JointCollisionDisabled;
+
+impl JointCollisionDisabled {
+    fn on_add(mut world: DeferredWorld, ctx: HookContext) {
+        let entity = ctx.entity;
+
+        // Update the `contacts_enabled` property of the joint edge.
+        let mut joint_graph = world.resource_mut::<JointGraph>();
+        if let Some(joint_edge) = joint_graph.get_joint_mut(entity) {
+            joint_edge.collision_disabled = true;
+        }
+    }
+
+    fn on_remove(mut world: DeferredWorld, ctx: HookContext) {
+        let entity = ctx.entity;
+
+        // Update the `contacts_enabled` property of the joint edge.
+        let mut joint_graph = world.resource_mut::<JointGraph>();
+        if let Some(joint_edge) = joint_graph.get_joint_mut(entity) {
+            joint_edge.collision_disabled = false;
+        }
+    }
+}

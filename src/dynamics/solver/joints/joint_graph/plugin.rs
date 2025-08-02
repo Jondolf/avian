@@ -1,0 +1,219 @@
+use core::marker::PhantomData;
+
+use crate::{
+    dynamics::solver::xpbd::EntityConstraint,
+    prelude::{
+        Joint, JointCollisionDisabled, JointDisabled, PhysicsSchedule, PhysicsStepSet,
+        joint_graph::{JointGraph, JointGraphEdge},
+    },
+};
+use bevy::{
+    ecs::{
+        component::{ComponentId, HookContext},
+        entity_disabling::Disabled,
+        world::DeferredWorld,
+    },
+    prelude::*,
+};
+
+/// A plugin that manages the [`JointGraph`] for a specific [joint] type.
+///
+/// [joint]: crate::dynamics::solver::joints
+pub struct JointGraphPlugin<T: Joint + EntityConstraint<2>>(PhantomData<T>);
+
+impl<T: Joint + EntityConstraint<2>> Default for JointGraphPlugin<T> {
+    fn default() -> Self {
+        Self(PhantomData)
+    }
+}
+
+/// A component that holds the [`ComponentId`] of the [joint] component on this entity, if any.
+///
+/// [joint]: crate::dynamics::solver::joints
+#[derive(Component, Clone, Debug, Default, PartialEq, Reflect)]
+pub struct JointComponentId(Option<ComponentId>);
+
+impl JointComponentId {
+    /// Creates a new [`JointComponentId`] component with no active joint.
+    pub fn new() -> Self {
+        Self(None)
+    }
+
+    /// Returns the [`ComponentId`] of the active joint component, if any.
+    pub fn id(&self) -> Option<ComponentId> {
+        self.0
+    }
+}
+
+#[derive(Resource, Default)]
+struct JointGraphPluginInitialized;
+
+impl<T: Joint + EntityConstraint<2>> Plugin for JointGraphPlugin<T> {
+    fn build(&self, app: &mut App) {
+        let already_initialized = app
+            .world()
+            .is_resource_added::<JointGraphPluginInitialized>();
+
+        app.init_resource::<JointGraph>();
+
+        // Automatically add the `JointComponentId` component when the joint is added.
+        app.register_required_components::<T, JointComponentId>();
+
+        // Register hooks for adding and removing joints.
+        app.world_mut()
+            .register_component_hooks::<T>()
+            .on_add(on_add_joint::<T>)
+            .on_remove(on_remove_joint::<T>);
+
+        if !already_initialized {
+            // Remove the joint from the joint graph when it is disabled.
+            app.add_observer(
+                |trigger: Trigger<OnAdd, (Disabled, JointDisabled)>,
+                 mut joint_graph: ResMut<JointGraph>| {
+                    let entity = trigger.target();
+                    joint_graph.remove_joint(entity);
+                },
+            );
+        }
+
+        // TODO: Deduplicate these observers.
+        // Add the joint back to the joint graph when `Disabled` is removed.
+        app.add_observer(
+            |trigger: Trigger<OnRemove, Disabled>,
+             query: Query<
+                (&T, Has<JointCollisionDisabled>),
+                (
+                    With<JointComponentId>,
+                    Or<(With<Disabled>, Without<Disabled>)>,
+                    Without<JointDisabled>,
+                ),
+            >,
+             mut joint_graph: ResMut<JointGraph>| {
+                let entity = trigger.target();
+
+                // If the entity has a joint component, re-add it to the joint graph.
+                if let Ok((joint, collision_disabled)) = query.get(entity) {
+                    let [body1, body2] = joint.entities();
+                    let joint_edge = JointGraphEdge {
+                        entity,
+                        collision_disabled,
+                    };
+                    joint_graph.add_joint(body1, body2, joint_edge);
+                }
+            },
+        );
+
+        // Add the joint back to the joint graph when `JointDisabled` is removed.
+        app.add_observer(
+            |trigger: Trigger<OnRemove, JointDisabled>,
+             query: Query<(&T, Has<JointCollisionDisabled>), With<JointComponentId>>,
+             mut joint_graph: ResMut<JointGraph>| {
+                let entity = trigger.target();
+
+                // If the entity has a joint component, re-add it to the joint graph.
+                if let Ok((joint, collision_disabled)) = query.get(entity) {
+                    let [body1, body2] = joint.entities();
+                    let joint_edge = JointGraphEdge {
+                        entity,
+                        collision_disabled,
+                    };
+                    joint_graph.add_joint(body1, body2, joint_edge);
+                }
+            },
+        );
+
+        app.add_systems(
+            PhysicsSchedule,
+            on_change_joint_entities::<T>
+                .in_set(PhysicsStepSet::First)
+                .ambiguous_with(PhysicsStepSet::First),
+        );
+    }
+}
+
+fn on_add_joint<T: Joint + EntityConstraint<2>>(mut world: DeferredWorld, ctx: HookContext) {
+    let entity = ctx.entity;
+    let component_id = ctx.component_id;
+
+    let mut joint = world.get_mut::<JointComponentId>(entity).unwrap();
+    let old_joint = joint.0;
+
+    // Update the joint component with the new component ID.
+    joint.0 = Some(component_id);
+
+    if let Some(old_joint) = old_joint {
+        // Joint already exists, remove the old one.
+        world.commands().entity(entity).remove_by_id(old_joint);
+
+        #[cfg(debug_assertions)]
+        {
+            use disqualified::ShortName;
+
+            // Log a warning about the joint replacement in case it was not intentional.
+            let components = world.components();
+            let old_joint_name = ShortName(components.get_info(old_joint).unwrap().name());
+            let new_joint_name = ShortName(components.get_info(component_id).unwrap().name());
+
+            warn!(
+                "{old_joint_name} was replaced with {new_joint_name} on entity {entity}. An entity can only hold one joint type at a time."
+            );
+        }
+    }
+
+    // Add the joint to the joint graph.
+    let entity_ref = world.entity(entity);
+    let contacts_enabled = entity_ref.contains::<JointCollisionDisabled>();
+    let joint = entity_ref.get::<T>().unwrap();
+    let [body1, body2] = joint.entities();
+    let joint_edge = JointGraphEdge {
+        entity,
+        collision_disabled: contacts_enabled,
+    };
+    let mut joint_graph = world.resource_mut::<JointGraph>();
+    joint_graph.add_joint(body1, body2, joint_edge);
+}
+
+fn on_remove_joint<T: Joint + EntityConstraint<2>>(mut world: DeferredWorld, ctx: HookContext) {
+    let entity = ctx.entity;
+    let component_id = ctx.component_id;
+
+    // Remove the `JointComponentId` from the entity unless the component ID
+    // was changed, implying that the joint is being replaced by another one.
+    if let Some(mut joint) = world.get_mut::<JointComponentId>(entity) {
+        if joint.0 == Some(component_id) {
+            joint.0 = None;
+            // Remove the joint component.
+            world
+                .commands()
+                .entity(entity)
+                .try_remove::<JointComponentId>();
+
+            // Remove the joint from the joint graph.
+            let mut joint_graph = world.resource_mut::<JointGraph>();
+            joint_graph.remove_joint(entity);
+        }
+    }
+}
+
+/// Update the joint graph when the entities of a joint change.
+fn on_change_joint_entities<T: Joint + EntityConstraint<2>>(
+    query: Query<(Entity, &T), Changed<T>>,
+    mut joint_graph: ResMut<JointGraph>,
+) {
+    for (entity, joint) in &query {
+        let [body1, body2] = joint.entities();
+        let Some([old_body1, old_body2]) = joint_graph.bodies_of(entity) else {
+            continue;
+        };
+
+        if body1 != old_body1 || body2 != old_body2 {
+            // Remove the old joint edge.
+            if let Some(edge) = joint_graph.remove_joint(entity) {
+                // Add the joint edge with the new bodies.
+                joint_graph.add_joint(body1, body2, edge);
+            }
+        }
+    }
+}
+
+// TODO: Tests

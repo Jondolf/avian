@@ -37,9 +37,7 @@ fn cross_platform_determinism_2d() {
     app.add_plugins((
         MinimalPlugins,
         TransformPlugin,
-        PhysicsPlugins::default()
-            .with_length_unit(0.5)
-            .with_collision_hooks::<PhysicsHooks>(),
+        PhysicsPlugins::default().with_length_unit(0.5),
         #[cfg(feature = "bevy_scene")]
         AssetPlugin::default(),
         #[cfg(feature = "bevy_scene")]
@@ -147,28 +145,10 @@ fn setup_scene(mut commands: Commands) {
                         .with_point_compliance(0.0001)
                         .with_local_anchor_1(Vec2::splat(half_size).adjust_precision())
                         .with_local_anchor_2(Vec2::new(offset, -half_size).adjust_precision()),
+                    JointCollisionDisabled,
                 ));
                 prev_entity = None;
             }
         }
-    }
-}
-
-#[derive(SystemParam)]
-pub struct PhysicsHooks<'w, 's> {
-    joints: Query<'w, 's, &'static RevoluteJoint>,
-}
-
-impl CollisionHooks for PhysicsHooks<'_, '_> {
-    fn filter_pairs(&self, entity1: Entity, entity2: Entity, _commands: &mut Commands) -> bool {
-        // Ignore the collision if the entities are connected by a joint.
-        // TODO: This should be an optimized built-in feature for joints.
-        self.joints
-            .iter()
-            .find(|joint| {
-                (joint.entity1 == entity1 && joint.entity2 == entity2)
-                    || (joint.entity1 == entity2 && joint.entity2 == entity1)
-            })
-            .is_some()
     }
 }

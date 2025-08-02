@@ -5,7 +5,10 @@
 
 use core::marker::PhantomData;
 
-use crate::{data_structures::pair_key::PairKey, prelude::*};
+use crate::{
+    data_structures::pair_key::PairKey,
+    prelude::{joint_graph::JointGraph, *},
+};
 use bevy::{
     ecs::{
         entity::{EntityMapper, MapEntities},
@@ -336,6 +339,7 @@ fn init_aabb_interval_flags(
 fn collect_collision_pairs<H: CollisionHooks>(
     intervals: ResMut<AabbIntervals>,
     mut contact_graph: ResMut<ContactGraph>,
+    joint_graph: Res<JointGraph>,
     hooks: StaticSystemParam<H>,
     mut commands: Commands,
     mut diagnostics: ResMut<CollisionDiagnostics>,
@@ -347,6 +351,7 @@ fn collect_collision_pairs<H: CollisionHooks>(
     sweep_and_prune::<H>(
         intervals,
         &mut contact_graph,
+        &joint_graph,
         &mut hooks.into_inner(),
         &mut commands,
     );
@@ -360,6 +365,7 @@ fn collect_collision_pairs<H: CollisionHooks>(
 fn sweep_and_prune<H: CollisionHooks>(
     mut intervals: ResMut<AabbIntervals>,
     contact_graph: &mut ContactGraph,
+    joint_graph: &JointGraph,
     hooks: &mut H::Item<'_, '_>,
     commands: &mut Commands,
 ) where
@@ -402,6 +408,14 @@ fn sweep_and_prune<H: CollisionHooks>(
             // Avoid duplicate pairs.
             let pair_key = PairKey::new(entity1.index(), entity2.index());
             if contact_graph.contains_key(&pair_key) {
+                continue;
+            }
+
+            // Check if a joint disables contacts between the two bodies.
+            if joint_graph
+                .joints_between(collider_of1.body, collider_of2.body)
+                .any(|edge| edge.collision_disabled == false)
+            {
                 continue;
             }
 

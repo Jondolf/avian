@@ -18,7 +18,7 @@ use xpbd::EntityConstraint;
 
 use crate::{
     dynamics::solver::constraint_graph::{COLOR_OVERFLOW_INDEX, ContactManifoldHandle, GraphColor},
-    prelude::*,
+    prelude::{joint_graph::JointGraphPlugin, *},
 };
 use bevy::{
     ecs::{query::QueryData, system::lifetimeless::Read},
@@ -101,6 +101,15 @@ impl Plugin for SolverPlugin {
     fn build(&self, app: &mut App) {
         // Add the `SolverBodyPlugin` to manage solver bodies and synchronize them with rigid body data.
         app.add_plugins(SolverBodyPlugin);
+
+        app.add_plugins((
+            JointGraphPlugin::<FixedJoint>::default(),
+            JointGraphPlugin::<RevoluteJoint>::default(),
+            JointGraphPlugin::<PrismaticJoint>::default(),
+            JointGraphPlugin::<DistanceJoint>::default(),
+            #[cfg(feature = "3d")]
+            JointGraphPlugin::<SphericalJoint>::default(),
+        ));
 
         app.init_resource::<SolverConfig>()
             .init_resource::<ContactSoftnessCoefficients>()
