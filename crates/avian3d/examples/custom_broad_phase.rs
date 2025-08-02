@@ -114,7 +114,9 @@ fn collect_collision_pairs(
         }
 
         // Create a contact pair as non-touching by adding an edge between the entities in the contact graph.
-        let contact_edge = ContactEdge::new(collider1, collider2);
+        let mut contact_edge = ContactEdge::new(collider1, collider2);
+        contact_edge.body1 = Some(collider_of1.body);
+        contact_edge.body2 = Some(collider_of2.body);
         contact_graph.add_edge_with(contact_edge, |contact_pair| {
             contact_pair.body1 = Some(collider_of1.body);
             contact_pair.body2 = Some(collider_of2.body);

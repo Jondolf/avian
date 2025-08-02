@@ -346,6 +346,7 @@ impl JointCollisionDisabled {
         let entity = ctx.entity;
 
         // Update the `contacts_enabled` property of the joint edge.
+        // Note: The `JointGraphPlugin` handles the removal of contacts between the bodies.
         let mut joint_graph = world.resource_mut::<JointGraph>();
         if let Some(joint_edge) = joint_graph.get_joint_mut(entity) {
             joint_edge.collision_disabled = true;

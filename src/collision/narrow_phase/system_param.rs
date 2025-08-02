@@ -5,7 +5,7 @@ use crate::{
     collision::contact_types::{ContactEdgeFlags, ContactId},
     data_structures::{bit_vec::BitVec, pair_key::PairKey},
     dynamics::solver::constraint_graph::ConstraintGraph,
-    prelude::{joint_graph::JointGraph, *},
+    prelude::*,
 };
 use bevy::{
     ecs::{
@@ -66,7 +66,6 @@ pub struct NarrowPhase<'w, 's, C: AnyCollider> {
     body_query: Query<'w, 's, RigidBodyQuery, Without<RigidBodyDisabled>>,
     pub contact_graph: ResMut<'w, ContactGraph>,
     pub constraint_graph: ResMut<'w, ConstraintGraph>,
-    joint_graph: Res<'w, JointGraph>,
     contact_status_bits: ResMut<'w, ContactStatusBits>,
     #[cfg(feature = "parallel")]
     thread_local_contact_status_bits: ResMut<'w, ThreadLocalContactStatusBits>,
@@ -160,7 +159,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         contact_pair.collider2,
                     );
 
-                    // Remove the contact pair from the contact graph.
                     let pair_key = PairKey::new(
                         contact_pair.collider1.index(),
                         contact_pair.collider2.index(),
@@ -179,6 +177,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                             );
                         }
                     }
+
+                    // Remove the contact pair from the contact graph.
                     self.contact_graph.remove_edge_by_id(&pair_key, contact_id);
                 } else if contact_pair.collision_started() {
                     // Send collision started event.
@@ -217,6 +217,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         .flags
                         .set(ContactPairFlags::STARTED_TOUCHING, false);
 
+                    // Add the contact pair to the constraint graph.
                     if !contact_pair.is_sensor() {
                         for _ in contact_pair.manifolds.iter() {
                             self.constraint_graph
@@ -425,16 +426,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
             // Also check if the collision layers are still compatible and the contact pair is valid.
             // TODO: Ideally, we would have fine-grained change detection for `CollisionLayers`
             //       rather than checking it for every pair here.
-            if !overlap
-                || !collider1.layers.interacts_with(*collider2.layers)
-                || collider1.of.zip(collider2.of).is_none_or(|(c1, c2)| {
-                    // If a joint disables contacts, skip this pair.
-                    // TODO: Do this with hooks when adding/removing `JointCollisionDisabled`.
-                    self.joint_graph
-                        .joints_between(c1.body, c2.body)
-                        .any(|edge| edge.collision_disabled)
-                })
-            {
+            if !overlap || !collider1.layers.interacts_with(*collider2.layers) {
                 // The AABBs no longer overlap. The contact pair should be removed.
                 contacts.flags.set(ContactPairFlags::DISJOINT_AABB, true);
                 status_change_bits.set(contact_id);

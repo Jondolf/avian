@@ -54,6 +54,12 @@ pub struct ContactEdge {
     /// The second collider entity in the contact.
     pub collider2: Entity,
 
+    /// The entity of the first body involved in the contact.
+    pub body1: Option<Entity>,
+
+    /// The entity of the second body involved in the contact.
+    pub body2: Option<Entity>,
+
     /// The handles to the constraints associated with this contact edge.
     #[cfg(feature = "2d")]
     pub constraint_handles: SmallVec<[ContactConstraintHandle; 2]>,
@@ -78,6 +84,8 @@ impl ContactEdge {
             id: ContactId::PLACEHOLDER,
             collider1,
             collider2,
+            body1: None,
+            body2: None,
             pair_index: 0,
             constraint_handles: SmallVec::new(),
             flags: ContactEdgeFlags::empty(),

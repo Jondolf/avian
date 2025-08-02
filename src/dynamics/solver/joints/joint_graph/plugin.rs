@@ -1,9 +1,12 @@
 use core::marker::PhantomData;
 
 use crate::{
-    dynamics::solver::xpbd::EntityConstraint,
+    collision::contact_types::ContactId,
+    data_structures::pair_key::PairKey,
+    dynamics::solver::{constraint_graph::ConstraintGraph, xpbd::EntityConstraint},
     prelude::{
-        Joint, JointCollisionDisabled, JointDisabled, PhysicsSchedule, PhysicsStepSet,
+        ContactGraph, Joint, JointCollisionDisabled, JointDisabled, PhysicsSchedule,
+        PhysicsStepSet, RigidBodyColliders,
         joint_graph::{JointGraph, JointGraphEdge},
     },
 };
@@ -55,6 +58,7 @@ impl<T: Joint + EntityConstraint<2>> Plugin for JointGraphPlugin<T> {
             .is_resource_added::<JointGraphPluginInitialized>();
 
         app.init_resource::<JointGraph>();
+        app.init_resource::<JointGraphPluginInitialized>();
 
         // Automatically add the `JointComponentId` component when the joint is added.
         app.register_required_components::<T, JointComponentId>();
@@ -74,6 +78,9 @@ impl<T: Joint + EntityConstraint<2>> Plugin for JointGraphPlugin<T> {
                     joint_graph.remove_joint(entity);
                 },
             );
+
+            // Remove contacts between bodies when the `JointCollisionDisabled` component is added.
+            app.add_observer(on_disable_joint_collision);
         }
 
         // TODO: Deduplicate these observers.
@@ -192,6 +199,57 @@ fn on_remove_joint(mut world: DeferredWorld, ctx: HookContext) {
             let mut joint_graph = world.resource_mut::<JointGraph>();
             joint_graph.remove_joint(entity);
         }
+    }
+}
+
+fn on_disable_joint_collision(
+    trigger: Trigger<OnAdd, JointCollisionDisabled>,
+    query: Query<&RigidBodyColliders>,
+    joint_graph: Res<JointGraph>,
+    mut contact_graph: ResMut<ContactGraph>,
+    mut constraint_graph: ResMut<ConstraintGraph>,
+) {
+    let entity = trigger.target();
+
+    // Iterate through each collider of the body with fewer colliders,
+    // find contacts with the other body, and remove them.
+    let Some([body1, body2]) = joint_graph.bodies_of(entity) else {
+        return;
+    };
+    let Ok([colliders1, colliders2]) = query.get_many([body1, body2]) else {
+        return;
+    };
+
+    let (colliders, other_body) = if colliders1.len() < colliders2.len() {
+        (colliders1, body2)
+    } else {
+        (colliders2, body1)
+    };
+
+    let contacts_to_remove: Vec<(ContactId, usize)> = colliders
+        .iter()
+        .flat_map(|collider| {
+            contact_graph
+                .contact_edges_with(collider)
+                .filter_map(|edge| {
+                    if edge.body1 == Some(other_body) || edge.body2 == Some(other_body) {
+                        Some((edge.id, edge.constraint_handles.len()))
+                    } else {
+                        None
+                    }
+                })
+        })
+        .collect();
+
+    for (contact_id, num_constraints) in contacts_to_remove {
+        // Remove the contact from the constraint graph.
+        for _ in 0..num_constraints {
+            constraint_graph.pop_manifold(&mut contact_graph.edges, contact_id, body1, body2);
+        }
+
+        // Remove the contact from the contact graph.
+        let pair_key = PairKey::new(body1.index(), body2.index());
+        contact_graph.remove_edge_by_id(&pair_key, contact_id);
     }
 }
 
