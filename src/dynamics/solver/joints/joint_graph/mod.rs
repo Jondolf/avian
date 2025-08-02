@@ -33,7 +33,7 @@ pub struct JointGraph {
 pub struct JointGraphEdge {
     /// The entity of the joint.
     pub entity: Entity,
-    /// If `true`, contacts are disabled between the bodies connected by this joint.
+    /// If `true`, collisions are disabled between the bodies connected by this joint.
     ///
     /// This is controlled by the [`JointCollisionDisabled`] component.
     ///
@@ -43,6 +43,7 @@ pub struct JointGraphEdge {
 
 impl JointGraph {
     /// Returns a reference to the underlying [`UnGraph`].
+    #[inline]
     pub fn graph(&self) -> &UnGraph<Entity, JointGraphEdge> {
         &self.graph
     }
