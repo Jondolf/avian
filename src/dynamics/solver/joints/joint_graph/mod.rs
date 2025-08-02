@@ -67,9 +67,7 @@ impl JointGraph {
     /// If the joint entity is not in the graph, `None` is returned.
     #[inline]
     pub fn get_joint(&self, joint: Entity) -> Option<&JointGraphEdge> {
-        let Some(joint_index) = self.entity_to_joint.get(joint) else {
-            return None;
-        };
+        let joint_index = self.entity_to_joint.get(joint)?;
         self.graph.edge_weight(*joint_index)
     }
 
@@ -77,9 +75,7 @@ impl JointGraph {
     /// If the joint entity is not in the graph, `None` is returned.
     #[inline]
     pub fn get_joint_mut(&mut self, joint: Entity) -> Option<&mut JointGraphEdge> {
-        let Some(joint_index) = self.entity_to_joint.get(joint) else {
-            return None;
-        };
+        let joint_index = self.entity_to_joint.get(joint)?;
         self.graph.edge_weight_mut(*joint_index)
     }
 
@@ -126,10 +122,7 @@ impl JointGraph {
     /// If the joint entity is not in the graph, `None` is returned.
     #[inline]
     pub fn bodies_of(&self, joint: Entity) -> Option<[Entity; 2]> {
-        let Some(joint_index) = self.entity_to_joint(joint) else {
-            return None;
-        };
-
+        let joint_index = self.entity_to_joint(joint)?;
         let (body1_index, body2_index) = self.graph.edge_endpoints(joint_index)?;
 
         Some([
@@ -175,13 +168,10 @@ impl JointGraph {
             .get_or_insert_with(body2, || self.graph.add_node(body2));
 
         // Add the edge to the graph.
-        let joint_index = self
-            .entity_to_joint
+        self.entity_to_joint
             .get_or_insert_with(joint_edge.entity, || {
                 self.graph.add_edge(body1_index, body2_index, joint_edge)
-            });
-
-        joint_index
+            })
     }
 
     /// Removes a [`JointGraphEdge`] between two entites and returns its value.
@@ -192,11 +182,7 @@ impl JointGraph {
     /// or do any other clean-up. Only use this method if you know what you are doing.
     #[inline]
     pub fn remove_joint(&mut self, joint_entity: Entity) -> Option<JointGraphEdge> {
-        let Some(joint_index) = self.entity_to_joint.remove(joint_entity) else {
-            return None;
-        };
-
-        // Remove the edge from the graph.
+        let joint_index = self.entity_to_joint.remove(joint_entity)?;
         self.graph.remove_edge(joint_index)
     }
 
@@ -208,7 +194,7 @@ impl JointGraph {
     /// Removing a body with this method will *not* wake up the entities involved
     /// or do any other clean-up. Only use this method if you know what you are doing.
     #[inline]
-    pub fn remove_body_with<F>(&mut self, entity: Entity, mut edge_callback: F)
+    pub fn remove_body_with<F>(&mut self, entity: Entity, edge_callback: F)
     where
         F: FnMut(JointGraphEdge),
     {
@@ -220,8 +206,7 @@ impl JointGraph {
 
         // Remove the entity from the graph.
         // TODO: Should we remove the joint from the entity-to-joint mapping as well?
-        self.graph
-            .remove_node_with(index, |edge| edge_callback(edge));
+        self.graph.remove_node_with(index, edge_callback);
 
         // Removing the node swapped the last node to its place,
         // so we need to remap the entity-to-node mapping of the swapped node.

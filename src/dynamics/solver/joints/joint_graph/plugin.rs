@@ -63,7 +63,7 @@ impl<T: Joint + EntityConstraint<2>> Plugin for JointGraphPlugin<T> {
         app.world_mut()
             .register_component_hooks::<T>()
             .on_add(on_add_joint::<T>)
-            .on_remove(on_remove_joint::<T>);
+            .on_remove(on_remove_joint);
 
         if !already_initialized {
             // Remove the joint from the joint graph when it is disabled.
@@ -173,7 +173,7 @@ fn on_add_joint<T: Joint + EntityConstraint<2>>(mut world: DeferredWorld, ctx: H
     joint_graph.add_joint(body1, body2, joint_edge);
 }
 
-fn on_remove_joint<T: Joint + EntityConstraint<2>>(mut world: DeferredWorld, ctx: HookContext) {
+fn on_remove_joint(mut world: DeferredWorld, ctx: HookContext) {
     let entity = ctx.entity;
     let component_id = ctx.component_id;
 

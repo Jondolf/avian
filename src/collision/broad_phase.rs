@@ -414,7 +414,7 @@ fn sweep_and_prune<H: CollisionHooks>(
             // Check if a joint disables contacts between the two bodies.
             if joint_graph
                 .joints_between(collider_of1.body, collider_of2.body)
-                .any(|edge| edge.collision_disabled == false)
+                .any(|edge| edge.collision_disabled)
             {
                 continue;
             }
