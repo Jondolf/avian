@@ -369,6 +369,16 @@ impl<N, E> StableUnGraph<N, E> {
         }
     }
 
+    /// Returns an iterator over all edges between `a` and `b`.
+    ///
+    /// The iterator element type is `EdgeReference<E>`.
+    pub fn edges_between(&self, a: NodeIndex, b: NodeIndex) -> EdgesBetween<'_, E> {
+        EdgesBetween {
+            target_node: b,
+            edges: self.edges(a),
+        }
+    }
+
     /// Looks up if there is an edge from `a` to `b`.
     ///
     /// Computes in **O(e')** time, where **e'** is the number of edges
@@ -550,8 +560,10 @@ impl<'a, E> Iterator for Edges<'a, E> {
     type Item = EdgeReference<'a, E>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        // Outgoing
         let i = self.next[0].index();
         if let Some(Edge {
+            node,
             weight: Some(weight),
             next,
             ..
@@ -560,6 +572,38 @@ impl<'a, E> Iterator for Edges<'a, E> {
             self.next[0] = next[0];
             return Some(EdgeReference {
                 index: EdgeIndex(i as u32),
+                node: if self.direction == EdgeDirection::Incoming {
+                    swap_pair(*node)
+                } else {
+                    *node
+                },
+                weight,
+            });
+        }
+
+        // Incoming
+        while let Some(Edge {
+            node,
+            weight: Some(weight),
+            next,
+        }) = self.edges.get(self.next[1].index())
+        {
+            let edge_index = self.next[1];
+            self.next[1] = next[1];
+
+            // In any of the "both" situations, self-loops would be iterated over twice.
+            // Skip them here.
+            if node[0] == self.skip_start {
+                continue;
+            }
+
+            return Some(EdgeReference {
+                index: edge_index,
+                node: if self.direction == EdgeDirection::Outgoing {
+                    swap_pair(*node)
+                } else {
+                    *node
+                },
                 weight,
             });
         }
@@ -577,6 +621,34 @@ impl<E> Clone for Edges<'_, E> {
             direction: self.direction,
         }
     }
+}
+
+/// Iterator over the edges between a source node and a target node.
+#[derive(Clone)]
+pub struct EdgesBetween<'a, E: 'a> {
+    target_node: NodeIndex,
+    edges: Edges<'a, E>,
+}
+
+impl<'a, E> Iterator for EdgesBetween<'a, E> {
+    type Item = EdgeReference<'a, E>;
+
+    fn next(&mut self) -> Option<EdgeReference<'a, E>> {
+        let target_node = self.target_node;
+        self.edges
+            .by_ref()
+            .find(|&edge| edge.target() == target_node)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let (_, upper) = self.edges.size_hint();
+        (0, upper)
+    }
+}
+
+fn swap_pair<T>(mut x: [T; 2]) -> [T; 2] {
+    x.swap(0, 1);
+    x
 }
 
 // TODO: Reduce duplication between `Edges` variants.
@@ -652,6 +724,7 @@ type EdgeWeightsMut<'a, N, E> = core::iter::FilterMap<
 #[derive(Debug)]
 pub struct EdgeReference<'a, E: 'a> {
     index: EdgeIndex,
+    node: [NodeIndex; 2],
     weight: &'a E,
 }
 
@@ -660,6 +733,18 @@ impl<'a, E: 'a> EdgeReference<'a, E> {
     #[inline]
     pub fn index(&self) -> EdgeIndex {
         self.index
+    }
+
+    /// Returns the source node index.
+    #[inline]
+    pub fn source(&self) -> NodeIndex {
+        self.node[0]
+    }
+
+    /// Returns the target node index.
+    #[inline]
+    pub fn target(&self) -> NodeIndex {
+        self.node[1]
     }
 
     /// Returns the weight of the edge.

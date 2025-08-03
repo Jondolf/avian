@@ -3,10 +3,14 @@ use core::marker::PhantomData;
 use crate::{
     collision::contact_types::ContactId,
     data_structures::pair_key::PairKey,
-    dynamics::solver::{constraint_graph::ConstraintGraph, xpbd::EntityConstraint},
+    dynamics::solver::{
+        constraint_graph::ConstraintGraph,
+        islands::{IslandBodyData, PhysicsIslands},
+        xpbd::EntityConstraint,
+    },
     prelude::{
         ContactGraph, Joint, JointCollisionDisabled, JointDisabled, PhysicsSchedule,
-        PhysicsStepSet, RigidBodyColliders,
+        PhysicsStepSet, RigidBodyColliders, WakeIslands,
         joint_graph::{JointGraph, JointGraphEdge},
     },
 };
@@ -14,6 +18,7 @@ use bevy::{
     ecs::{
         component::{ComponentId, HookContext},
         entity_disabling::Disabled,
+        query::QueryFilter,
         world::DeferredWorld,
     },
     prelude::*,
@@ -66,68 +71,41 @@ impl<T: Joint + EntityConstraint<2>> Plugin for JointGraphPlugin<T> {
         // Register hooks for adding and removing joints.
         app.world_mut()
             .register_component_hooks::<T>()
-            .on_add(on_add_joint::<T>)
+            .on_add(on_add_joint)
             .on_remove(on_remove_joint);
+
+        // Add the joint to the joint graph when it is added and the joint is not disabled.
+        app.add_observer(
+            add_joint_to_graph::<T, OnAdd, T, (With<JointComponentId>, Without<JointDisabled>)>,
+        );
+
+        // Remove the joint from the joint graph when it is removed.
+        app.add_observer(remove_joint_from_graph::<OnRemove, T>);
 
         if !already_initialized {
             // Remove the joint from the joint graph when it is disabled.
-            app.add_observer(
-                |trigger: Trigger<OnAdd, (Disabled, JointDisabled)>,
-                 mut joint_graph: ResMut<JointGraph>| {
-                    let entity = trigger.target();
-                    joint_graph.remove_joint(entity);
-                },
-            );
+            app.add_observer(remove_joint_from_graph::<OnAdd, (Disabled, JointDisabled)>);
 
             // Remove contacts between bodies when the `JointCollisionDisabled` component is added.
             app.add_observer(on_disable_joint_collision);
         }
 
-        // TODO: Deduplicate these observers.
         // Add the joint back to the joint graph when `Disabled` is removed.
         app.add_observer(
-            |trigger: Trigger<OnRemove, Disabled>,
-             query: Query<
-                (&T, Has<JointCollisionDisabled>),
+            add_joint_to_graph::<
+                T,
+                OnRemove,
+                Disabled,
                 (
                     With<JointComponentId>,
                     Or<(With<Disabled>, Without<Disabled>)>,
                     Without<JointDisabled>,
                 ),
             >,
-             mut joint_graph: ResMut<JointGraph>| {
-                let entity = trigger.target();
-
-                // If the entity has a joint component, re-add it to the joint graph.
-                if let Ok((joint, collision_disabled)) = query.get(entity) {
-                    let [body1, body2] = joint.entities();
-                    let joint_edge = JointGraphEdge {
-                        entity,
-                        collision_disabled,
-                    };
-                    joint_graph.add_joint(body1, body2, joint_edge);
-                }
-            },
         );
 
         // Add the joint back to the joint graph when `JointDisabled` is removed.
-        app.add_observer(
-            |trigger: Trigger<OnRemove, JointDisabled>,
-             query: Query<(&T, Has<JointCollisionDisabled>), With<JointComponentId>>,
-             mut joint_graph: ResMut<JointGraph>| {
-                let entity = trigger.target();
-
-                // If the entity has a joint component, re-add it to the joint graph.
-                if let Ok((joint, collision_disabled)) = query.get(entity) {
-                    let [body1, body2] = joint.entities();
-                    let joint_edge = JointGraphEdge {
-                        entity,
-                        collision_disabled,
-                    };
-                    joint_graph.add_joint(body1, body2, joint_edge);
-                }
-            },
-        );
+        app.add_observer(add_joint_to_graph::<T, OnRemove, JointDisabled, With<JointComponentId>>);
 
         app.add_systems(
             PhysicsSchedule,
@@ -138,7 +116,71 @@ impl<T: Joint + EntityConstraint<2>> Plugin for JointGraphPlugin<T> {
     }
 }
 
-fn on_add_joint<T: Joint + EntityConstraint<2>>(mut world: DeferredWorld, ctx: HookContext) {
+fn add_joint_to_graph<T: Joint + EntityConstraint<2>, E: Event, B: Bundle, F: QueryFilter>(
+    trigger: Trigger<E, B>,
+    query: Query<(&T, Has<JointCollisionDisabled>), F>,
+    mut commands: Commands,
+    mut body_islands: Query<&mut IslandBodyData>,
+    mut contact_graph: ResMut<ContactGraph>,
+    mut joint_graph: ResMut<JointGraph>,
+    mut islands: ResMut<PhysicsIslands>,
+) {
+    let entity = trigger.target();
+
+    if let Ok((joint, collision_disabled)) = query.get(entity) {
+        let [body1, body2] = joint.entities();
+
+        // Add the joint to the joint graph.
+        let joint_edge = JointGraphEdge::new(entity, body1, body2, collision_disabled);
+        let joint_id = joint_graph.add_joint(body1, body2, joint_edge);
+
+        // Link the joint to an island.
+        if let Some(island) = islands.add_joint(
+            joint_id,
+            &mut body_islands,
+            &mut contact_graph,
+            &mut joint_graph,
+        ) {
+            // Wake up the island if it was sleeping.
+            if island.is_sleeping {
+                commands.queue(WakeIslands(vec![island.id]));
+            }
+        }
+    }
+}
+
+fn remove_joint_from_graph<E: Event, B: Bundle>(
+    trigger: Trigger<E, B>,
+    mut commands: Commands,
+    mut body_islands: Query<&mut IslandBodyData>,
+    contact_graph: ResMut<ContactGraph>,
+    mut joint_graph: ResMut<JointGraph>,
+    mut islands: ResMut<PhysicsIslands>,
+) {
+    let entity = trigger.target();
+
+    let Some(joint) = joint_graph.get(entity) else {
+        return;
+    };
+
+    // Remove the joint from the island.
+    let island = islands.remove_joint(
+        joint.id,
+        &mut body_islands,
+        &contact_graph,
+        &mut joint_graph,
+    );
+
+    // Remove the joint from the joint graph.
+    joint_graph.remove_joint(entity);
+
+    // Wake up the island if it was sleeping.
+    if island.is_sleeping {
+        commands.queue(WakeIslands(vec![island.id]));
+    }
+}
+
+fn on_add_joint(mut world: DeferredWorld, ctx: HookContext) {
     let entity = ctx.entity;
     let component_id = ctx.component_id;
 
@@ -166,18 +208,6 @@ fn on_add_joint<T: Joint + EntityConstraint<2>>(mut world: DeferredWorld, ctx: H
             );
         }
     }
-
-    // Add the joint to the joint graph.
-    let entity_ref = world.entity(entity);
-    let contacts_enabled = entity_ref.contains::<JointCollisionDisabled>();
-    let joint = entity_ref.get::<T>().unwrap();
-    let [body1, body2] = joint.entities();
-    let joint_edge = JointGraphEdge {
-        entity,
-        collision_disabled: contacts_enabled,
-    };
-    let mut joint_graph = world.resource_mut::<JointGraph>();
-    joint_graph.add_joint(body1, body2, joint_edge);
 }
 
 fn on_remove_joint(mut world: DeferredWorld, ctx: HookContext) {
@@ -189,15 +219,12 @@ fn on_remove_joint(mut world: DeferredWorld, ctx: HookContext) {
     if let Some(mut joint) = world.get_mut::<JointComponentId>(entity) {
         if joint.0 == Some(component_id) {
             joint.0 = None;
+
             // Remove the joint component.
             world
                 .commands()
                 .entity(entity)
                 .try_remove::<JointComponentId>();
-
-            // Remove the joint from the joint graph.
-            let mut joint_graph = world.resource_mut::<JointGraph>();
-            joint_graph.remove_joint(entity);
         }
     }
 }
@@ -256,21 +283,60 @@ fn on_disable_joint_collision(
 /// Update the joint graph when the entities of a joint change.
 fn on_change_joint_entities<T: Joint + EntityConstraint<2>>(
     query: Query<(Entity, &T), Changed<T>>,
+    mut commands: Commands,
+    mut body_islands: Query<&mut IslandBodyData>,
     mut joint_graph: ResMut<JointGraph>,
+    mut contact_graph: ResMut<ContactGraph>,
+    mut islands: ResMut<PhysicsIslands>,
 ) {
+    let mut islands_to_wake: Vec<u32> = Vec::new();
+
     for (entity, joint) in &query {
         let [body1, body2] = joint.entities();
-        let Some([old_body1, old_body2]) = joint_graph.bodies_of(entity) else {
+        let Some(old_edge) = joint_graph.get(entity) else {
             continue;
         };
 
-        if body1 != old_body1 || body2 != old_body2 {
+        if body1 != old_edge.body1 || body2 != old_edge.body2 {
+            // Remove the joint from the island.
+            let island = islands.remove_joint(
+                old_edge.id,
+                &mut body_islands,
+                &contact_graph,
+                &mut joint_graph,
+            );
+
+            // Wake up the island if it was sleeping.
+            if island.is_sleeping {
+                islands_to_wake.push(island.id);
+            }
+
             // Remove the old joint edge.
-            if let Some(edge) = joint_graph.remove_joint(entity) {
-                // Add the joint edge with the new bodies.
-                joint_graph.add_joint(body1, body2, edge);
+            if let Some(mut edge) = joint_graph.remove_joint(entity) {
+                // Update the edge with the new bodies.
+                edge.body1 = body1;
+                edge.body2 = body2;
+
+                // Add the joint edge.
+                let joint_id = joint_graph.add_joint(body1, body2, edge);
+
+                // Link the joint to an island.
+                islands.add_joint(
+                    joint_id,
+                    &mut body_islands,
+                    &mut contact_graph,
+                    &mut joint_graph,
+                );
             }
         }
+    }
+
+    if !islands_to_wake.is_empty() {
+        islands_to_wake.sort_unstable();
+        islands_to_wake.dedup();
+
+        // Wake up the islands that were previously sleeping.
+        commands.queue(WakeIslands(islands_to_wake));
     }
 }
 

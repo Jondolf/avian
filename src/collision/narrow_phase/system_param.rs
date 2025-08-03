@@ -8,7 +8,7 @@ use crate::{
         constraint_graph::ConstraintGraph,
         islands::{IslandBodyData, PhysicsIslands, sleeping::WakeIslands},
     },
-    prelude::*,
+    prelude::{joint_graph::JointGraph, *},
 };
 use bevy::{
     ecs::{
@@ -69,6 +69,7 @@ pub struct NarrowPhase<'w, 's, C: AnyCollider> {
     body_query: Query<'w, 's, RigidBodyQuery, Without<RigidBodyDisabled>>,
     body_islands: Query<'w, 's, &'static mut IslandBodyData>,
     pub contact_graph: ResMut<'w, ContactGraph>,
+    pub joint_graph: ResMut<'w, JointGraph>,
     pub constraint_graph: ResMut<'w, ConstraintGraph>,
     pub island_manager: ResMut<'w, PhysicsIslands>,
     contact_status_bits: ResMut<'w, ContactStatusBits>,
@@ -192,7 +193,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         self.island_manager.remove_contact(
                             contact_id,
                             &mut self.body_islands,
-                            &mut self.contact_graph,
+                            &mut self.contact_graph.edges,
+                            &self.joint_graph,
                         );
                     }
 
@@ -237,6 +239,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         contact_id,
                         &mut self.body_islands,
                         &mut self.contact_graph,
+                        &mut self.joint_graph,
                     );
 
                     if let Some(island) = island
@@ -292,7 +295,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     let island = self.island_manager.remove_contact(
                         contact_id,
                         &mut self.body_islands,
-                        &mut self.contact_graph,
+                        &mut self.contact_graph.edges,
+                        &self.joint_graph,
                     );
 
                     // TODO: Do we need this?
@@ -337,15 +341,15 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
             }
         }
 
-        islands_to_wake.sort_unstable();
-        islands_to_wake.dedup();
+        if !islands_to_wake.is_empty() {
+            islands_to_wake.sort_unstable();
+            islands_to_wake.dedup();
 
-        // Wake up the islands that were previously sleeping.
-        commands.command_scope(|mut commands| {
-            commands.queue(|world: &mut World| {
-                WakeIslands(islands_to_wake).apply(world);
+            // Wake up the islands that were previously sleeping.
+            commands.command_scope(|mut commands| {
+                commands.queue(WakeIslands(islands_to_wake));
             });
-        });
+        }
     }
 
     /// Adds the colliding entities to their respective [`CollidingEntities`] components.
