@@ -31,6 +31,14 @@ pub(crate) use bevy_math::Vec2 as VectorF32;
 #[cfg(feature = "3d")]
 pub(crate) use bevy_math::Vec3 as VectorF32;
 
+/// The `f32` vector type chosen based on the dimension.
+#[cfg(feature = "2d")]
+pub(crate) use bevy_math::Rot2 as RotationF32;
+
+/// The `f32` vector type chosen based on the dimension.
+#[cfg(feature = "3d")]
+pub(crate) use bevy_math::Quat as RotationF32;
+
 /// The `i32` vector type chosen based on the dimension.
 #[cfg(feature = "2d")]
 pub(crate) use bevy_math::IVec2 as IVector;
@@ -63,6 +71,14 @@ pub(crate) type AngularVector = Scalar;
 /// The vector type for angular values chosen based on the dimension.
 #[cfg(feature = "3d")]
 pub(crate) type AngularVector = Vector;
+
+/// The isometry type chosen based on the dimension.
+#[cfg(feature = "2d")]
+pub(crate) type Isometry = Isometry2d;
+
+/// The isometry type chosen based on the dimension.
+#[cfg(feature = "3d")]
+pub(crate) type Isometry = Isometry3d;
 
 /// The symmetric tensor type chosen based on the dimension.
 /// Often used for angular inertia.
@@ -572,11 +588,6 @@ pub(crate) fn na_iso_to_iso(isometry: &parry::math::Isometry<Scalar>) -> Isometr
     any(feature = "parry-f32", feature = "parry-f64")
 ))]
 use crate::prelude::*;
-#[cfg(all(
-    feature = "default-collider",
-    any(feature = "parry-f32", feature = "parry-f64")
-))]
-use parry::math::Isometry;
 
 #[cfg(all(
     feature = "2d",
@@ -586,10 +597,10 @@ use parry::math::Isometry;
 pub(crate) fn make_isometry(
     position: impl Into<Position>,
     rotation: impl Into<Rotation>,
-) -> Isometry<Scalar> {
+) -> parry::math::Isometry<Scalar> {
     let position: Position = position.into();
     let rotation: Rotation = rotation.into();
-    Isometry::<Scalar>::new(position.0.into(), rotation.into())
+    parry::math::Isometry::<Scalar>::new(position.0.into(), rotation.into())
 }
 
 #[cfg(all(
@@ -600,10 +611,10 @@ pub(crate) fn make_isometry(
 pub(crate) fn make_isometry(
     position: impl Into<Position>,
     rotation: impl Into<Rotation>,
-) -> Isometry<Scalar> {
+) -> parry::math::Isometry<Scalar> {
     let position: Position = position.into();
     let rotation: Rotation = rotation.into();
-    Isometry::<Scalar>::new(position.0.into(), rotation.to_scaled_axis().into())
+    parry::math::Isometry::<Scalar>::new(position.0.into(), rotation.to_scaled_axis().into())
 }
 
 /// Computes the skew-symmetric matrix corresponding to the given vector.

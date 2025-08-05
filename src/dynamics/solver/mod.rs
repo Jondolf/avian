@@ -14,11 +14,21 @@ mod diagnostics;
 use constraint_graph::ConstraintGraph;
 pub use diagnostics::SolverDiagnostics;
 use solver_body::{SolverBody, SolverBodyInertia, SolverBodyPlugin};
-use xpbd::EntityConstraint;
 
+#[cfg(feature = "3d")]
+use crate::dynamics::solver::joints::SphericalJointSolverData;
 use crate::{
-    dynamics::solver::constraint_graph::{COLOR_OVERFLOW_INDEX, ContactManifoldHandle, GraphColor},
-    prelude::{joint_graph::JointGraphPlugin, *},
+    dynamics::{
+        joints::EntityConstraint,
+        solver::{
+            constraint_graph::{COLOR_OVERFLOW_INDEX, ContactManifoldHandle, GraphColor},
+            joints::{
+                DistanceJointSolverData, FixedJointSolverData, PrismaticJointSolverData,
+                RevoluteJointSolverData, joint_graph::JointGraphPlugin,
+            },
+        },
+    },
+    prelude::*,
 };
 use bevy::{
     ecs::{query::QueryData, system::lifetimeless::Read},
@@ -110,6 +120,14 @@ impl Plugin for SolverPlugin {
             #[cfg(feature = "3d")]
             JointGraphPlugin::<SphericalJoint>::default(),
         ));
+
+        // TODO: Move to XPBD solver plugin
+        app.register_required_components::<FixedJoint, FixedJointSolverData>();
+        app.register_required_components::<RevoluteJoint, RevoluteJointSolverData>();
+        app.register_required_components::<PrismaticJoint, PrismaticJointSolverData>();
+        app.register_required_components::<DistanceJoint, DistanceJointSolverData>();
+        #[cfg(feature = "3d")]
+        app.register_required_components::<SphericalJoint, SphericalJointSolverData>();
 
         app.init_resource::<SolverConfig>()
             .init_resource::<ContactSoftnessCoefficients>()
@@ -427,21 +445,6 @@ struct BodyQuery {
     rb: Read<RigidBody>,
     linear_velocity: Read<LinearVelocity>,
     inertia: Option<Read<SolverBodyInertia>>,
-    dominance: Option<Read<Dominance>>,
-}
-
-impl BodyQueryItem<'_> {
-    /// Returns the [dominance](Dominance) of the body.
-    ///
-    /// If it isn't specified, the default of `0` is returned for dynamic bodies.
-    /// For static and kinematic bodies, `i8::MAX + 1` (`128`) is always returned instead.
-    pub fn dominance(&self) -> i16 {
-        if !self.rb.is_dynamic() {
-            i8::MAX as i16 + 1
-        } else {
-            self.dominance.map_or(0, |dominance| dominance.0) as i16
-        }
-    }
 }
 
 fn prepare_contact_constraints(
@@ -840,69 +843,37 @@ fn store_contact_impulses(
 
 /// Applies velocity corrections caused by joint damping.
 #[allow(clippy::type_complexity)]
-pub fn joint_damping<T: Joint + EntityConstraint<2>>(
-    mut bodies: Query<
-        (
-            &RigidBody,
-            &mut LinearVelocity,
-            &mut AngularVelocity,
-            &ComputedMass,
-            Option<&Dominance>,
-        ),
-        RigidBodyActiveFilter,
-    >,
-    joints: Query<&T, Without<RigidBody>>,
+pub fn joint_damping<T: Component + EntityConstraint<2>>(
+    mut bodies: Query<(&RigidBody, &mut SolverBody, &SolverBodyInertia)>,
+    joints: Query<(&T, &JointDamping)>,
     time: Res<Time>,
 ) {
     let delta_secs = time.delta_seconds_adjusted();
 
-    for joint in &joints {
-        if let Ok(
-            [
-                (rb1, mut lin_vel1, mut ang_vel1, mass1, dominance1),
-                (rb2, mut lin_vel2, mut ang_vel2, mass2, dominance2),
-            ],
-        ) = bodies.get_many_mut(joint.entities())
+    for (joint, damping) in &joints {
+        if let Ok([(rb1, mut body1, inertia1), (rb2, mut body2, inertia2)]) =
+            bodies.get_many_mut(joint.entities())
         {
-            let delta_omega =
-                (ang_vel2.0 - ang_vel1.0) * (joint.damping_angular() * delta_secs).min(1.0);
+            let delta_omega = (body2.angular_velocity - body1.angular_velocity)
+                * (damping.angular * delta_secs).min(1.0);
 
             if rb1.is_dynamic() {
-                ang_vel1.0 += delta_omega;
+                body1.angular_velocity += delta_omega;
             }
             if rb2.is_dynamic() {
-                ang_vel2.0 -= delta_omega;
+                body2.angular_velocity -= delta_omega;
             }
 
-            let delta_v =
-                (lin_vel2.0 - lin_vel1.0) * (joint.damping_linear() * delta_secs).min(1.0);
+            let delta_v = (body2.linear_velocity - body1.linear_velocity)
+                * (damping.linear * delta_secs).min(1.0);
 
-            let w1 = if rb1.is_dynamic() {
-                mass1.inverse()
-            } else {
-                0.0
-            };
-            let w2 = if rb2.is_dynamic() {
-                mass2.inverse()
-            } else {
-                0.0
-            };
+            let w1 = inertia1.effective_inv_mass();
+            let w2 = inertia2.effective_inv_mass();
 
-            if w1 + w2 <= Scalar::EPSILON {
-                continue;
-            }
+            let p = delta_v * (w1 + w2).recip_or_zero();
 
-            let p = delta_v / (w1 + w2);
-
-            let dominance1 = dominance1.map_or(0, |dominance| dominance.0);
-            let dominance2 = dominance2.map_or(0, |dominance| dominance.0);
-
-            if rb1.is_dynamic() && (!rb2.is_dynamic() || dominance1 <= dominance2) {
-                lin_vel1.0 += p * mass1.inverse();
-            }
-            if rb2.is_dynamic() && (!rb1.is_dynamic() || dominance2 <= dominance1) {
-                lin_vel2.0 -= p * mass2.inverse();
-            }
+            body1.linear_velocity += p * w1;
+            body2.linear_velocity -= p * w2;
         }
     }
 }

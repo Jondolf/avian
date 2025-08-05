@@ -1,4 +1,4 @@
-use avian3d::{
+/*use avian3d::{
     dynamics::solver::{
         schedule::SubstepSolverSet,
         solver_body::{SolverBody, SolverBodyInertia},
@@ -272,3 +272,6 @@ fn setup(
         Transform::from_xyz(0.0, 0.0, 10.0).looking_at(Vec3::ZERO, Vec3::Y),
     ));
 }
+*/
+
+fn main() {}

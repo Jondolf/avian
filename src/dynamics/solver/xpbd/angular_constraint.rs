@@ -1,9 +1,9 @@
-use super::XpbdConstraint;
 use crate::dynamics::solver::solver_body::SolverBody;
+use crate::dynamics::solver::xpbd;
 use crate::prelude::*;
 
 /// An angular constraint applies an angular correction around a given axis.
-pub trait AngularConstraint: XpbdConstraint<2> {
+pub trait AngularConstraint {
     /// Applies an angular correction to two bodies.
     ///
     /// Returns the angular impulse that is applied proportional
@@ -127,7 +127,7 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         let w = [inv_angular_inertia1, inv_angular_inertia2];
 
         // Compute Lagrange multiplier update
-        let delta_lagrange = self.compute_lagrange_update(*lagrange, angle, &w, compliance, dt);
+        let delta_lagrange = xpbd::compute_lagrange_update(*lagrange, angle, &w, compliance, dt);
         *lagrange += delta_lagrange;
 
         // Apply angular correction to aling the bodies
@@ -174,7 +174,7 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         let w = [w1, w2];
 
         // Compute Lagrange multiplier update
-        let delta_lagrange = self.compute_lagrange_update(*lagrange, angle, &w, compliance, dt);
+        let delta_lagrange = xpbd::compute_lagrange_update(*lagrange, angle, &w, compliance, dt);
         *lagrange += delta_lagrange;
 
         // Apply angular correction to aling the bodies

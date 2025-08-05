@@ -1,11 +1,10 @@
 use dynamics::solver::solver_body::SolverBody;
 
-use super::XpbdConstraint;
 use crate::{dynamics::solver::solver_body::SolverBodyInertia, prelude::*};
 
 /// A positional constraint applies a positional correction
 /// with a given direction and magnitude at the local contact points `r1` and  `r2`.
-pub trait PositionConstraint: XpbdConstraint<2> {
+pub trait PositionConstraint {
     /// Applies a positional correction to two bodies.
     ///
     /// Returns the positional impulse that is applied proportional to the inverse masses of the bodies.

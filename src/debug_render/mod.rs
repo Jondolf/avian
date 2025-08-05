@@ -10,7 +10,7 @@ mod gizmos;
 pub use configuration::*;
 pub use gizmos::*;
 
-use crate::{dynamics::solver::xpbd::EntityConstraint, prelude::*};
+use crate::{dynamics::joints::EntityConstraint, prelude::*};
 use bevy::{
     ecs::{intern::Interned, query::Has, schedule::ScheduleLabel},
     prelude::*,
@@ -122,12 +122,12 @@ impl Plugin for PhysicsDebugPlugin {
                     debug_render_colliders,
                     debug_render_contacts,
                     // TODO: Refactor joints to allow iterating over all of them without generics
-                    debug_render_joints::<FixedJoint>,
+                    /*debug_render_joints::<FixedJoint>,
                     debug_render_joints::<PrismaticJoint>,
                     debug_render_joints::<DistanceJoint>,
                     debug_render_joints::<RevoluteJoint>,
                     #[cfg(feature = "3d")]
-                    debug_render_joints::<SphericalJoint>,
+                    debug_render_joints::<SphericalJoint>,*/
                     debug_render_raycasts,
                     #[cfg(all(
                         feature = "default-collider",
@@ -350,7 +350,7 @@ fn debug_render_contacts(
     }
 }
 
-fn debug_render_joints<T: Joint + EntityConstraint<2>>(
+/*fn debug_render_joints<T: Joint + EntityConstraint<2>>(
     bodies: Query<(&Position, &Rotation, Has<Sleeping>)>,
     joints: Query<(&T, Option<&DebugRender>)>,
     mut gizmos: Gizmos<PhysicsGizmos>,
@@ -394,7 +394,7 @@ fn debug_render_joints<T: Joint + EntityConstraint<2>>(
             }
         }
     }
-}
+}*/
 
 fn debug_render_raycasts(
     query: Query<(&RayCaster, &RayHits)>,

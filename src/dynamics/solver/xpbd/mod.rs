@@ -250,25 +250,28 @@ mod positional_constraint;
 pub use angular_constraint::AngularConstraint;
 pub use positional_constraint::PositionConstraint;
 
-use crate::prelude::*;
-use bevy::{
-    ecs::{component::Mutable, entity::MapEntities},
-    prelude::*,
-};
+use crate::{dynamics::joints::EntityConstraint, prelude::*};
+use bevy::{ecs::component::Mutable, prelude::*};
 use core::cmp::Ordering;
 
 use super::solver_body::{SolverBody, SolverBodyInertia};
 
-/// A trait for constraints between entities.
-pub trait EntityConstraint<const ENTITY_COUNT: usize>: MapEntities {
-    /// The entities participating in the constraint.
-    fn entities(&self) -> [Entity; ENTITY_COUNT];
+pub trait XpbdConstraintSolverData {
+    /// Sets the constraint's [Lagrange multipliers](self#lagrange-multipliers) to 0.
+    fn clear_lagrange_multipliers(&mut self) {}
 }
 
 /// A trait for all XPBD [constraints](self#constraints).
 pub trait XpbdConstraint<const ENTITY_COUNT: usize> {
+    /// A component that holds additional data required for solving the constraint.
+    type SolverData: XpbdConstraintSolverData;
+
     /// Prepares the constraint for solving.
-    fn prepare(&mut self, bodies: [&RigidBodyQueryReadOnlyItem; ENTITY_COUNT], dt: Scalar);
+    fn prepare(
+        &self,
+        bodies: [&RigidBodyQueryReadOnlyItem; ENTITY_COUNT],
+        solver_data: &mut Self::SolverData,
+    );
 
     /// Solves the constraint.
     ///
@@ -289,97 +292,90 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize> {
     /// You can find a working example of a custom constraint
     /// [here](https://github.com/Jondolf/avian/blob/main/crates/avian3d/examples/custom_constraint.rs).
     fn solve(
-        &mut self,
+        &self,
         bodies: [&mut SolverBody; ENTITY_COUNT],
         inertias: [&SolverBodyInertia; ENTITY_COUNT],
+        solver_data: &mut Self::SolverData,
         dt: Scalar,
     );
+}
 
-    /// Computes how much a constraint's [Lagrange multiplier](self#lagrange-multipliers) changes when projecting
-    /// the constraint for all participating particles.
-    ///
-    /// `c` is a scalar value returned by the [constraint function](self#constraint-functions).
-    /// When it is zero, the constraint is satisfied.
-    ///
-    /// Each particle should have a corresponding [gradient](self#constraint-gradients) in `gradients`.
-    /// A gradient is a vector that refers to the direction in which `c` increases the most.
-    ///
-    /// See the [constraint theory](#theory) for more information.
-    fn compute_lagrange_update_with_gradients(
-        &self,
-        lagrange: Scalar,
-        c: Scalar,
-        gradients: &[Vector],
-        inverse_masses: &[Scalar],
-        compliance: Scalar,
-        dt: Scalar,
-    ) -> Scalar {
-        // Compute the sum of all inverse masses multiplied by the squared lengths of the corresponding gradients.
-        let w_sum = inverse_masses
-            .iter()
-            .enumerate()
-            .fold(0.0, |acc, (i, w)| acc + *w * gradients[i].length_squared());
+/// Computes how much a constraint's [Lagrange multiplier](self#lagrange-multipliers) changes when projecting
+/// the constraint for all participating particles.
+///
+/// `c` is a scalar value returned by the [constraint function](self#constraint-functions).
+/// When it is zero, the constraint is satisfied.
+///
+/// Each particle should have a corresponding [gradient](self#constraint-gradients) in `gradients`.
+/// A gradient is a vector that refers to the direction in which `c` increases the most.
+///
+/// See the [constraint theory](#theory) for more information.
+pub fn compute_lagrange_update_with_gradients(
+    lagrange: Scalar,
+    c: Scalar,
+    gradients: &[Vector],
+    inverse_masses: &[Scalar],
+    compliance: Scalar,
+    dt: Scalar,
+) -> Scalar {
+    // Compute the sum of all inverse masses multiplied by the squared lengths of the corresponding gradients.
+    let w_sum = inverse_masses
+        .iter()
+        .enumerate()
+        .fold(0.0, |acc, (i, w)| acc + *w * gradients[i].length_squared());
 
-        // Avoid division by zero
-        if w_sum <= Scalar::EPSILON {
-            return 0.0;
-        }
-
-        // tilde_a = a/h^2
-        let tilde_compliance = compliance / dt.powi(2);
-
-        (-c - tilde_compliance * lagrange) / (w_sum + tilde_compliance)
+    // Avoid division by zero
+    if w_sum <= Scalar::EPSILON {
+        return 0.0;
     }
 
-    /// Computes how much a constraint's [Lagrange multiplier](self#lagrange-multipliers) changes when projecting
-    /// the constraint for all participating particles. The constraint gradients are assumed to be unit-length.
-    ///
-    /// `c` is a scalar value returned by the [constraint function](self#constraint-functions).
-    /// When it is zero, the constraint is satisfied.
-    ///
-    /// See the [constraint theory](#theory) for more information.
-    fn compute_lagrange_update(
-        &self,
-        lagrange: Scalar,
-        c: Scalar,
-        inverse_masses: &[Scalar],
-        compliance: Scalar,
-        dt: Scalar,
-    ) -> Scalar {
-        // Compute the sum of all inverse masses.
-        // The gradients are unit length, so they don't need to be considered.
-        let w_sum: Scalar = inverse_masses.iter().copied().sum();
+    // tilde_a = a/h^2
+    let tilde_compliance = compliance / dt.powi(2);
 
-        // Avoid division by zero
-        if w_sum <= Scalar::EPSILON {
-            return 0.0;
-        }
+    (-c - tilde_compliance * lagrange) / (w_sum + tilde_compliance)
+}
 
-        // tilde_a = a/h^2
-        let tilde_compliance = compliance / dt.powi(2);
+/// Computes how much a constraint's [Lagrange multiplier](self#lagrange-multipliers) changes when projecting
+/// the constraint for all participating particles. The constraint gradients are assumed to be unit-length.
+///
+/// `c` is a scalar value returned by the [constraint function](self#constraint-functions).
+/// When it is zero, the constraint is satisfied.
+///
+/// See the [constraint theory](#theory) for more information.
+pub fn compute_lagrange_update(
+    lagrange: Scalar,
+    c: Scalar,
+    inverse_masses: &[Scalar],
+    compliance: Scalar,
+    dt: Scalar,
+) -> Scalar {
+    // Compute the sum of all inverse masses.
+    // The gradients are unit length, so they don't need to be considered.
+    let w_sum: Scalar = inverse_masses.iter().copied().sum();
 
-        (-c - tilde_compliance * lagrange) / (w_sum + tilde_compliance)
+    // Avoid division by zero
+    if w_sum <= Scalar::EPSILON {
+        return 0.0;
     }
 
-    /// Sets the constraint's [Lagrange multipliers](self#lagrange-multipliers) to 0.
-    fn clear_lagrange_multipliers(&mut self) {}
+    // tilde_a = a/h^2
+    let tilde_compliance = compliance / dt.powi(2);
+
+    (-c - tilde_compliance * lagrange) / (w_sum + tilde_compliance)
 }
 
 /// Iterates through the XPBD joints of a given type and solves them.
-pub fn prepare_xpbd_joint<
-    C: Joint + EntityConstraint<2> + XpbdConstraint<2> + Component<Mutability = Mutable>,
->(
+pub fn prepare_xpbd_joint<C: Component + EntityConstraint<2> + XpbdConstraint<2>>(
     bodies: Query<RigidBodyQueryReadOnly, Without<RigidBodyDisabled>>,
-    mut joints: Query<&mut C, (Without<RigidBody>, Without<JointDisabled>)>,
-    time: Res<Time>,
+    mut joints: Query<(&C, &mut C::SolverData), (Without<RigidBody>, Without<JointDisabled>)>,
     mut commands: Commands,
-) {
-    let delta_secs = time.delta_seconds_adjusted();
-
-    for mut joint in &mut joints {
+) where
+    C::SolverData: Component<Mutability = Mutable>,
+{
+    for (joint, mut solver_data) in &mut joints {
         // Get components for entities
         if let Ok([body1, body2]) = bodies.get_many(joint.entities()) {
-            joint.prepare([&body1, &body2], delta_secs);
+            joint.prepare([&body1, &body2], &mut solver_data);
 
             // Wake up the bodies if they are sleeping.
             // TODO: Simulation islands will let us handle this better.
@@ -394,24 +390,22 @@ pub fn prepare_xpbd_joint<
 }
 
 /// Iterates through the XPBD joints of a given type and solves them.
-pub fn solve_xpbd_joint<
-    C: Joint + EntityConstraint<2> + XpbdConstraint<2> + Component<Mutability = Mutable>,
->(
+pub fn solve_xpbd_joint<C: Component + EntityConstraint<2> + XpbdConstraint<2>>(
     bodies: Query<(&mut SolverBody, &SolverBodyInertia), Without<RigidBodyDisabled>>,
-    mut joints: Query<&mut C, (Without<RigidBody>, Without<JointDisabled>)>,
+    mut joints: Query<(&C, &mut C::SolverData), (Without<RigidBody>, Without<JointDisabled>)>,
     time: Res<Time>,
-) {
+) where
+    C::SolverData: Component<Mutability = Mutable>,
+{
     let delta_secs = time.delta_seconds_adjusted();
-
-    // Clear Lagrange multipliers
-    joints
-        .iter_mut()
-        .for_each(|mut c| c.clear_lagrange_multipliers());
 
     let mut dummy_body1 = SolverBody::default();
     let mut dummy_body2 = SolverBody::default();
 
-    for mut joint in &mut joints {
+    for (joint, mut solver_data) in &mut joints {
+        // Clear the Lagrange multipliers.
+        solver_data.clear_lagrange_multipliers();
+
         let [entity1, entity2] = joint.entities();
 
         let (mut body1, mut inertia1) = (&mut dummy_body1, &SolverBodyInertia::DUMMY);
@@ -428,13 +422,18 @@ pub fn solve_xpbd_joint<
         }
 
         // If a body has a higher dominance, it is treated as a static or kinematic body.
-        match joint.relative_dominance().cmp(&0) {
+        match (inertia1.dominance() - inertia2.dominance()).cmp(&0) {
             Ordering::Greater => inertia1 = &SolverBodyInertia::DUMMY,
             Ordering::Less => inertia2 = &SolverBodyInertia::DUMMY,
             _ => {}
         }
 
-        joint.solve([body1, body2], [inertia1, inertia2], delta_secs);
+        joint.solve(
+            [body1, body2],
+            [inertia1, inertia2],
+            &mut solver_data,
+            delta_secs,
+        );
     }
 }
 
