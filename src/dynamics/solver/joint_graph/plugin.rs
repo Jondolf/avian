@@ -7,7 +7,7 @@ use crate::{
         joints::EntityConstraint,
         solver::{
             constraint_graph::ConstraintGraph,
-            joints::joint_graph::{JointGraph, JointGraphEdge},
+            joint_graph::{JointGraph, JointGraphEdge},
         },
     },
     prelude::{

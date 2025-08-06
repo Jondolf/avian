@@ -7,15 +7,19 @@ use crate::{
 };
 use bevy::prelude::*;
 
+/// Constraint data required by the XPBD constraint solver for a [`FixedAngleConstraint`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, PartialEq)]
 pub struct FixedAngleConstraintShared {
+    /// The target rotation difference between the two bodies.
     #[cfg(feature = "2d")]
     pub rotation_difference: Scalar,
+    /// The target rotation difference between the two bodies.
     #[cfg(feature = "3d")]
     pub rotation_difference: Quaternion,
+    /// The Lagrange multiplier for the constraint.
     pub lagrange: Scalar,
 }
 
@@ -26,6 +30,7 @@ impl XpbdConstraintSolverData for FixedAngleConstraintShared {
 }
 
 impl FixedAngleConstraintShared {
+    /// Prepares the constraint with the given rotations and reference rotation.
     pub fn prepare(
         &mut self,
         rotation1: &Rotation,
@@ -44,6 +49,7 @@ impl FixedAngleConstraintShared {
         }
     }
 
+    /// Solves the constraint for the given bodies.
     pub fn solve(
         &mut self,
         bodies: [&mut SolverBody; 2],

@@ -7,14 +7,19 @@ use crate::{
 };
 use bevy::prelude::*;
 
+/// Constraint data required by the XPBD constraint solver for a [`PointConstraint`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, PartialEq)]
 pub struct PointConstraintShared {
+    /// The world-space anchor point relative to the center of mass of the first body.
     pub world_r1: Vector,
+    /// The world-space anchor point relative to the center of mass of the second body.
     pub world_r2: Vector,
+    /// The difference in center of mass positions between the two bodies.
     pub center_difference: Vector,
+    /// The Lagrange multiplier for the constraint.
     pub lagrange: Scalar,
 }
 
@@ -25,6 +30,7 @@ impl XpbdConstraintSolverData for PointConstraintShared {
 }
 
 impl PointConstraintShared {
+    /// Prepares the constraint with the given bodies and local anchor points.
     pub fn prepare(
         &mut self,
         bodies: [&RigidBodyQueryReadOnlyItem; 2],
@@ -39,6 +45,7 @@ impl PointConstraintShared {
             + (body2.rotation * body2.center_of_mass.0 - body1.rotation * body1.center_of_mass.0);
     }
 
+    /// Solves the constraint for the given bodies.
     pub fn solve(
         &mut self,
         bodies: [&mut SolverBody; 2],

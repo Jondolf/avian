@@ -575,12 +575,7 @@ use prelude::*;
 )]
 /// | [`BroadPhasePlugin`]              | Finds pairs of entities with overlapping [AABBs](ColliderAabb) to reduce the number of potential contacts for the [narrow phase](collision::narrow_phase). |
 /// | [`NarrowPhasePlugin`]             | Manages contacts and generates contact constraints.                                                                                                        |
-/// | [`SolverSchedulePlugin`]          | Sets up the solver and substepping loop by initializing the necessary schedules, sets and resources.                                                       |
-/// | [`IntegratorPlugin`]              | Handles motion caused by velocity, and applies external forces and gravity.                                                                                |
-/// | [`SolverBodyPlugin`]              | Manages [solver bodies](dynamics::solver::solver_body::SolverBody).                                                                                        |
-/// | [`SolverPlugin`]                  | Manages and solves contacts, [joints](dynamics::solver::joints), and other constraints.                                                                    |
-/// | [`CcdPlugin`]                     | Performs sweep-based [Continuous Collision Detection](dynamics::ccd) for bodies with the [`SweptCcd`] component.                                           |
-/// | [`SleepingPlugin`]                | Manages sleeping and waking for bodies, automatically deactivating them to save computational resources.                                                   |
+/// | [`SolverPlugins`]                 | A plugin group for the physics solver's plugins. See the plugin group's documentation for more information.                                                |
 /// | [`SpatialQueryPlugin`]            | Handles spatial queries like [raycasting](spatial_query#raycasting) and [shapecasting](spatial_query#shapecasting).                                        |
 /// | [`PhysicsInterpolationPlugin`]    | [`Transform`] interpolation and extrapolation for rigid bodies.                                                                                            |
 /// | [`PhysicsTransformPlugin`]        | Manages physics transforms and synchronizes them with [`Transform`].                                                                                       |
@@ -808,14 +803,13 @@ impl PluginGroup for PhysicsPlugins {
             .add(ColliderBackendPlugin::<Collider>::new(self.schedule))
             .add(NarrowPhasePlugin::<Collider>::default());
 
+        // Add solver plugins.
+        let builder = builder.add_group(SolverPlugins::new_with_length_unit(self.length_unit));
+
         builder
             .add(BroadPhasePlugin::<()>::default())
-            .add(IntegratorPlugin::default())
-            .add(SolverPlugin::new_with_length_unit(self.length_unit))
             .add(SolverSchedulePlugin)
             .add(JointPlugin)
-            .add(CcdPlugin)
-            .add(SleepingPlugin)
             .add(SpatialQueryPlugin)
             .add(PhysicsTransformPlugin::new(self.schedule))
             .add(PhysicsInterpolationPlugin::default())

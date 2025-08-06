@@ -1,8 +1,6 @@
-//! [`PrismaticJoint`] component.
-
+use super::FixedAngleConstraintShared;
 use crate::{
     dynamics::solver::{
-        joints::FixedAngleConstraintShared,
         solver_body::{SolverBody, SolverBodyInertia},
         xpbd::*,
     },
@@ -10,6 +8,7 @@ use crate::{
 };
 use bevy::prelude::*;
 
+/// Constraint data required by the XPBD constraint solver for a [`PrismaticJoint`].
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]

@@ -244,18 +244,22 @@
 //! where `q_i` is the [rotation](Rotation) of body `i` and `r_i` is a vector pointing from the body's center of mass to some
 //! attachment position.
 
+mod plugin;
+pub use plugin::{XpbdSolverPlugin, XpbdSolverSet, prepare_xpbd_joint, solve_xpbd_joint};
+
+pub mod joints;
+
 mod angular_constraint;
 mod positional_constraint;
 
 pub use angular_constraint::AngularConstraint;
 pub use positional_constraint::PositionConstraint;
 
-use crate::{dynamics::joints::EntityConstraint, prelude::*};
-use bevy::{ecs::component::Mutable, prelude::*};
-use core::cmp::Ordering;
+use crate::prelude::*;
 
 use super::solver_body::{SolverBody, SolverBodyInertia};
 
+/// A trait for additional data required for solving an XPBD constraint.
 pub trait XpbdConstraintSolverData {
     /// Sets the constraint's [Lagrange multipliers](self#lagrange-multipliers) to 0.
     fn clear_lagrange_multipliers(&mut self) {}
@@ -362,128 +366,4 @@ pub fn compute_lagrange_update(
     let tilde_compliance = compliance / dt.powi(2);
 
     (-c - tilde_compliance * lagrange) / (w_sum + tilde_compliance)
-}
-
-/// Iterates through the XPBD joints of a given type and solves them.
-pub fn prepare_xpbd_joint<C: Component + EntityConstraint<2> + XpbdConstraint<2>>(
-    bodies: Query<RigidBodyQueryReadOnly, Without<RigidBodyDisabled>>,
-    mut joints: Query<(&C, &mut C::SolverData), (Without<RigidBody>, Without<JointDisabled>)>,
-    mut commands: Commands,
-) where
-    C::SolverData: Component<Mutability = Mutable>,
-{
-    for (joint, mut solver_data) in &mut joints {
-        // Get components for entities
-        if let Ok([body1, body2]) = bodies.get_many(joint.entities()) {
-            joint.prepare([&body1, &body2], &mut solver_data);
-
-            // Wake up the bodies if they are sleeping.
-            // TODO: Simulation islands will let us handle this better.
-            if body1.is_sleeping {
-                commands.queue(WakeUpBody(body1.entity));
-            }
-            if body2.is_sleeping {
-                commands.queue(WakeUpBody(body2.entity));
-            }
-        }
-    }
-}
-
-/// Iterates through the XPBD joints of a given type and solves them.
-pub fn solve_xpbd_joint<C: Component + EntityConstraint<2> + XpbdConstraint<2>>(
-    bodies: Query<(&mut SolverBody, &SolverBodyInertia), Without<RigidBodyDisabled>>,
-    mut joints: Query<(&C, &mut C::SolverData), (Without<RigidBody>, Without<JointDisabled>)>,
-    time: Res<Time>,
-) where
-    C::SolverData: Component<Mutability = Mutable>,
-{
-    let delta_secs = time.delta_seconds_adjusted();
-
-    let mut dummy_body1 = SolverBody::default();
-    let mut dummy_body2 = SolverBody::default();
-
-    for (joint, mut solver_data) in &mut joints {
-        // Clear the Lagrange multipliers.
-        solver_data.clear_lagrange_multipliers();
-
-        let [entity1, entity2] = joint.entities();
-
-        let (mut body1, mut inertia1) = (&mut dummy_body1, &SolverBodyInertia::DUMMY);
-        let (mut body2, mut inertia2) = (&mut dummy_body2, &SolverBodyInertia::DUMMY);
-
-        // Get the solver bodies for the two colliding entities.
-        if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(entity1) } {
-            body1 = body.into_inner();
-            inertia1 = inertia;
-        }
-        if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(entity2) } {
-            body2 = body.into_inner();
-            inertia2 = inertia;
-        }
-
-        // If a body has a higher dominance, it is treated as a static or kinematic body.
-        match (inertia1.dominance() - inertia2.dominance()).cmp(&0) {
-            Ordering::Greater => inertia1 = &SolverBodyInertia::DUMMY,
-            Ordering::Less => inertia2 = &SolverBodyInertia::DUMMY,
-            _ => {}
-        }
-
-        joint.solve(
-            [body1, body2],
-            [inertia1, inertia2],
-            &mut solver_data,
-            delta_secs,
-        );
-    }
-}
-
-/// Updates the linear velocity of all dynamic bodies based on the change in position from the XPBD solver.
-pub(super) fn project_linear_velocity(
-    mut bodies: Query<(&mut SolverBody, &PreSolveDeltaPosition), RigidBodyActiveFilter>,
-    time: Res<Time>,
-) {
-    let delta_secs = time.delta_seconds_adjusted();
-
-    for (mut body, pre_solve_delta_pos) in &mut bodies {
-        // v = (x - x_prev) / h
-        let new_lin_vel = (body.delta_position - pre_solve_delta_pos.0) / delta_secs;
-        body.linear_velocity += new_lin_vel;
-    }
-}
-
-/// Updates the angular velocity of all dynamic bodies based on the change in rotation from the XPBD solver.
-#[cfg(feature = "2d")]
-pub(super) fn project_angular_velocity(
-    mut bodies: Query<(&mut SolverBody, &PreSolveDeltaRotation), RigidBodyActiveFilter>,
-    time: Res<Time>,
-) {
-    let delta_secs = time.delta_seconds_adjusted();
-
-    for (mut body, pre_solve_delta_rot) in &mut bodies {
-        let new_ang_vel = pre_solve_delta_rot.angle_between(body.delta_rotation) / delta_secs;
-        body.angular_velocity += new_ang_vel;
-    }
-}
-
-/// Updates the angular velocity of all dynamic bodies based on the change in rotation from the XPBD solver.
-#[cfg(feature = "3d")]
-pub(super) fn project_angular_velocity(
-    mut bodies: Query<(&mut SolverBody, &PreSolveDeltaRotation), RigidBodyActiveFilter>,
-    time: Res<Time>,
-) {
-    let delta_secs = time.delta_seconds_adjusted();
-
-    for (mut body, pre_solve_delta_rot) in &mut bodies {
-        let delta_rot = body
-            .delta_rotation
-            .mul_quat(pre_solve_delta_rot.inverse().0);
-
-        let mut new_ang_vel = 2.0 * delta_rot.xyz() / delta_secs;
-
-        if delta_rot.w < 0.0 {
-            new_ang_vel = -new_ang_vel;
-        }
-
-        body.angular_velocity += new_ang_vel;
-    }
 }

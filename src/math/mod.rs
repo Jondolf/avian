@@ -31,14 +31,6 @@ pub(crate) use bevy_math::Vec2 as VectorF32;
 #[cfg(feature = "3d")]
 pub(crate) use bevy_math::Vec3 as VectorF32;
 
-/// The `f32` vector type chosen based on the dimension.
-#[cfg(feature = "2d")]
-pub(crate) use bevy_math::Rot2 as RotationF32;
-
-/// The `f32` vector type chosen based on the dimension.
-#[cfg(feature = "3d")]
-pub(crate) use bevy_math::Quat as RotationF32;
-
 /// The `i32` vector type chosen based on the dimension.
 #[cfg(feature = "2d")]
 pub(crate) use bevy_math::IVec2 as IVector;
@@ -71,14 +63,6 @@ pub(crate) type AngularVector = Scalar;
 /// The vector type for angular values chosen based on the dimension.
 #[cfg(feature = "3d")]
 pub(crate) type AngularVector = Vector;
-
-/// The isometry type chosen based on the dimension.
-#[cfg(feature = "2d")]
-pub(crate) type Isometry = Isometry2d;
-
-/// The isometry type chosen based on the dimension.
-#[cfg(feature = "3d")]
-pub(crate) type Isometry = Isometry3d;
 
 /// The symmetric tensor type chosen based on the dimension.
 /// Often used for angular inertia.

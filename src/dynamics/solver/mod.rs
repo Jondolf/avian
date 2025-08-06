@@ -4,10 +4,11 @@
 
 pub mod constraint_graph;
 pub mod contact;
-pub mod joints;
+pub mod joint_graph;
 pub mod schedule;
 pub mod softness_parameters;
 pub mod solver_body;
+#[cfg(feature = "xpbd_joints")]
 pub mod xpbd;
 
 mod diagnostics;
@@ -15,22 +16,18 @@ use constraint_graph::ConstraintGraph;
 pub use diagnostics::SolverDiagnostics;
 use solver_body::{SolverBody, SolverBodyInertia, SolverBodyPlugin};
 
-#[cfg(feature = "3d")]
-use crate::dynamics::solver::joints::SphericalJointSolverData;
 use crate::{
     dynamics::{
         joints::EntityConstraint,
         solver::{
             constraint_graph::{COLOR_OVERFLOW_INDEX, ContactManifoldHandle, GraphColor},
-            joints::{
-                DistanceJointSolverData, FixedJointSolverData, PrismaticJointSolverData,
-                RevoluteJointSolverData, joint_graph::JointGraphPlugin,
-            },
+            joint_graph::JointGraphPlugin,
         },
     },
     prelude::*,
 };
 use bevy::{
+    app::PluginGroupBuilder,
     ecs::{query::QueryData, system::lifetimeless::Read},
     prelude::*,
 };
@@ -41,6 +38,61 @@ use self::{
     contact::ContactConstraint,
     softness_parameters::{SoftnessCoefficients, SoftnessParameters},
 };
+
+/// A plugin group that contains Avian's default solver plugins.
+///
+/// # Plugins
+///
+/// By default, the following plugins will be added:
+///
+/// | Plugin                            | Description                                                                                                                                                |
+/// | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+/// | [`SolverSchedulePlugin`]          | Sets up the solver and substepping loop by initializing the necessary schedules, sets and resources.                                                       |
+/// | [`SolverBodyPlugin`]              | Manages [solver bodies](dynamics::solver::solver_body::SolverBody).                                                                                        |
+/// | [`IntegratorPlugin`]              | Handles motion caused by velocity, and applies external forces and gravity.                                                                                |
+/// | [`SolverPlugin`]                  | Manages and solves contacts, [joints](dynamics::joints), and other constraints.                                                                            |
+/// | [`CcdPlugin`]                     | Performs sweep-based [Continuous Collision Detection](dynamics::ccd) for bodies with the [`SweptCcd`] component.                                           |
+/// | [`SleepingPlugin`]                | Manages sleeping and waking for bodies, automatically deactivating them to save computational resources.                                                   |
+/// | [`JointGraphPlugin`]              | Manages the [`JointGraph`] for each joint type.                                                                                                            |
+/// | [`XpbdSolverPlugin`]              | Solves joints using Extended Position-Based Dynamics (XPBD). Requires the `xpbd_joints` feature.                                                           |
+///
+/// Refer to the documentation of the plugins for more information about their responsibilities and implementations.
+#[derive(Debug, Default)]
+pub struct SolverPlugins {
+    length_unit: Scalar,
+}
+
+impl SolverPlugins {
+    /// Creates a [`SolverPlugins`] plugin group with the given approximate dimensions of most objects.
+    ///
+    /// The length unit will be used for initializing the [`PhysicsLengthUnit`]
+    /// resource unless it already exists.
+    pub fn new_with_length_unit(unit: Scalar) -> Self {
+        Self { length_unit: unit }
+    }
+}
+
+impl PluginGroup for SolverPlugins {
+    fn build(self) -> PluginGroupBuilder {
+        let builder = PluginGroupBuilder::start::<Self>()
+            .add(SolverBodyPlugin)
+            .add(SolverSchedulePlugin)
+            .add(IntegratorPlugin::default())
+            .add(SolverPlugin::new_with_length_unit(self.length_unit))
+            .add(XpbdSolverPlugin)
+            .add(CcdPlugin)
+            .add(SleepingPlugin)
+            .add(JointGraphPlugin::<FixedJoint>::default())
+            .add(JointGraphPlugin::<RevoluteJoint>::default())
+            .add(JointGraphPlugin::<PrismaticJoint>::default())
+            .add(JointGraphPlugin::<DistanceJoint>::default());
+
+        #[cfg(feature = "3d")]
+        let builder = builder.add(JointGraphPlugin::<SphericalJoint>::default());
+
+        builder
+    }
+}
 
 /// Manages and solves contacts, joints, and other constraints.
 ///
@@ -109,26 +161,6 @@ impl SolverPlugin {
 
 impl Plugin for SolverPlugin {
     fn build(&self, app: &mut App) {
-        // Add the `SolverBodyPlugin` to manage solver bodies and synchronize them with rigid body data.
-        app.add_plugins(SolverBodyPlugin);
-
-        app.add_plugins((
-            JointGraphPlugin::<FixedJoint>::default(),
-            JointGraphPlugin::<RevoluteJoint>::default(),
-            JointGraphPlugin::<PrismaticJoint>::default(),
-            JointGraphPlugin::<DistanceJoint>::default(),
-            #[cfg(feature = "3d")]
-            JointGraphPlugin::<SphericalJoint>::default(),
-        ));
-
-        // TODO: Move to XPBD solver plugin
-        app.register_required_components::<FixedJoint, FixedJointSolverData>();
-        app.register_required_components::<RevoluteJoint, RevoluteJointSolverData>();
-        app.register_required_components::<PrismaticJoint, PrismaticJointSolverData>();
-        app.register_required_components::<DistanceJoint, DistanceJointSolverData>();
-        #[cfg(feature = "3d")]
-        app.register_required_components::<SphericalJoint, SphericalJointSolverData>();
-
         app.init_resource::<SolverConfig>()
             .init_resource::<ContactSoftnessCoefficients>()
             .init_resource::<ContactConstraints>()
@@ -148,20 +180,6 @@ impl Plugin for SolverPlugin {
             .expect("add PhysicsSchedule first");
 
         physics.add_systems(update_contact_softness.before(PhysicsStepSet::NarrowPhase));
-
-        // Prepare joints before the substepping loop.
-        physics.add_systems(
-            (
-                xpbd::prepare_xpbd_joint::<FixedJoint>,
-                xpbd::prepare_xpbd_joint::<RevoluteJoint>,
-                xpbd::prepare_xpbd_joint::<PrismaticJoint>,
-                xpbd::prepare_xpbd_joint::<DistanceJoint>,
-                #[cfg(feature = "3d")]
-                xpbd::prepare_xpbd_joint::<SphericalJoint>,
-            )
-                .chain()
-                .in_set(SolverSet::PrepareJoints),
-        );
 
         // Prepare contact constraints before the substepping loop.
         physics
@@ -190,41 +208,9 @@ impl Plugin for SolverPlugin {
         // This reduces overshooting caused by warm starting.
         substeps.add_systems(solve_contacts::<false>.in_set(SubstepSolverSet::Relax));
 
-        // Solve joints with XPBD.
+        // Perform constraint damping.
         substeps.add_systems(
             (
-                |mut query: Query<
-                    (
-                        &SolverBody,
-                        &mut PreSolveDeltaPosition,
-                        &mut PreSolveDeltaRotation,
-                    ),
-                    Without<RigidBodyDisabled>,
-                >| {
-                    for (body, mut pre_solve_delta_position, mut pre_solve_delta_rotation) in
-                        &mut query
-                    {
-                        // Store the previous delta translation and rotation for XPBD velocity updates.
-                        pre_solve_delta_position.0 = body.delta_position;
-                        pre_solve_delta_rotation.0 = body.delta_rotation;
-                    }
-                },
-                xpbd::solve_xpbd_joint::<FixedJoint>,
-                xpbd::solve_xpbd_joint::<RevoluteJoint>,
-                #[cfg(feature = "3d")]
-                xpbd::solve_xpbd_joint::<SphericalJoint>,
-                xpbd::solve_xpbd_joint::<PrismaticJoint>,
-                xpbd::solve_xpbd_joint::<DistanceJoint>,
-            )
-                .chain()
-                .in_set(SubstepSolverSet::SolveXpbdConstraints),
-        );
-
-        // Perform XPBD velocity updates after constraint solving.
-        substeps.add_systems(
-            (
-                xpbd::project_linear_velocity,
-                xpbd::project_angular_velocity,
                 joint_damping::<FixedJoint>,
                 joint_damping::<RevoluteJoint>,
                 #[cfg(feature = "3d")]
@@ -233,7 +219,7 @@ impl Plugin for SolverPlugin {
                 joint_damping::<DistanceJoint>,
             )
                 .chain()
-                .in_set(SubstepSolverSet::XpbdVelocityProjection),
+                .in_set(SubstepSolverSet::Damping),
         );
     }
 

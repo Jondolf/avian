@@ -1,8 +1,6 @@
-//! [`FixedJoint`] component.
-
+use super::{FixedAngleConstraintShared, PointConstraintShared};
 use crate::{
     dynamics::solver::{
-        joints::{FixedAngleConstraintShared, PointConstraintShared},
         solver_body::{SolverBody, SolverBodyInertia},
         xpbd::*,
     },

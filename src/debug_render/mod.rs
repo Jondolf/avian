@@ -10,7 +10,7 @@ mod gizmos;
 pub use configuration::*;
 pub use gizmos::*;
 
-use crate::{dynamics::joints::EntityConstraint, prelude::*};
+use crate::prelude::*;
 use bevy::{
     ecs::{intern::Interned, query::Has, schedule::ScheduleLabel},
     prelude::*,

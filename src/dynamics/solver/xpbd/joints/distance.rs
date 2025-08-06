@@ -7,7 +7,7 @@ use crate::{
 };
 use bevy::prelude::*;
 
-/// Solver data for the [`DistanceJoint`].
+/// Constraint data required by the XPBD constraint solver for a [`DistanceJoint`].
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]

@@ -100,12 +100,16 @@ pub use revolute::RevoluteJoint;
 #[cfg(feature = "3d")]
 pub use spherical::SphericalJoint;
 
-use crate::{dynamics::solver::joints::joint_graph::JointGraph, prelude::*};
+use crate::{dynamics::solver::joint_graph::JointGraph, prelude::*};
 use bevy::{
     ecs::{component::HookContext, entity::MapEntities, world::DeferredWorld},
     prelude::*,
 };
 
+/// A plugin for managing and initializing [joints](self).
+///
+/// Note that this does *not* include the actual joint constraint solver.
+/// For a built-in joint solver, enable the `xpbd_joints` feature, and use the [`XpbdSolverPlugin`].
 pub struct JointPlugin;
 
 impl Plugin for JointPlugin {
