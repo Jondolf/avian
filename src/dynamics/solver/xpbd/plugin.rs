@@ -21,10 +21,10 @@ impl Plugin for XpbdSolverPlugin {
     fn build(&self, app: &mut App) {
         app.register_required_components::<FixedJoint, FixedJointSolverData>();
         app.register_required_components::<RevoluteJoint, RevoluteJointSolverData>();
-        app.register_required_components::<PrismaticJoint, PrismaticJointSolverData>();
-        app.register_required_components::<DistanceJoint, DistanceJointSolverData>();
         #[cfg(feature = "3d")]
         app.register_required_components::<SphericalJoint, SphericalJointSolverData>();
+        app.register_required_components::<PrismaticJoint, PrismaticJointSolverData>();
+        app.register_required_components::<DistanceJoint, DistanceJointSolverData>();
 
         // Configure scheduling.
         app.configure_sets(
@@ -45,10 +45,10 @@ impl Plugin for XpbdSolverPlugin {
             (
                 prepare_xpbd_joint::<FixedJoint>,
                 prepare_xpbd_joint::<RevoluteJoint>,
-                prepare_xpbd_joint::<PrismaticJoint>,
-                prepare_xpbd_joint::<DistanceJoint>,
                 #[cfg(feature = "3d")]
                 prepare_xpbd_joint::<SphericalJoint>,
+                prepare_xpbd_joint::<PrismaticJoint>,
+                prepare_xpbd_joint::<DistanceJoint>,
             )
                 .chain()
                 .in_set(SolverSet::PrepareJoints),
@@ -99,10 +99,10 @@ impl Plugin for XpbdSolverPlugin {
             (
                 writeback_joint_forces::<FixedJoint>,
                 writeback_joint_forces::<RevoluteJoint>,
-                writeback_joint_forces::<PrismaticJoint>,
-                writeback_joint_forces::<DistanceJoint>,
                 #[cfg(feature = "3d")]
                 writeback_joint_forces::<SphericalJoint>,
+                writeback_joint_forces::<PrismaticJoint>,
+                writeback_joint_forces::<DistanceJoint>,
             )
                 .chain()
                 .in_set(SolverSet::Finalize),
@@ -122,14 +122,16 @@ pub enum XpbdSolverSet {
 }
 
 /// Iterates through the XPBD joints of a given type and solves them.
-pub fn prepare_xpbd_joint<C: Component + EntityConstraint<2> + XpbdConstraint<2>>(
+pub fn prepare_xpbd_joint<
+    C: Component<Mutability = Mutable> + EntityConstraint<2> + XpbdConstraint<2>,
+>(
     bodies: Query<RigidBodyQueryReadOnly, Without<RigidBodyDisabled>>,
-    mut joints: Query<(&C, &mut C::SolverData), (Without<RigidBody>, Without<JointDisabled>)>,
+    mut joints: Query<(&mut C, &mut C::SolverData), (Without<RigidBody>, Without<JointDisabled>)>,
     mut commands: Commands,
 ) where
     C::SolverData: Component<Mutability = Mutable>,
 {
-    for (joint, mut solver_data) in &mut joints {
+    for (mut joint, mut solver_data) in &mut joints {
         // Clear the Lagrange multipliers.
         solver_data.clear_lagrange_multipliers();
 
@@ -150,9 +152,11 @@ pub fn prepare_xpbd_joint<C: Component + EntityConstraint<2> + XpbdConstraint<2>
 }
 
 /// Iterates through the XPBD joints of a given type and solves them.
-pub fn solve_xpbd_joint<C: Component + EntityConstraint<2> + XpbdConstraint<2>>(
+pub fn solve_xpbd_joint<
+    C: Component<Mutability = Mutable> + EntityConstraint<2> + XpbdConstraint<2>,
+>(
     bodies: Query<(&mut SolverBody, &SolverBodyInertia), Without<RigidBodyDisabled>>,
-    mut joints: Query<(&C, &mut C::SolverData), (Without<RigidBody>, Without<JointDisabled>)>,
+    mut joints: Query<(&mut C, &mut C::SolverData), (Without<RigidBody>, Without<JointDisabled>)>,
     time: Res<Time>,
 ) where
     C::SolverData: Component<Mutability = Mutable>,
@@ -162,7 +166,7 @@ pub fn solve_xpbd_joint<C: Component + EntityConstraint<2> + XpbdConstraint<2>>(
     let mut dummy_body1 = SolverBody::default();
     let mut dummy_body2 = SolverBody::default();
 
-    for (joint, mut solver_data) in &mut joints {
+    for (mut joint, mut solver_data) in &mut joints {
         let [entity1, entity2] = joint.entities();
 
         let (mut body1, mut inertia1) = (&mut dummy_body1, &SolverBodyInertia::DUMMY);

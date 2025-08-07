@@ -1,11 +1,11 @@
 //! Extended Position-Based Dynamics (XPBD) constraint functionality.
 //!
 //! XPBD is a simulation method that solves constraints at the position-level.
-//! Avian currently uses it for [joints](dynamics::solver::joints),
+//! Avian currently uses it for [joints](dynamics::joints),
 //! while contacts use an impulse-based approach.
 //!
 //! This module contains traits and systems for XPBD functionality.
-//! The actual joint implementations are in [`dynamics::solver::joints`],
+//! The actual XPBD joint implementations are in [`dynamics::solver::xpbd::joints`],
 //! but it is also possible to create your own constraints.
 //!
 //! The following section has an overview of what exactly constraints are,
@@ -15,7 +15,7 @@
 //!
 //! **Constraints** are a way to model physical relationships between entities.
 //! They are an integral part of physics simulation, and they can be used for things
-//! like contact resolution, [joints](super::joints), soft bodies, and much more.
+//! like contact resolution, [joints](dynamics::joints), soft bodies, and much more.
 //!
 //! At its core, a constraint is just a rule that is enforced by moving the participating entities in a way that satisfies that rule.
 //! For example, a distance constraint is satisfied when the distance between two entities is equal to the desired distance.
@@ -26,11 +26,11 @@
 //!
 //! Below are the currently implemented XPBD-based constraints.
 //!
-//! - [Joints](super::joints)
+//! - [Joints](dynamics::joints)
 //!     - [`FixedJoint`]
+//!     - [`RevoluteJoint`]
 //!     - [`DistanceJoint`]
 #![cfg_attr(feature = "3d", doc = "    - [`SphericalJoint`]")]
-//!     - [`RevoluteJoint`]
 //!     - [`PrismaticJoint`]
 //!
 //! Avian's [`ContactConstraint`](dynamics::solver::contact::ContactConstraint)
@@ -38,26 +38,50 @@
 //!
 //! ## Custom constraints
 //!
-//! In Avian, you can easily create your own XPBD constraints using the same APIs that the engine uses for its own constraints.
+//! <div class="warning">
+//!
+//! The constraint APIs are intended for advanced users, and prone to large sweeping changes and breakage.
+//! Only use them if you know what you are doing and are willing to risk your code breaking in the future.
+//!
+//! </div>
+//!
+//! In Avian, you can create your own XPBD constraints using the same APIs that the engine uses for its own constraints.
 //!
 //! First, create a struct and implement the [`EntityConstraint`] and [`XpbdConstraint`] traits,
-//! giving the number of participating entities using generics. It should look similar to this:
+//! giving the number of participating entities using generics. You can additionally pass a `SolverData` component
+//! implementing [`XpbdConstraintSolverData`] for storing additional solver-related data such as Lagrange multipliers
+//! or world-space anchors from the beginning of the time step.
 //!
 //! ```
 #![cfg_attr(
     feature = "2d",
-    doc = "use avian2d::{prelude::*, dynamics::solver::xpbd::XpbdConstraint};"
+    doc = "use avian2d::{prelude::*, dynamics::solver::xpbd::{XpbdConstraint, XpbdConstraintSolverData};"
 )]
 #![cfg_attr(
     feature = "3d",
-    doc = "use avian3d::{prelude::*, dynamics::solver::xpbd::XpbdConstraint};"
+    doc = "use avian3d::{prelude::*, dynamics::solver::xpbd::{XpbdConstraint, XpbdConstraintSolverData};"
 )]
 //! use bevy::{ecs::entity::{EntityMapper, MapEntities}, prelude::*};
 //!
 //! struct CustomConstraint {
 //!     entity1: Entity,
 //!     entity2: Entity,
-//!     lagrange: f32,
+//! }
+//!
+//! // Store additional internal solver data for the constraint.
+//! struct CustomConstraintSolverData {
+//!     // Accumulated Lagrange multipliers for the `JointForces` component.
+//!     total_lagrange: Vector,
+//! }
+//!
+//! impl XpbdConstraintSolverData for CustomConstraintSolverData {
+//!     fn clear_lagrange_multipliers(&mut self) {
+//!         self.total_lagrange = 0.0;
+//!     }
+//!
+//!     fn total_position_lagrange(&self) -> Vector {
+//!         self.total_lagrange
+//!     }
 //! }
 //!
 //! // This tells the solver how to get the entities from the constraint.
@@ -70,12 +94,14 @@
 //!
 //! # #[cfg(feature = "f32")]
 //! impl XpbdConstraint<2> for CustomConstraint {
-//!     fn clear_lagrange_multipliers(&mut self) {
-//!         self.lagrange = 0.0;
-//!     }
+//!     type SolverData = CustomConstraintSolverData;
 //!
-//!     fn prepare(&mut self, bodies: [&RigidBodyQueryReadOnlyItem; 2], dt: f32) {
-//!          // Prepare the constraint for `solve` (compute current anchor positions, offsets, and so on).
+//!     fn prepare(
+//!         &mut self,
+//!         bodies: [&RigidBodyQueryReadOnlyItem; 2]
+//!         solver_data: &mut CustomConstraintSolverData,
+//!     ) {
+//!          // Prepare the constraint solver data for `solve` (compute current anchor positions, offsets, and so on).
 //!          // This runs before the substepping loop.
 //!     }
 //!
@@ -83,6 +109,7 @@
 //!         &mut self,
 //!         bodies: [&mut SolverBody; 2],
 //!         inertias: [&SolverBodyInertia; 2],
+//!         solver_data: &mut CustomConstraintSolverData,
 //!         dt: f32,
 //!     ) {
 //!         // Solve the constraint by applying corrections to the `delta_position`
@@ -106,7 +133,7 @@
 //! system that handles some of the background work for you.
 //!
 //! Add the `solve_xpbd_joint::<YourConstraint>` system to the [substepping schedule's](SubstepSchedule)
-//! [`SubstepSolverSet::SolveUserConstraints`](dynamics::solver::SubstepSolverSet::SolveUserConstraints) system set.
+//! [`XpbdSolverSet::SolveUserConstraints`](dynamics::solver::xpbd::XpbdSolverSet::SolveUserConstraints) system set.
 //! It should look like this:
 //!
 //! ```ignore
@@ -121,19 +148,29 @@
 //! app.add_systems(
 //!     SubstepSchedule,
 //!     solve_xpbd_joint::<CustomConstraint>
-//!         .in_set(SubstepSolverSet::SolveUserConstraints),
+//!         .in_set(XpbdSolverSet::SolveUserConstraints),
+//! );
+//!
+//! // Optional: Write back constraint forces to the `JointForces` component.
+//! app.add_systems(
+//!     PhysicsSchedule,
+//!     write_back_joint_forces::<CustomConstraint>
+//!         .in_set(SolverSet::Finalize)
+//!         .ambiguous_with(SolverSet::Finalize),
 //! );
 //! ```
 //!
 //! Now, just spawn an instance of the constraint, give it the participating entities, and the constraint should be getting
 //! solved automatically according to the `solve` method!
 //!
-//! If the constraint is a [joint](crate::dynamics::solver::joints), it is recommended to also add an instance
-//! of [`JointGraphPlugin`](crate::dynamics::solver::joints::joint_graph::JointGraphPlugin) for the constraint type.
+//! If the constraint is a [joint](crate::dynamics::joints), it is recommended to also add an instance
+//! of [`JointGraphPlugin`](crate::dynamics::solver::joint_graph::JointGraphPlugin) for the constraint type.
 //! This is required for sleeping and the `JointCollisionDisabled` component to work.
 //!
 //! You can find a working example of a custom constraint
 //! [here](https://github.com/Jondolf/avian/blob/main/crates/avian3d/examples/custom_constraint.rs).
+//!
+//! [`EntityConstraint`]: crate::dynamics::joints::EntityConstraint
 //!
 //! ## Theory
 //!
@@ -158,7 +195,7 @@
 //! because this would be zero when the distance is equal to the desired rest distance.
 //!
 //! For *inequality constraints* the equation instead takes the form `C(x) >= 0`. These constraints are only applied
-//! when `C(x) < 0`, which is useful for things like static friction and [joint limits](super::joints#joint-limits).
+//! when `C(x) < 0`, which is useful for things like static friction and [joint limits](dynamics::joints#joint-limits).
 //!
 //! ### Constraint gradients
 //!
@@ -282,7 +319,7 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize> {
 
     /// Prepares the constraint for solving.
     fn prepare(
-        &self,
+        &mut self,
         bodies: [&RigidBodyQueryReadOnlyItem; ENTITY_COUNT],
         solver_data: &mut Self::SolverData,
     );
@@ -306,7 +343,7 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize> {
     /// You can find a working example of a custom constraint
     /// [here](https://github.com/Jondolf/avian/blob/main/crates/avian3d/examples/custom_constraint.rs).
     fn solve(
-        &self,
+        &mut self,
         bodies: [&mut SolverBody; ENTITY_COUNT],
         inertias: [&SolverBodyInertia; ENTITY_COUNT],
         solver_data: &mut Self::SolverData,

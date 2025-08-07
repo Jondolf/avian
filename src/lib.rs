@@ -39,7 +39,7 @@
 //! [dependencies]
 //! # Add 3D Avian with double-precision floating point numbers.
 //! # `parry-f64` enables collision detection using Parry.
-//! avian3d = { version = "0.3", default-features = false, features = ["3d", "f64", "parry-f64"] }
+//! avian3d = { version = "0.3", default-features = false, features = ["3d", "f64", "parry-f64", "xpbd_joints"] }
 //! ```
 //!
 //! ## Feature Flags
@@ -53,6 +53,7 @@
 //! | `default-collider`     | Enables the default [`Collider`]. Required for [spatial queries](spatial_query). Requires either the `parry-f32` or `parry-f64` feature.           | Yes             |
 //! | `parry-f32`            | Enables the `f32` version of the Parry collision detection library. Also enables the `default-collider` feature.                                   | Yes             |
 //! | `parry-f64`            | Enables the `f64` version of the Parry collision detection library. Also enables the `default-collider` feature.                                   | No              |
+//! | `xpbd_joints`          | Enables support for [XPBD joints](dynamics::solver::xpbd).                            .                                                            | Yes             |
 #![cfg_attr(
     feature = "3d",
     doc = "| `collider-from-mesh`   | Allows you to create [`Collider`]s from `Mesh`es.                                                                                                  | Yes             |"
@@ -165,14 +166,17 @@
 //!
 //! ## Constraints and Joints
 //!
-//! - [Joints](dynamics::solver::joints)
+//! - [Joints](dynamics::joints)
 //!     - [Fixed joint](FixedJoint)
 //!     - [Distance joint](DistanceJoint)
 //!     - [Prismatic joint](PrismaticJoint)
 //!     - [Revolute joint](RevoluteJoint)
 #![cfg_attr(feature = "3d", doc = "    - [Spherical joint](SphericalJoint)")]
 //! - [Temporarily disabling a joint](JointDisabled)
-//! - [Custom XPBD constraints](dynamics::solver::xpbd#constraints) (advanced)
+#![cfg_attr(
+    feature = "xpbd_joints",
+    doc = "- [Custom XPBD constraints](dynamics::solver::xpbd#constraints) (advanced)"
+)]
 //!
 //! Joint motors and articulations are not supported yet, but they will be implemented in a future release.
 //!
@@ -213,10 +217,7 @@
 //! ## Architecture
 //!
 //! - [List of plugins and their responsibilities](PhysicsPlugins)
-//! - Extending and modifying the engine
-//!     - [Custom plugins](PhysicsPlugins#custom-plugins)
-//!     - [Custom XPBD constraints](dynamics::solver::xpbd#custom-constraints)
-//!     - [Custom joints](dynamics::solver::joints#custom-joints)
+//! - [Custom plugins](PhysicsPlugins#custom-plugins)
 //!
 //! # Frequently Asked Questions
 //!
@@ -253,7 +254,7 @@
 //! In part thanks to Bevy's modular architecture and the ECS, Avian is also highly composable,
 //! as it consists of several independent plugins and provides lots of options for configuration and extensions,
 //! from [custom schedules](PhysicsPlugins#custom-schedule) and [plugins](PhysicsPlugins#custom-plugins) to
-//! [custom joints](dynamics::solver::joints#custom-joints) and [constraints](dynamics::solver::xpbd#custom-constraints).
+//! [custom joints](dynamics::joints#custom-joints) and [constraints](dynamics::solver::xpbd#custom-constraints).
 //!
 //! One disadvantage of Avian is that it is still relatively young, so it can have more bugs,
 //! some missing features, and fewer community resources and third party crates. However, it is growing quite

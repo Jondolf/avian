@@ -41,7 +41,7 @@ impl XpbdConstraint<2> for PrismaticJoint {
     type SolverData = PrismaticJointSolverData;
 
     fn prepare(
-        &self,
+        &mut self,
         bodies: [&RigidBodyQueryReadOnlyItem; 2],
         solver_data: &mut PrismaticJointSolverData,
     ) {
@@ -70,7 +70,7 @@ impl XpbdConstraint<2> for PrismaticJoint {
     }
 
     fn solve(
-        &self,
+        &mut self,
         bodies: [&mut SolverBody; 2],
         inertias: [&SolverBodyInertia; 2],
         solver_data: &mut PrismaticJointSolverData,

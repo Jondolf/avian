@@ -37,7 +37,7 @@ impl XpbdConstraint<2> for FixedJoint {
     type SolverData = FixedJointSolverData;
 
     fn prepare(
-        &self,
+        &mut self,
         bodies: [&RigidBodyQueryReadOnlyItem; 2],
         solver_data: &mut FixedJointSolverData,
     ) {
@@ -64,7 +64,7 @@ impl XpbdConstraint<2> for FixedJoint {
     }
 
     fn solve(
-        &self,
+        &mut self,
         bodies: [&mut SolverBody; 2],
         inertias: [&SolverBodyInertia; 2],
         solver_data: &mut FixedJointSolverData,
