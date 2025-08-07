@@ -16,6 +16,7 @@ Note that in 3D, only the closest intersection will be reported."
 )]
 
 use crate::{
+    collision::collider::QueryCollider,
     diagnostics::{PhysicsDiagnostics, impl_diagnostic_paths},
     prelude::*,
 };
@@ -29,6 +30,7 @@ use bevy::{
 };
 
 use core::time::Duration;
+use std::marker::PhantomData;
 
 use bevy::{
     diagnostic::DiagnosticPath,
@@ -57,13 +59,23 @@ impl_diagnostic_paths! {
 }
 
 /// Adds the [physics picking](crate::picking) backend to your app, enabling picking for [colliders](Collider).
-#[derive(Clone, Default)]
-pub struct PhysicsPickingPlugin;
+#[derive(Clone)]
+pub struct PhysicsPickingPlugin<C: QueryCollider> {
+    phantom: PhantomData<C>,
+}
 
-impl Plugin for PhysicsPickingPlugin {
+impl<C: QueryCollider> Default for PhysicsPickingPlugin<C> {
+    fn default() -> Self {
+        Self {
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<C: QueryCollider> Plugin for PhysicsPickingPlugin<C> {
     fn build(&self, app: &mut App) {
         app.init_resource::<PhysicsPickingSettings>()
-            .add_systems(PreUpdate, update_hits.in_set(PickSet::Backend))
+            .add_systems(PreUpdate, update_hits::<C>.in_set(PickSet::Backend))
             .register_type::<(
                 PhysicsPickingSettings,
                 PhysicsPickable,
@@ -142,7 +154,7 @@ const DEFAULT_FILTER_REF: &PhysicsPickingFilter =
     &PhysicsPickingFilter(SpatialQueryFilter::DEFAULT);
 
 /// Queries for collider intersections with pointers using [`PhysicsPickingSettings`] and sends [`PointerHits`] events.
-pub fn update_hits(
+pub fn update_hits<C: QueryCollider>(
     picking_cameras: Query<(
         &Camera,
         Option<&PhysicsPickingFilter>,
@@ -152,7 +164,7 @@ pub fn update_hits(
     pickables: Query<&Pickable>,
     marked_targets: Query<&PhysicsPickable>,
     backend_settings: Res<PhysicsPickingSettings>,
-    spatial_query: SpatialQuery,
+    spatial_query: SpatialQuery<C>,
     mut output_events: EventWriter<PointerHits>,
     mut diagnostics: ResMut<PhysicsPickingDiagnostics>,
 ) {
@@ -176,7 +188,7 @@ pub fn update_hits(
             spatial_query.point_intersections_callback(
                 ray.origin.truncate().adjust_precision(),
                 &filter.0,
-                |entity| {
+                &mut |entity| {
                     let marker_requirement =
                         !backend_settings.require_markers || marked_targets.get(entity).is_ok();
 
