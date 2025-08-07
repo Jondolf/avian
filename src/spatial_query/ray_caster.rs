@@ -7,13 +7,6 @@ use bevy::{
     },
     prelude::*,
 };
-#[cfg(all(
-    feature = "default-collider",
-    any(feature = "parry-f32", feature = "parry-f64")
-))]
-use parry::query::{
-    details::RayCompositeShapeToiAndNormalBestFirstVisitor, visitors::RayIntersectionsVisitor,
-};
 
 /// A component used for [raycasting](spatial_query#raycasting).
 ///
@@ -245,10 +238,6 @@ impl RayCaster {
         self.global_direction = global_direction;
     }
 
-    #[cfg(all(
-        feature = "default-collider",
-        any(feature = "parry-f32", feature = "parry-f64")
-    ))]
     pub(crate) fn cast(
         &mut self,
         caster_entity: Entity,
@@ -263,62 +252,9 @@ impl RayCaster {
 
         hits.clear();
 
-        if self.max_hits == 1 {
-            let pipeline_shape = query_pipeline.as_composite_shape(&self.query_filter);
-            let ray = parry::query::Ray::new(
-                self.global_origin().into(),
-                self.global_direction().adjust_precision().into(),
-            );
-            let mut visitor = RayCompositeShapeToiAndNormalBestFirstVisitor::new(
-                &pipeline_shape,
-                &ray,
-                self.max_distance,
-                self.solid,
-            );
-
-            if let Some(hit) =
-                query_pipeline
-                    .qbvh
-                    .traverse_best_first(&mut visitor)
-                    .map(|(_, (index, hit))| RayHitData {
-                        entity: query_pipeline.proxies[index as usize].entity,
-                        distance: hit.time_of_impact,
-                        normal: hit.normal.into(),
-                    })
-            {
-                hits.push(hit);
-            }
-        } else {
-            let ray = parry::query::Ray::new(
-                self.global_origin().into(),
-                self.global_direction().adjust_precision().into(),
-            );
-
-            let mut leaf_callback = &mut |index: &u32| {
-                if let Some(proxy) = query_pipeline.proxies.get(*index as usize)
-                    && self.query_filter.test(proxy.entity, proxy.layers)
-                    && let Some(hit) = proxy.collider.shape_scaled().cast_ray_and_get_normal(
-                        &proxy.isometry,
-                        &ray,
-                        self.max_distance,
-                        self.solid,
-                    )
-                {
-                    hits.push(RayHitData {
-                        entity: proxy.entity,
-                        distance: hit.time_of_impact,
-                        normal: hit.normal.into(),
-                    });
-
-                    return hits.len() < self.max_hits as usize;
-                }
-                true
-            };
-
-            let mut visitor =
-                RayIntersectionsVisitor::new(&ray, self.max_distance, &mut leaf_callback);
-            query_pipeline.qbvh.traverse_depth_first(&mut visitor);
-        }
+        // TODO
+        _ = query_pipeline;
+        todo!()
     }
 }
 
@@ -368,13 +304,13 @@ fn on_add_ray_caster(mut world: DeferredWorld, ctx: HookContext) {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Component, Debug, Default, PartialEq)]
-pub struct RayHits(pub Vec<RayHitData>);
+pub struct RayHits(pub Vec<RayCastHit>);
 
 impl RayHits {
     /// Returns an iterator over the hits, sorted in ascending order according to the distance.
     ///
     /// Note that this allocates a new vector. If you don't need the hits in order, use `iter`.
-    pub fn iter_sorted(&self) -> alloc::vec::IntoIter<RayHitData> {
+    pub fn iter_sorted(&self) -> alloc::vec::IntoIter<RayCastHit> {
         let mut vector = self.as_slice().to_vec();
         vector.sort_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap());
         vector.into_iter()
@@ -382,8 +318,8 @@ impl RayHits {
 }
 
 impl IntoIterator for RayHits {
-    type Item = RayHitData;
-    type IntoIter = alloc::vec::IntoIter<RayHitData>;
+    type Item = RayCastHit;
+    type IntoIter = alloc::vec::IntoIter<RayCastHit>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
@@ -391,8 +327,8 @@ impl IntoIterator for RayHits {
 }
 
 impl<'a> IntoIterator for &'a RayHits {
-    type Item = &'a RayHitData;
-    type IntoIter = core::slice::Iter<'a, RayHitData>;
+    type Item = &'a RayCastHit;
+    type IntoIter = core::slice::Iter<'a, RayCastHit>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter()
@@ -400,8 +336,8 @@ impl<'a> IntoIterator for &'a RayHits {
 }
 
 impl<'a> IntoIterator for &'a mut RayHits {
-    type Item = &'a mut RayHitData;
-    type IntoIter = core::slice::IterMut<'a, RayHitData>;
+    type Item = &'a mut RayCastHit;
+    type IntoIter = core::slice::IterMut<'a, RayCastHit>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter_mut()
@@ -421,7 +357,7 @@ impl MapEntities for RayHits {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, PartialEq)]
-pub struct RayHitData {
+pub struct RayCastHit {
     /// The entity of the collider that was hit by the ray.
     pub entity: Entity,
 
@@ -432,7 +368,7 @@ pub struct RayHitData {
     pub normal: Vector,
 }
 
-impl MapEntities for RayHitData {
+impl MapEntities for RayCastHit {
     fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
         self.entity = entity_mapper.get_mapped(self.entity);
     }

@@ -804,7 +804,7 @@ impl PluginGroup for PhysicsPlugins {
         ))]
         let builder = builder
             .add(ColliderBackendPlugin::<Collider>::new(self.schedule))
-            .add(NarrowPhasePlugin::<Collider>::default());
+            .add(SpatialQueryPlugin::<Collider>::default());
 
         // Add solver plugins.
         let builder = builder.add_group(SolverPlugins::new_with_length_unit(self.length_unit));
@@ -812,7 +812,6 @@ impl PluginGroup for PhysicsPlugins {
         builder
             .add(BroadPhasePlugin::<()>::default())
             .add(JointPlugin)
-            .add(SpatialQueryPlugin)
             .add(PhysicsTransformPlugin::new(self.schedule))
             .add(PhysicsInterpolationPlugin::default())
     }
