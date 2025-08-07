@@ -78,6 +78,14 @@ pub(crate) type SymmetricTensor = Scalar;
 #[cfg(feature = "3d")]
 pub(crate) type SymmetricTensor = SymmetricMatrix;
 
+/// The isometry type chosen based on the dimension.
+#[cfg(feature = "2d")]
+pub type Isometry = Isometry2d;
+
+/// The isometry type chosen based on the dimension.
+#[cfg(feature = "3d")]
+pub type Isometry = Isometry3d;
+
 /// Adjust the precision of the math construct to the precision chosen for compilation.
 pub trait AdjustPrecision {
     /// A math construct type with the desired precision.

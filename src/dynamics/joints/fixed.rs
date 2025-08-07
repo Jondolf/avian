@@ -184,3 +184,38 @@ fn update_local_anchors(
         joint.anchor2 = anchor2;
     }
 }
+
+impl DebugRenderConstraint<2> for FixedJoint {
+    type Context = ();
+
+    fn debug_render(
+        &self,
+        positions: [Vector; 2],
+        rotations: [Rotation; 2],
+        _context: &mut Self::Context,
+        gizmos: &mut Gizmos<PhysicsGizmos>,
+        config: &PhysicsGizmos,
+    ) {
+        let [pos1, pos2] = positions;
+        let [rot1, rot2] = rotations;
+
+        let JointAnchor::Local(local_anchor1) = self.anchor1 else {
+            return;
+        };
+        let JointAnchor::Local(local_anchor2) = self.anchor2 else {
+            return;
+        };
+
+        let anchor1 = pos1 + rot1 * local_anchor1;
+        let anchor2 = pos2 + rot2 * local_anchor2;
+
+        if let Some(anchor_color) = config.joint_anchor_color {
+            gizmos.draw_line(pos1, anchor1, anchor_color);
+            gizmos.draw_line(pos2, anchor2, anchor_color);
+        }
+
+        if let Some(color) = config.joint_separation_color {
+            gizmos.draw_line(anchor1, anchor2, color);
+        }
+    }
+}
