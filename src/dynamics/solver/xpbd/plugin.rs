@@ -92,6 +92,21 @@ impl Plugin for XpbdSolverPlugin {
                 .chain()
                 .in_set(XpbdSolverSet::VelocityProjection),
         );
+
+        // Write back the forces applied by the XPBD joints.
+        app.add_systems(
+            PhysicsSchedule,
+            (
+                writeback_joint_forces::<FixedJoint>,
+                writeback_joint_forces::<RevoluteJoint>,
+                writeback_joint_forces::<PrismaticJoint>,
+                writeback_joint_forces::<DistanceJoint>,
+                #[cfg(feature = "3d")]
+                writeback_joint_forces::<SphericalJoint>,
+            )
+                .chain()
+                .in_set(SolverSet::Finalize),
+        );
     }
 }
 
@@ -115,6 +130,9 @@ pub fn prepare_xpbd_joint<C: Component + EntityConstraint<2> + XpbdConstraint<2>
     C::SolverData: Component<Mutability = Mutable>,
 {
     for (joint, mut solver_data) in &mut joints {
+        // Clear the Lagrange multipliers.
+        solver_data.clear_lagrange_multipliers();
+
         // Get components for entities
         if let Ok([body1, body2]) = bodies.get_many(joint.entities()) {
             joint.prepare([&body1, &body2], &mut solver_data);
@@ -145,9 +163,6 @@ pub fn solve_xpbd_joint<C: Component + EntityConstraint<2> + XpbdConstraint<2>>(
     let mut dummy_body2 = SolverBody::default();
 
     for (joint, mut solver_data) in &mut joints {
-        // Clear the Lagrange multipliers.
-        solver_data.clear_lagrange_multipliers();
-
         let [entity1, entity2] = joint.entities();
 
         let (mut body1, mut inertia1) = (&mut dummy_body1, &SolverBodyInertia::DUMMY);
@@ -227,5 +242,25 @@ fn project_angular_velocity(
         }
 
         body.angular_velocity += new_ang_vel;
+    }
+}
+
+fn writeback_joint_forces<C: Component + EntityConstraint<2> + XpbdConstraint<2>>(
+    mut joints: Query<(&C::SolverData, &mut JointForces)>,
+    time: Res<Time>,
+    substep_count: Res<SubstepCount>,
+) where
+    C::SolverData: Component<Mutability = Mutable>,
+{
+    let delta_secs = time.delta_seconds_adjusted();
+
+    // Detailed Rigid Body Simulation with Extended Position Based Dynamics by Müller et al.
+    // states that  `f = λ * n / h²`. However, with substepping, it seems that we need to accumulate
+    // Lagrange multipliers across substeps, and use the formula `f = λ * n / dt^2 * substep_count`.
+    let rhs = (delta_secs * delta_secs).recip_or_zero() * substep_count.0 as Scalar;
+
+    for (solver_data, mut forces) in &mut joints {
+        forces.set_force(solver_data.total_position_lagrange() * rhs);
+        forces.set_torque(solver_data.total_rotation_lagrange() * rhs);
     }
 }

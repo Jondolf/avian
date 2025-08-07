@@ -19,13 +19,17 @@ pub struct FixedAngleConstraintShared {
     /// The target rotation difference between the two bodies.
     #[cfg(feature = "3d")]
     pub rotation_difference: Quaternion,
-    /// The Lagrange multiplier for the constraint.
-    pub lagrange: Scalar,
+    /// The total Lagrange multiplier across the whole time step.
+    pub total_lagrange: AngularVector,
 }
 
 impl XpbdConstraintSolverData for FixedAngleConstraintShared {
     fn clear_lagrange_multipliers(&mut self) {
-        self.lagrange = 0.0;
+        self.total_lagrange = AngularVector::ZERO;
+    }
+
+    fn total_rotation_lagrange(&self) -> AngularVector {
+        self.total_lagrange
     }
 }
 
@@ -76,18 +80,16 @@ impl FixedAngleConstraintShared {
             .xyz();
 
         // Align orientation
-        let mut lagrange = self.lagrange;
-        self.align_orientation(
+        self.total_lagrange += self.align_orientation(
             body1,
             body2,
             inv_inertia1,
             inv_inertia2,
             difference,
-            &mut lagrange,
+            0.0,
             compliance,
             dt,
         );
-        self.lagrange = lagrange;
     }
 }
 

@@ -23,6 +23,14 @@ impl XpbdConstraintSolverData for FixedJointSolverData {
         self.point_constraint.clear_lagrange_multipliers();
         self.angle_constraint.clear_lagrange_multipliers();
     }
+
+    fn total_position_lagrange(&self) -> Vector {
+        self.point_constraint.total_position_lagrange()
+    }
+
+    fn total_rotation_lagrange(&self) -> AngularVector {
+        self.angle_constraint.total_rotation_lagrange()
+    }
 }
 
 impl XpbdConstraint<2> for FixedJoint {

@@ -5,33 +5,7 @@ use crate::{dynamics::solver::solver_body::SolverBodyInertia, prelude::*};
 /// A positional constraint applies a positional correction
 /// with a given direction and magnitude at the local contact points `r1` and  `r2`.
 pub trait PositionConstraint {
-    /// Applies a positional correction to two bodies.
-    ///
-    /// Returns the positional impulse that is applied proportional to the inverse masses of the bodies.
-    #[allow(clippy::too_many_arguments)]
-    fn apply_positional_lagrange_update(
-        &self,
-        body1: &mut SolverBody,
-        body2: &mut SolverBody,
-        inertia1: &SolverBodyInertia,
-        inertia2: &SolverBodyInertia,
-        delta_lagrange: Scalar,
-        direction: Vector,
-        r1: Vector,
-        r2: Vector,
-    ) -> Vector {
-        if delta_lagrange.abs() <= Scalar::EPSILON {
-            return Vector::ZERO;
-        }
-
-        let impulse = delta_lagrange * direction;
-
-        self.apply_positional_impulse(body1, body2, inertia1, inertia2, impulse, r1, r2)
-    }
-
     /// Applies a positional impulse to two bodies.
-    ///
-    /// Returns the impulse that is applied proportional to the inverse masses of the bodies.
     fn apply_positional_impulse(
         &self,
         body1: &mut SolverBody,
@@ -41,7 +15,7 @@ pub trait PositionConstraint {
         impulse: Vector,
         r1: Vector,
         r2: Vector,
-    ) -> Vector {
+    ) {
         let inv_mass1 = inertia1.effective_inv_mass();
         let inv_mass2 = inertia2.effective_inv_mass();
         let inv_angular_inertia1 = inertia1.effective_inv_angular_inertia();
@@ -72,8 +46,6 @@ pub trait PositionConstraint {
             let delta_quat = Self::get_delta_rot(inv_angular_inertia2, r2, -impulse);
             body2.delta_rotation.0 = delta_quat * body2.delta_rotation.0;
         }
-
-        impulse
     }
 
     /// Computes the generalized inverse mass of a body when applying a positional correction

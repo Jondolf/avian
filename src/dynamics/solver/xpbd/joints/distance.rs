@@ -16,12 +16,16 @@ pub struct DistanceJointSolverData {
     pub(super) world_r1: Vector,
     pub(super) world_r2: Vector,
     pub(super) center_difference: Vector,
-    pub(super) lagrange: Scalar,
+    pub(super) total_lagrange: Vector,
 }
 
 impl XpbdConstraintSolverData for DistanceJointSolverData {
     fn clear_lagrange_multipliers(&mut self) {
-        self.lagrange = 0.0;
+        self.total_lagrange = Vector::ZERO;
+    }
+
+    fn total_position_lagrange(&self) -> Vector {
+        self.total_lagrange
     }
 }
 
@@ -104,20 +108,13 @@ impl XpbdConstraint<2> for DistanceJoint {
         let w = [w1, w2];
 
         // Compute Lagrange multiplier update, essentially the signed magnitude of the correction.
-        let delta_lagrange =
-            compute_lagrange_update(solver_data.lagrange, distance, &w, self.compliance, dt);
-        solver_data.lagrange += delta_lagrange;
+        let delta_lagrange = compute_lagrange_update(0.0, distance, &w, self.compliance, dt);
+        let impulse = delta_lagrange * dir;
+        solver_data.total_lagrange += impulse;
 
         // Apply positional correction (method from PositionConstraint)
-        self.apply_positional_lagrange_update(
-            body1,
-            body2,
-            inertia1,
-            inertia2,
-            delta_lagrange,
-            dir,
-            world_r1,
-            world_r2,
+        self.apply_positional_impulse(
+            body1, body2, inertia1, inertia2, impulse, world_r1, world_r2,
         );
     }
 }

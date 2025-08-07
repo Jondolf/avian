@@ -19,15 +19,23 @@ pub struct SphericalJointSolverData {
     pub(super) swing_axis2: Vector,
     pub(super) twist_axis1: Vector,
     pub(super) twist_axis2: Vector,
-    pub(super) swing_lagrange: Scalar,
-    pub(super) twist_lagrange: Scalar,
+    pub(super) total_swing_lagrange: Vector,
+    pub(super) total_twist_lagrange: Vector,
 }
 
 impl XpbdConstraintSolverData for SphericalJointSolverData {
     fn clear_lagrange_multipliers(&mut self) {
         self.point_constraint.clear_lagrange_multipliers();
-        self.swing_lagrange = 0.0;
-        self.twist_lagrange = 0.0;
+        self.total_swing_lagrange = Vector::ZERO;
+        self.total_twist_lagrange = Vector::ZERO;
+    }
+
+    fn total_position_lagrange(&self) -> Vector {
+        self.point_constraint.total_position_lagrange()
+    }
+
+    fn total_rotation_lagrange(&self) -> AngularVector {
+        self.total_swing_lagrange + self.total_twist_lagrange
     }
 }
 
@@ -117,22 +125,19 @@ impl SphericalJoint {
             let n = n / n_magnitude;
 
             if let Some(correction) = joint_limit.compute_correction(n, a1, a2, PI) {
-                let mut lagrange = solver_data.swing_lagrange;
-
                 let inv_inertia1 = inertia1.effective_inv_angular_inertia();
                 let inv_inertia2 = inertia2.effective_inv_angular_inertia();
 
-                self.align_orientation(
+                solver_data.total_swing_lagrange += self.align_orientation(
                     body1,
                     body2,
                     inv_inertia1,
                     inv_inertia2,
                     correction,
-                    &mut lagrange,
+                    0.0,
                     self.swing_compliance,
                     dt,
                 );
-                solver_data.swing_lagrange = lagrange;
             }
         }
     }
@@ -178,22 +183,19 @@ impl SphericalJoint {
             let max_correction = if a1.dot(a2) > -0.5 { 2.0 * PI } else { dt };
 
             if let Some(correction) = joint_limit.compute_correction(n, n1, n2, max_correction) {
-                let mut lagrange = solver_data.twist_lagrange;
-
                 let inv_inertia1 = inertia1.effective_inv_angular_inertia();
                 let inv_inertia2 = inertia2.effective_inv_angular_inertia();
 
-                self.align_orientation(
+                solver_data.total_twist_lagrange += self.align_orientation(
                     body1,
                     body2,
                     inv_inertia1,
                     inv_inertia2,
                     correction,
-                    &mut lagrange,
+                    0.0,
                     self.twist_compliance,
                     dt,
                 );
-                solver_data.twist_lagrange = lagrange;
             }
         }
     }

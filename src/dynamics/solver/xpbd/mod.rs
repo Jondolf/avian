@@ -263,6 +263,16 @@ use super::solver_body::{SolverBody, SolverBodyInertia};
 pub trait XpbdConstraintSolverData {
     /// Sets the constraint's [Lagrange multipliers](self#lagrange-multipliers) to 0.
     fn clear_lagrange_multipliers(&mut self) {}
+
+    /// Returns the total Lagrange multiplier update applied to satisfy the position constraint.
+    fn total_position_lagrange(&self) -> Vector {
+        Vector::ZERO
+    }
+
+    /// Returns the total Lagrange multiplier update applied to satisfy the rotation constraint.
+    fn total_rotation_lagrange(&self) -> AngularVector {
+        AngularVector::ZERO
+    }
 }
 
 /// A trait for all XPBD [constraints](self#constraints).

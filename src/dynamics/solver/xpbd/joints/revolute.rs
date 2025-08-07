@@ -21,15 +21,23 @@ pub struct RevoluteJointSolverData {
     pub(super) axis1: Vector,
     #[cfg(feature = "3d")]
     pub(super) axis2: Vector,
-    pub(super) align_lagrange: Scalar,
-    pub(super) limit_lagrange: Scalar,
+    pub(super) total_align_lagrange: AngularVector,
+    pub(super) total_limit_lagrange: AngularVector,
 }
 
 impl XpbdConstraintSolverData for RevoluteJointSolverData {
     fn clear_lagrange_multipliers(&mut self) {
         self.point_constraint.clear_lagrange_multipliers();
-        self.align_lagrange = 0.0;
-        self.limit_lagrange = 0.0;
+        self.total_align_lagrange = AngularVector::ZERO;
+        self.total_limit_lagrange = AngularVector::ZERO;
+    }
+
+    fn total_position_lagrange(&self) -> Vector {
+        self.point_constraint.total_position_lagrange()
+    }
+
+    fn total_rotation_lagrange(&self) -> AngularVector {
+        self.total_align_lagrange + self.total_limit_lagrange
     }
 }
 
@@ -87,18 +95,16 @@ impl XpbdConstraint<2> for RevoluteJoint {
             let a2 = body2.delta_rotation * solver_data.axis2;
             let difference = a1.cross(a2);
 
-            let mut lagrange = solver_data.align_lagrange;
-            self.align_orientation(
+            solver_data.total_align_lagrange += self.align_orientation(
                 body1,
                 body2,
                 inv_angular_inertia1,
                 inv_angular_inertia2,
                 difference,
-                &mut lagrange,
+                0.0,
                 self.align_compliance,
                 dt,
             );
-            solver_data.align_lagrange = lagrange;
         }
 
         // Apply angle limits when rotating around the free axis
@@ -148,18 +154,16 @@ impl RevoluteJoint {
             return;
         };
 
-        let mut lagrange = solver_data.limit_lagrange;
-        self.align_orientation(
+        solver_data.total_limit_lagrange += self.align_orientation(
             body1,
             body2,
             inv_angular_inertia1,
             inv_angular_inertia2,
             correction,
-            &mut lagrange,
+            0.0,
             self.align_compliance,
             dt,
         );
-        solver_data.limit_lagrange = lagrange;
     }
 }
 

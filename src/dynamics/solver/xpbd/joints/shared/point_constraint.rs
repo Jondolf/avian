@@ -19,13 +19,17 @@ pub struct PointConstraintShared {
     pub world_r2: Vector,
     /// The difference in center of mass positions between the two bodies.
     pub center_difference: Vector,
-    /// The Lagrange multiplier for the constraint.
-    pub lagrange: Scalar,
+    /// The total Lagrange multiplier across the whole time step.
+    pub total_lagrange: Vector,
 }
 
 impl XpbdConstraintSolverData for PointConstraintShared {
     fn clear_lagrange_multipliers(&mut self) {
-        self.lagrange = 0.0;
+        self.total_lagrange = Vector::ZERO;
+    }
+
+    fn total_position_lagrange(&self) -> Vector {
+        self.total_lagrange
     }
 }
 
@@ -70,7 +74,7 @@ impl PointConstraintShared {
 
         let magnitude_squared = separation.length_squared();
 
-        if magnitude_squared <= Scalar::EPSILON {
+        if magnitude_squared == 0.0 {
             // No separation, no need to apply a correction.
             return;
         }
@@ -93,20 +97,13 @@ impl PointConstraintShared {
         );
 
         // Compute Lagrange multiplier update
-        let delta_lagrange =
-            compute_lagrange_update(self.lagrange, magnitude, &[w1, w2], compliance, dt);
-        self.lagrange += delta_lagrange;
+        let delta_lagrange = compute_lagrange_update(0.0, magnitude, &[w1, w2], compliance, dt);
+        let impulse = delta_lagrange * dir;
+        self.total_lagrange += impulse;
 
         // Apply positional correction to align the positions of the bodies
-        self.apply_positional_lagrange_update(
-            body1,
-            body2,
-            inertia1,
-            inertia2,
-            delta_lagrange,
-            dir,
-            world_r1,
-            world_r2,
+        self.apply_positional_impulse(
+            body1, body2, inertia1, inertia2, impulse, world_r1, world_r2,
         );
     }
 }

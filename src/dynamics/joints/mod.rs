@@ -392,6 +392,8 @@ pub struct JointDamping {
 }
 
 /// A component for reading the force and torque applied by a [joint](self).
+///
+/// This is not inserted automatically for joints, and must be added manually.
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
@@ -402,6 +404,15 @@ pub struct JointForces {
 }
 
 impl JointForces {
+    /// Creates a new [`JointForces`] for reading the forces applied by a joint.
+    #[inline]
+    pub const fn new() -> Self {
+        Self {
+            force: Vector::ZERO,
+            torque: AngularVector::ZERO,
+        }
+    }
+
     /// Returns the force applied by the joint.
     #[inline]
     pub const fn force(&self) -> Vector {
@@ -412,6 +423,22 @@ impl JointForces {
     #[inline]
     pub const fn torque(&self) -> AngularVector {
         self.torque
+    }
+
+    /// Sets the force applied by the joint.
+    ///
+    /// This should be done automatically by the joint solver,
+    #[inline]
+    pub const fn set_force(&mut self, force: Vector) {
+        self.force = force;
+    }
+
+    /// Sets the torque applied by the joint.
+    ///
+    /// This should be done automatically by the joint solver,
+    #[inline]
+    pub const fn set_torque(&mut self, torque: AngularVector) {
+        self.torque = torque;
     }
 }
 
