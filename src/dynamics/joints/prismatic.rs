@@ -61,6 +61,14 @@ impl PrismaticJoint {
         }
     }
 
+    /// Sets the global [`JointAnchor`] on both bodies.
+    #[inline]
+    pub const fn with_global_anchor(mut self, anchor: Vector) -> Self {
+        self.anchor1 = JointAnchor::FromGlobal(anchor);
+        self.anchor2 = JointAnchor::FromGlobal(anchor);
+        self
+    }
+
     /// Sets the local [`JointAnchor`] on the first body.
     #[inline]
     pub const fn with_local_anchor_1(mut self, anchor: Vector) -> Self {
@@ -72,20 +80,6 @@ impl PrismaticJoint {
     #[inline]
     pub const fn with_local_anchor_2(mut self, anchor: Vector) -> Self {
         self.anchor2 = JointAnchor::Local(anchor);
-        self
-    }
-
-    /// Sets the global [`JointAnchor`] on the first body.
-    #[inline]
-    pub const fn with_global_anchor_1(mut self, anchor: Vector) -> Self {
-        self.anchor1 = JointAnchor::FromGlobal(anchor);
-        self
-    }
-
-    /// Sets the global [`JointAnchor`] on the second body.
-    #[inline]
-    pub const fn with_global_anchor_2(mut self, anchor: Vector) -> Self {
-        self.anchor2 = JointAnchor::FromGlobal(anchor);
         self
     }
 

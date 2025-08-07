@@ -67,6 +67,14 @@ impl FixedJoint {
         }
     }
 
+    /// Sets the global [`JointAnchor`] on both bodies.
+    #[inline]
+    pub const fn with_global_anchor(mut self, anchor: Vector) -> Self {
+        self.anchor1 = JointAnchor::FromGlobal(anchor);
+        self.anchor2 = JointAnchor::FromGlobal(anchor);
+        self
+    }
+
     /// Sets the local [`JointAnchor`] on the first body.
     #[inline]
     pub const fn with_local_anchor_1(mut self, anchor: Vector) -> Self {
@@ -81,17 +89,19 @@ impl FixedJoint {
         self
     }
 
-    /// Sets the global [`JointAnchor`] on the first body.
+    /// Sets the reference rotation of the second body relative to the first body in radians.
+    #[cfg(feature = "2d")]
     #[inline]
-    pub const fn with_global_anchor_1(mut self, anchor: Vector) -> Self {
-        self.anchor1 = JointAnchor::FromGlobal(anchor);
+    pub const fn with_reference_rotation(mut self, rotation: Scalar) -> Self {
+        self.reference_rotation = rotation;
         self
     }
 
-    /// Sets the global [`JointAnchor`] on the second body.
+    /// Sets the reference rotation of the second body relative to the first body.
+    #[cfg(feature = "3d")]
     #[inline]
-    pub const fn with_global_anchor_2(mut self, anchor: Vector) -> Self {
-        self.anchor2 = JointAnchor::FromGlobal(anchor);
+    pub const fn with_reference_rotation(mut self, rotation: Quaternion) -> Self {
+        self.reference_rotation = rotation;
         self
     }
 
