@@ -150,7 +150,19 @@ required-features = ["2d", "default-collider"]
 
 [[example]]
 name = "interpolation"
-required-features = ["2d"]
+required-features = ["2d", "default-collider"]
+
+[[example]]
+name = "many_pyramids_2d"
+required-features = ["2d", "default-collider"]
+
+[[example]]
+name = "many_shapes"
+required-features = ["2d", "default-collider"]
+
+[[example]]
+name = "one_way_platform_2d"
+required-features = ["2d", "default-collider"]
 
 [[example]]
 name = "move_marbles"
@@ -182,4 +194,4 @@ required-features = ["2d", "default-collider"]
 
 [[example]]
 name = "debugdump_2d"
-required-features = ["2d"]
+required-features = ["2d", "debug-plugin"]

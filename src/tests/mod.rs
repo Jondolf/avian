@@ -144,7 +144,7 @@ fn body_with_velocity_moves() {
 }
 
 #[derive(Component, Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord)]
-#[cfg(feature = "3d")]
+#[cfg(all(feature = "3d", feature = "default-collider"))]
 struct Id(usize);
 
 #[cfg(all(feature = "3d", feature = "default-collider"))]

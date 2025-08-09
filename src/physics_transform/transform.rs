@@ -132,10 +132,12 @@ pub struct PreSolveDeltaPosition(pub Vector);
 pub struct PreSolveDeltaRotation(pub Rotation);
 
 /// Radians
-#[cfg(all(feature = "2d", feature = "default-collider"))]
+#[cfg(feature = "2d")]
+#[allow(dead_code)]
 pub(crate) type RotationValue = Scalar;
 /// Quaternion
-#[cfg(all(feature = "3d", feature = "default-collider"))]
+#[cfg(feature = "3d")]
+#[allow(dead_code)]
 pub(crate) type RotationValue = Quaternion;
 
 /// The global counterclockwise physics rotation of a [rigid body](RigidBody)
