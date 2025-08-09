@@ -8,7 +8,6 @@ fn main() {
             DefaultPlugins,
             ExampleCommonPlugin,
             PhysicsPlugins::default(),
-            PhysicsDebugPlugin::default(),
         ))
         .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))
         .insert_resource(SubstepCount(50))
@@ -17,9 +16,7 @@ fn main() {
         .run();
 }
 
-fn setup(mut commands: Commands, mut time: ResMut<Time<Physics>>) {
-    time.pause();
-
+fn setup(mut commands: Commands) {
     commands.spawn(Camera2d);
 
     let square_sprite = Sprite {
@@ -32,8 +29,7 @@ fn setup(mut commands: Commands, mut time: ResMut<Time<Physics>>) {
         .spawn((
             square_sprite.clone(),
             RigidBody::Kinematic,
-            //AngularVelocity(1.5),
-            Transform::from_rotation(Quat::from_rotation_z(0.5)),
+            AngularVelocity(1.5),
         ))
         .id();
 
@@ -48,9 +44,8 @@ fn setup(mut commands: Commands, mut time: ResMut<Time<Physics>>) {
 
     commands.spawn(
         PrismaticJoint::new(anchor, object)
-            .with_local_rotation1(Quat::from_rotation_z(-0.5))
-            .with_local_rotation2(Quat::from_rotation_z(0.0))
+            .with_local_anchor1(Vector::X * 50.0)
             .with_free_axis(Vector::X)
-            .with_limits(-75.0, 75.0),
+            .with_limits(25.0, 100.0),
     );
 }

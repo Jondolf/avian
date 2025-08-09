@@ -30,18 +30,22 @@ fn setup(mut commands: Commands) {
         .spawn((
             square_sprite.clone(),
             RigidBody::Kinematic,
-            //AngularVelocity(1.5),
+            AngularVelocity(1.5),
         ))
         .id();
 
     let object = commands
         .spawn((
             square_sprite,
-            Transform::from_xyz(0.0, -100.0, 0.0), // .with_rotation(Quat::from_rotation_z(1.0)),
+            Transform::from_xyz(0.0, -100.0, 0.0),
             RigidBody::Dynamic,
             MassPropertiesBundle::from_shape(&Rectangle::from_length(50.0), 1.0),
         ))
         .id();
 
-    commands.spawn(RevoluteJoint::new(anchor, object).with_angle_limits(0.0, 0.0));
+    commands.spawn(
+        RevoluteJoint::new(anchor, object)
+            .with_local_anchor2(Vector::Y * 100.0)
+            .with_angle_limits(-1.0, 1.0),
+    );
 }

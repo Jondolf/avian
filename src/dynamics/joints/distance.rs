@@ -47,15 +47,17 @@ impl DistanceJoint {
         Self {
             entity1,
             entity2,
-            anchor1: JointTranslation::Auto,
-            anchor2: JointTranslation::Auto,
+            anchor1: JointTranslation::IDENTITY,
+            anchor2: JointTranslation::IDENTITY,
             rest_length: 0.0,
             length_limits: None,
             compliance: 0.0,
         }
     }
 
-    /// Sets the global [`JointAnchor`] on both bodies.
+    /// Sets the global anchor point on both bodies.
+    ///
+    /// This configures the [`JointTranslation`] of each [`JointFrame`].
     #[inline]
     pub const fn with_global_anchor(mut self, anchor: Vector) -> Self {
         self.anchor1 = JointTranslation::FromGlobal(anchor);
@@ -63,36 +65,46 @@ impl DistanceJoint {
         self
     }
 
-    /// Sets the local [`JointAnchor`] on the first body.
+    /// Sets the local anchor point on the first body.
+    ///
+    /// This configures the [`JointTranslation`] of the first [`JointFrame`].
     #[inline]
     pub const fn with_local_anchor1(mut self, anchor: Vector) -> Self {
         self.anchor1 = JointTranslation::Local(anchor);
         self
     }
 
-    /// Sets the local [`JointAnchor`] on the second body.
+    /// Sets the local anchor point on the second body.
+    ///
+    /// This configures the [`JointTranslation`] of the second [`JointFrame`].
     #[inline]
     pub const fn with_local_anchor2(mut self, anchor: Vector) -> Self {
         self.anchor2 = JointTranslation::Local(anchor);
         self
     }
 
-    /// Returns the [`JointAnchor`] on the first body.
+    /// Returns the local anchor point on the first body.
     ///
-    /// This is stored as [`JointAnchor::Local`] after the first physics step
-    /// after the joint was initialized.
+    /// If the [`JointTranslation`] is set to [`FromGlobal`](JointTranslation::FromGlobal),
+    /// and the local anchor has not yet been computed, this will return `None`.
     #[inline]
-    pub const fn anchor1(&self) -> JointTranslation {
-        self.anchor1
+    pub const fn local_anchor1(&self) -> Option<Vector> {
+        match self.anchor1 {
+            JointTranslation::Local(anchor) => Some(anchor),
+            _ => None,
+        }
     }
 
-    /// Returns the [`JointAnchor`] on the second body.
+    /// Returns the local anchor point on the second body.
     ///
-    /// This is stored as [`JointAnchor::Local`] after the first physics step
-    /// after the joint was initialized.
+    /// If the [`JointTranslation`] is set to [`FromGlobal`](JointTranslation::FromGlobal),
+    /// and the local anchor has not yet been computed, this will return `None`.
     #[inline]
-    pub const fn anchor2(&self) -> JointTranslation {
-        self.anchor2
+    pub const fn local_anchor2(&self) -> Option<Vector> {
+        match self.anchor2 {
+            JointTranslation::Local(anchor) => Some(anchor),
+            _ => None,
+        }
     }
 
     /// Sets the joint's rest length, or distance the bodies will be kept at.
@@ -134,7 +146,7 @@ pub(super) fn plugin(app: &mut App) {
 
 fn update_local_anchors(
     mut joints: Query<&mut DistanceJoint, Changed<DistanceJoint>>,
-    bodies: Query<(&Position, &Rotation, &RigidBody)>,
+    bodies: Query<(&Position, &Rotation)>,
 ) {
     for mut joint in &mut joints {
         if matches!(joint.anchor1, JointTranslation::Local(_))
@@ -143,7 +155,7 @@ fn update_local_anchors(
             continue;
         }
 
-        let Ok([(pos1, rot1, rb1), (pos2, rot2, _)]) = bodies.get_many(joint.entities()) else {
+        let Ok([(pos1, rot1), (pos2, rot2)]) = bodies.get_many(joint.entities()) else {
             continue;
         };
 
@@ -154,7 +166,6 @@ fn update_local_anchors(
             pos2.0,
             rot1,
             rot2,
-            rb1.is_dynamic(),
         );
         joint.anchor1 = anchor1;
         joint.anchor2 = anchor2;

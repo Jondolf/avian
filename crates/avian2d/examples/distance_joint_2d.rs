@@ -40,8 +40,6 @@ fn setup(mut commands: Commands) {
 
     commands.spawn((
         DistanceJoint::new(anchor, object)
-            .with_local_anchor1(Vector::ZERO)
-            .with_local_anchor2(Vector::ZERO)
             .with_rest_length(100.0)
             .with_compliance(0.00000001),
         JointDamping {

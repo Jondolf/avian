@@ -53,8 +53,8 @@ impl PrismaticJoint {
         Self {
             entity1,
             entity2,
-            frame1: JointFrame::auto(),
-            frame2: JointFrame::auto(),
+            frame1: JointFrame::IDENTITY,
+            frame2: JointFrame::IDENTITY,
             free_axis: Vector::X,
             free_axis_limits: None,
             axis_compliance: 0.0,
@@ -91,34 +91,6 @@ impl PrismaticJoint {
         self
     }
 
-    /// Sets the anchor point on the first body to be automatically computed
-    /// based on the relative transform of the bodies.
-    ///
-    /// The anchor will be comuted such that the relative translation of the [`JointFrame`]s
-    /// will be zero in world space.
-    ///
-    /// This configures the [`JointTranslation`] of the first [`JointFrame`].
-    ///
-    /// This is the default behavior.
-    #[inline]
-    pub const fn with_auto_anchor1(mut self) -> Self {
-        self.frame1.translation = JointTranslation::Auto;
-        self
-    }
-
-    /// Sets the anchor point on the second body to be automatically computed
-    /// based on the relative transform of the bodies.
-    ///
-    /// The anchor will be comuted such that the relative translation of the [`JointFrame`]s
-    /// will be zero in world space.
-    ///
-    /// This configures the [`JointTranslation`] of the second [`JointFrame`].
-    #[inline]
-    pub const fn with_auto_anchor2(mut self) -> Self {
-        self.frame2.translation = JointTranslation::Auto;
-        self
-    }
-
     /// Sets the global reference rotation of both bodies.
     ///
     /// This configures the [`JointRotation`] of each [`JointFrame`].
@@ -148,37 +120,10 @@ impl PrismaticJoint {
         self
     }
 
-    /// Sets the reference rotation of the first body to be automatically computed
-    /// based on the relative transform of the bodies.
-    ///
-    /// The rotation will be computed such that the relative rotation of the [`JointFrame`]s
-    /// will be zero in world space.
-    ///
-    /// This configures the [`JointRotation`] of the first [`JointFrame`].
-    #[inline]
-    pub const fn with_auto_rotation1(mut self) -> Self {
-        self.frame1.rotation = JointRotation::Auto;
-        self
-    }
-
-    /// Sets the reference rotation of the second body to be automatically computed
-    /// based on the relative transform of the bodies.
-    ///
-    /// The rotation will be computed such that the relative rotation of the [`JointFrame`]s
-    /// will be zero in world space.
-    ///
-    /// This configures the [`JointRotation`] of the second [`JointFrame`].
-    #[inline]
-    pub const fn with_auto_rotation2(mut self) -> Self {
-        self.frame2.rotation = JointRotation::Auto;
-        self
-    }
-
     /// Returns the local anchor point on the first body.
     ///
-    /// If the [`JointTranslation`] is set to [`FromGlobal`](JointTranslation::FromGlobal)
-    /// or [`Auto`](JointTranslation::Auto), and the local anchor has not yet been computed,
-    /// this will return `None`.
+    /// If the [`JointTranslation`] is set to [`FromGlobal`](JointTranslation::FromGlobal),
+    /// and the local anchor has not yet been computed, this will return `None`.
     #[inline]
     pub const fn local_anchor1(&self) -> Option<Vector> {
         match self.frame1.translation {
@@ -189,9 +134,8 @@ impl PrismaticJoint {
 
     /// Returns the local anchor point on the second body.
     ///
-    /// If the [`JointTranslation`] is set to [`FromGlobal`](JointTranslation::FromGlobal)
-    /// or [`Auto`](JointTranslation::Auto), and the local anchor has not yet been computed,
-    /// this will return `None`.
+    /// If the [`JointTranslation`] is set to [`FromGlobal`](JointTranslation::FromGlobal),
+    /// and the local anchor has not yet been computed, this will return `None`.
     #[inline]
     pub const fn local_anchor2(&self) -> Option<Vector> {
         match self.frame2.translation {
@@ -202,9 +146,8 @@ impl PrismaticJoint {
 
     /// Returns the local reference rotation of the first body.
     ///
-    /// If the [`JointRotation`] is set to [`FromGlobal`](JointRotation::FromGlobal)
-    /// or [`Auto`](JointRotation::Auto), and the local rotation has not yet been computed,
-    /// this will return `None`.
+    /// If the [`JointRotation`] is set to [`FromGlobal`](JointRotation::FromGlobal),
+    /// and the local rotation has not yet been computed, this will return `None`.
     #[inline]
     pub const fn local_rotation1(&self) -> Option<Rot> {
         match self.frame1.rotation {
@@ -215,9 +158,8 @@ impl PrismaticJoint {
 
     /// Returns the local reference rotation of the second body.
     ///
-    /// If the [`JointRotation`] is set to [`FromGlobal`](JointRotation::FromGlobal)
-    /// or [`Auto`](JointRotation::Auto), and the local rotation has not yet been computed,
-    /// this will return `None`.
+    /// If the [`JointRotation`] is set to [`FromGlobal`](JointRotation::FromGlobal),
+    /// and the local rotation has not yet been computed, this will return `None`.
     #[inline]
     pub const fn local_rotation2(&self) -> Option<Rot> {
         match self.frame2.rotation {
@@ -292,7 +234,7 @@ pub(super) fn plugin(app: &mut App) {
 
 fn update_local_frames(
     mut joints: Query<&mut PrismaticJoint, Changed<PrismaticJoint>>,
-    bodies: Query<(&Position, &Rotation, &RigidBody)>,
+    bodies: Query<(&Position, &Rotation)>,
 ) {
     for mut joint in &mut joints {
         if matches!(joint.frame1.translation, JointTranslation::Local(_))
@@ -303,19 +245,12 @@ fn update_local_frames(
             continue;
         }
 
-        let Ok([(pos1, rot1, rb1), (pos2, rot2, _)]) = bodies.get_many(joint.entities()) else {
+        let Ok([(pos1, rot1), (pos2, rot2)]) = bodies.get_many(joint.entities()) else {
             continue;
         };
 
-        let [frame1, frame2] = JointFrame::compute_local(
-            joint.frame1,
-            joint.frame2,
-            pos1.0,
-            pos2.0,
-            rot1,
-            rot2,
-            rb1.is_dynamic(),
-        );
+        let [frame1, frame2] =
+            JointFrame::compute_local(joint.frame1, joint.frame2, pos1.0, pos2.0, rot1, rot2);
         joint.frame1 = frame1;
         joint.frame2 = frame2;
     }
