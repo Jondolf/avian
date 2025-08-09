@@ -2,6 +2,8 @@
 //!
 //! Most of the math types are feature-dependent, so they will be different for `2d`/`3d` and `f32`/`f64`.
 
+#![allow(unused_imports)]
+
 #[cfg(feature = "f32")]
 mod single;
 use approx::abs_diff_ne;
