@@ -29,16 +29,6 @@ pub struct FixedJoint {
     /// The reference frame of the second body, defining the anchor point and reference rotation
     /// relative to the body transform.
     pub frame2: JointFrame,
-    /// The rotation of the second body relative to the first body in radians.
-    ///
-    /// This defines the target relative orientation of the bodies.
-    #[cfg(feature = "2d")]
-    pub reference_rotation: Scalar,
-    /// The rotation of the second body relative to the first body.
-    ///
-    /// This defines the target relative orientation of the bodies.
-    #[cfg(feature = "3d")]
-    pub reference_rotation: Quaternion,
     /// The compliance of the point-to-point constraint (inverse of stiffness, m / N).
     pub point_compliance: Scalar,
     /// The compliance of the angular constraint (inverse of stiffness, N * m / rad).
@@ -60,10 +50,6 @@ impl FixedJoint {
             entity2,
             frame1: JointFrame::auto(),
             frame2: JointFrame::auto(),
-            #[cfg(feature = "2d")]
-            reference_rotation: 0.0,
-            #[cfg(feature = "3d")]
-            reference_rotation: Quaternion::IDENTITY,
             point_compliance: 0.0,
             angle_compliance: 0.0,
         }
