@@ -13,7 +13,7 @@ use bevy::{
 /// A revolute joint prevents relative movement of the attached bodies, except for rotation around one `aligned_axis`.
 ///
 /// Revolute joints can be useful for things like wheels, fans, revolving doors etc.
-#[derive(Component, Clone, Copy, Debug, PartialEq, Reflect)]
+#[derive(Component, Clone, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Component, Debug, MapEntities, PartialEq)]
@@ -22,10 +22,12 @@ pub struct RevoluteJoint {
     pub entity1: Entity,
     /// Second entity constrained by the joint.
     pub entity2: Entity,
-    /// The joint anchor point on the first body.
-    pub anchor1: JointAnchor,
-    /// The joint anchor point on the second body.
-    pub anchor2: JointAnchor,
+    /// The reference frame of the first body, defining the anchor point and reference rotation
+    /// relative to the body transform.
+    pub frame1: JointFrame,
+    /// The reference frame of the second body, defining the anchor point and reference rotation
+    /// relative to the body transform.
+    pub frame2: JointFrame,
     /// A unit vector that controls which axis should be aligned for both bodies.
     #[cfg(feature = "3d")]
     pub aligned_axis: Vector,
@@ -52,8 +54,8 @@ impl RevoluteJoint {
         Self {
             entity1,
             entity2,
-            anchor1: JointAnchor::Auto,
-            anchor2: JointAnchor::Auto,
+            frame1: JointFrame::auto(),
+            frame2: JointFrame::auto(),
             #[cfg(feature = "3d")]
             aligned_axis: Vector::Z,
             angle_limit: None,
@@ -63,44 +65,167 @@ impl RevoluteJoint {
         }
     }
 
-    /// Sets the global [`JointAnchor`] on both bodies.
+    /// Sets the global anchor point on both bodies.
+    ///
+    /// This configures the [`JointTranslation`] of each [`JointFrame`].
     #[inline]
     pub const fn with_global_anchor(mut self, anchor: Vector) -> Self {
-        self.anchor1 = JointAnchor::FromGlobal(anchor);
-        self.anchor2 = JointAnchor::FromGlobal(anchor);
+        self.frame1.translation = JointTranslation::FromGlobal(anchor);
+        self.frame2.translation = JointTranslation::FromGlobal(anchor);
         self
     }
 
-    /// Sets the local [`JointAnchor`] on the first body.
+    /// Sets the local anchor point on the first body.
+    ///
+    /// This configures the [`JointTranslation`] of the first [`JointFrame`].
     #[inline]
     pub const fn with_local_anchor_1(mut self, anchor: Vector) -> Self {
-        self.anchor1 = JointAnchor::Local(anchor);
+        self.frame1.translation = JointTranslation::Local(anchor);
         self
     }
 
-    /// Sets the local [`JointAnchor`] on the second body.
+    /// Sets the local anchor point on the second body.
+    ///
+    /// This configures the [`JointTranslation`] of the second [`JointFrame`].
     #[inline]
     pub const fn with_local_anchor_2(mut self, anchor: Vector) -> Self {
-        self.anchor2 = JointAnchor::Local(anchor);
+        self.frame2.translation = JointTranslation::Local(anchor);
         self
     }
 
-    /// Returns the [`JointAnchor`] on the first body.
+    /// Sets the anchor point on the first body to be automatically computed
+    /// based on the relative transform of the bodies.
     ///
-    /// This is stored as [`JointAnchor::Local`] after the first physics step
-    /// after the joint was initialized.
+    /// The anchor will be comuted such that the relative translation of the [`JointFrame`]s
+    /// will be zero in world space.
+    ///
+    /// This configures the [`JointTranslation`] of the first [`JointFrame`].
+    ///
+    /// This is the default behavior.
     #[inline]
-    pub const fn anchor1(&self) -> JointAnchor {
-        self.anchor1
+    pub const fn with_auto_anchor_1(mut self) -> Self {
+        self.frame1.translation = JointTranslation::Auto;
+        self
     }
 
-    /// Returns the [`JointAnchor`] on the second body.
+    /// Sets the anchor point on the second body to be automatically computed
+    /// based on the relative transform of the bodies.
     ///
-    /// This is stored as [`JointAnchor::Local`] after the first physics step
-    /// after the joint was initialized.
+    /// The anchor will be comuted such that the relative translation of the [`JointFrame`]s
+    /// will be zero in world space.
+    ///
+    /// This configures the [`JointTranslation`] of the second [`JointFrame`].
     #[inline]
-    pub const fn anchor2(&self) -> JointAnchor {
-        self.anchor2
+    pub const fn with_auto_anchor_2(mut self) -> Self {
+        self.frame2.translation = JointTranslation::Auto;
+        self
+    }
+
+    /// Sets the global reference rotation of both bodies.
+    ///
+    /// This configures the [`JointRotation`] of each [`JointFrame`].
+    #[inline]
+    pub fn with_global_rotation(mut self, rotation: impl Into<Rot>) -> Self {
+        let rotation = rotation.into();
+        self.frame1.rotation = JointRotation::FromGlobal(rotation);
+        self.frame2.rotation = JointRotation::FromGlobal(rotation);
+        self
+    }
+
+    /// Sets the local reference rotation of the first body.
+    ///
+    /// This configures the [`JointRotation`] of the first [`JointFrame`].
+    #[inline]
+    pub fn with_local_rotation1(mut self, rotation: impl Into<Rot>) -> Self {
+        self.frame1.rotation = JointRotation::Local(rotation.into());
+        self
+    }
+
+    /// Sets the local reference rotation of the second body.
+    ///
+    /// This configures the [`JointRotation`] of the second [`JointFrame`].
+    #[inline]
+    pub fn with_local_rotation2(mut self, rotation: impl Into<Rot>) -> Self {
+        self.frame2.rotation = JointRotation::Local(rotation.into());
+        self
+    }
+
+    /// Sets the reference rotation of the first body to be automatically computed
+    /// based on the relative transform of the bodies.
+    ///
+    /// The rotation will be computed such that the relative rotation of the [`JointFrame`]s
+    /// will be zero in world space.
+    ///
+    /// This configures the [`JointRotation`] of the first [`JointFrame`].
+    #[inline]
+    pub const fn with_auto_rotation1(mut self) -> Self {
+        self.frame1.rotation = JointRotation::Auto;
+        self
+    }
+
+    /// Sets the reference rotation of the second body to be automatically computed
+    /// based on the relative transform of the bodies.
+    ///
+    /// The rotation will be computed such that the relative rotation of the [`JointFrame`]s
+    /// will be zero in world space.
+    ///
+    /// This configures the [`JointRotation`] of the second [`JointFrame`].
+    #[inline]
+    pub const fn with_auto_rotation2(mut self) -> Self {
+        self.frame2.rotation = JointRotation::Auto;
+        self
+    }
+
+    /// Returns the local anchor point on the first body.
+    ///
+    /// If the [`JointTranslation`] is set to [`FromGlobal`](JointTranslation::FromGlobal)
+    /// or [`Auto`](JointTranslation::Auto), and the local anchor has not yet been computed,
+    /// this will return `None`.
+    #[inline]
+    pub const fn local_anchor1(&self) -> Option<Vector> {
+        match self.frame1.translation {
+            JointTranslation::Local(anchor) => Some(anchor),
+            _ => None,
+        }
+    }
+
+    /// Returns the local anchor point on the second body.
+    ///
+    /// If the [`JointTranslation`] is set to [`FromGlobal`](JointTranslation::FromGlobal)
+    /// or [`Auto`](JointTranslation::Auto), and the local anchor has not yet been computed,
+    /// this will return `None`.
+    #[inline]
+    pub const fn local_anchor2(&self) -> Option<Vector> {
+        match self.frame2.translation {
+            JointTranslation::Local(anchor) => Some(anchor),
+            _ => None,
+        }
+    }
+
+    /// Returns the local reference rotation of the first body.
+    ///
+    /// If the [`JointRotation`] is set to [`FromGlobal`](JointRotation::FromGlobal)
+    /// or [`Auto`](JointRotation::Auto), and the local rotation has not yet been computed,
+    /// this will return `None`.
+    #[inline]
+    pub const fn local_rotation1(&self) -> Option<Rot> {
+        match self.frame1.rotation {
+            JointRotation::Local(rotation) => Some(rotation),
+            _ => None,
+        }
+    }
+
+    /// Returns the local reference rotation of the second body.
+    ///
+    /// If the [`JointRotation`] is set to [`FromGlobal`](JointRotation::FromGlobal)
+    /// or [`Auto`](JointRotation::Auto), and the local rotation has not yet been computed,
+    /// this will return `None`.
+    #[inline]
+    pub const fn local_rotation2(&self) -> Option<Rot> {
+        match self.frame2.rotation {
+            JointRotation::Local(rotation) => Some(rotation),
+            _ => None,
+        }
     }
 
     /// Sets the axis that the bodies should be aligned on.
@@ -164,17 +289,19 @@ pub(super) fn plugin(app: &mut App) {
     app.register_type::<RevoluteJoint>();
     app.add_systems(
         PhysicsSchedule,
-        update_local_anchors.in_set(JointSet::PrepareAnchors),
+        update_local_frames.in_set(JointSet::PrepareAnchors),
     );
 }
 
-fn update_local_anchors(
+fn update_local_frames(
     mut joints: Query<&mut RevoluteJoint, Changed<RevoluteJoint>>,
     bodies: Query<(&Position, &Rotation, &RigidBody)>,
 ) {
     for mut joint in &mut joints {
-        if matches!(joint.anchor1, JointAnchor::Local(_))
-            && matches!(joint.anchor2, JointAnchor::Local(_))
+        if matches!(joint.frame1.translation, JointTranslation::Local(_))
+            && matches!(joint.frame2.translation, JointTranslation::Local(_))
+            && matches!(joint.frame1.rotation, JointRotation::Local(_))
+            && matches!(joint.frame2.rotation, JointRotation::Local(_))
         {
             continue;
         }
@@ -183,17 +310,17 @@ fn update_local_anchors(
             continue;
         };
 
-        let [anchor1, anchor2] = JointAnchor::compute_local_anchors(
-            joint.anchor1,
-            joint.anchor2,
+        let [frame1, frame2] = JointFrame::compute_local(
+            joint.frame1,
+            joint.frame2,
             pos1.0,
             pos2.0,
             rot1,
             rot2,
             rb1.is_dynamic(),
         );
-        joint.anchor1 = anchor1;
-        joint.anchor2 = anchor2;
+        joint.frame1 = frame1;
+        joint.frame2 = frame2;
     }
 }
 
@@ -211,10 +338,10 @@ impl DebugRenderConstraint<2> for RevoluteJoint {
         let [pos1, pos2] = positions;
         let [rot1, rot2] = rotations;
 
-        let JointAnchor::Local(local_anchor1) = self.anchor1 else {
+        let Some(local_anchor1) = self.local_anchor1() else {
             return;
         };
-        let JointAnchor::Local(local_anchor2) = self.anchor2 else {
+        let Some(local_anchor2) = self.local_anchor2() else {
             return;
         };
 

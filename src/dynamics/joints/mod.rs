@@ -442,48 +442,185 @@ impl JointForces {
     }
 }
 
-/// The anchor point where bodies are attached to each other by a joint.
+/// The [reference frame] of a body that is being constrained by a [joint](self).
 ///
-/// Joint anchors are stored in local space relative to the transforms of the bodies they are attached to.
-/// This way, the initial configuration of the joint is preserved even when the bodies are moved.
+/// Each joint defines a relationship between the translation and rotation of two reference frames.
+/// For example, a [`RevoluteJoint`] aims to make the positions of the two frames coincide in world space,
+/// while allowing the frames to rotate freely around a common axis.
 ///
-/// However, anchors can also be specified with global coordinates using [`JointAnchor::FromGlobal`],
-/// or computed automatically from the current positions of the bodies using [`JointAnchor::Auto`].
-/// These are only used for initialization, and get automatically converted to [`JointAnchor::Local`]
-/// during the next simulation step.
+/// Reference frames for joints are expressed as local isometries relative to the transforms of the bodies
+/// they are attached to. The translation defines the local anchor point where the bodies are attached,
+/// and the rotation defines the local orientation of the frame relative to the body transform.
 ///
-/// By default, [`JointAnchor::Auto`] is used.
+/// TODO: SVG
 ///
-/// - If only `anchor1` is set to [`JointAnchor::Auto`], `anchor2` will be computed to match the local origin of the first body.
-/// - If only `anchor2` is set to [`JointAnchor::Auto`], `anchor1` will be computed to match the local origin of the second body.
-/// - If both anchors are set to [`JointAnchor::Auto`], the anchors are computed to match the current relative positions
-///   of the bodies in their local spaces. For most joints, `anchor1` will be the local origin of the first body,
-///   and `anchor2` will match it in the local space of the second body.
+/// Storing the frames in local space allows the initial configuration to be preserved even when the bodies are moved.
+/// However, the frames can also be specified in global coordinates using [`JointFrame::global`], or computed automatically from
+/// the current relative transform of the connected bodies using [`JointFrame::auto`]. These are only used for initialization,
+/// and are automatically converted to local frames during the next simulation step.
+///
+/// [reference frame]: https://en.wikipedia.org/wiki/Frame_of_reference
+///
+/// # Example
+///
+/// TODO
 #[derive(Clone, Copy, Debug, Default, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, PartialEq)]
-pub enum JointAnchor {
-    /// The anchor point is specified in the local space relative to the transform of the body.
+pub struct JointFrame {
+    /// The translation of the joint frame relative to the body transform.
+    ///
+    /// This defines the anchor point where the bodies are attached to each other.
+    pub translation: JointTranslation,
+    /// The rotation of the joint frame relative to the body transform.
+    ///
+    /// This defines the orientation of the joint frame relative to the body transform.
+    pub rotation: JointRotation,
+}
+
+impl JointFrame {
+    /// The identity reference frame, with the local translation and rotation set to zero.
+    ///
+    /// This represents a reference frame that aligns with the body transform.
+    pub const IDENTITY: Self = Self {
+        translation: JointTranslation::Local(Vector::ZERO),
+        rotation: JointRotation::Local(Rot::IDENTITY),
+    };
+
+    /// Creates a [`JointFrame`] with the given global translation and rotation.
+    ///
+    /// The global frame will be converted to a local frame relative to the body transform
+    /// during the next simulation step.
+    #[inline]
+    pub fn global(isometry: impl Into<Isometry>) -> Self {
+        let isometry: Isometry = isometry.into();
+        #[cfg(feature = "2d")]
+        let translation = isometry.translation.adjust_precision();
+        #[cfg(feature = "3d")]
+        let translation = Vec3::from(isometry.translation).adjust_precision();
+        Self {
+            translation: JointTranslation::FromGlobal(translation),
+            #[cfg(feature = "2d")]
+            rotation: JointRotation::FromGlobal(Rotation::from_sin_cos(
+                isometry.rotation.sin as Scalar,
+                isometry.rotation.cos as Scalar,
+            )),
+            #[cfg(feature = "3d")]
+            rotation: JointRotation::FromGlobal(isometry.rotation.adjust_precision()),
+        }
+    }
+
+    /// Creates a [`JointFrame`] with the given local translation and rotation.
+    #[inline]
+    pub fn local(isometry: impl Into<Isometry>) -> Self {
+        let isometry: Isometry = isometry.into();
+        #[cfg(feature = "2d")]
+        let translation = isometry.translation.adjust_precision();
+        #[cfg(feature = "3d")]
+        let translation = Vec3::from(isometry.translation).adjust_precision();
+        Self {
+            translation: JointTranslation::Local(translation),
+            #[cfg(feature = "2d")]
+            rotation: JointRotation::Local(Rotation::from_sin_cos(
+                isometry.rotation.sin as Scalar,
+                isometry.rotation.cos as Scalar,
+            )),
+            #[cfg(feature = "3d")]
+            rotation: JointRotation::Local(isometry.rotation.adjust_precision()),
+        }
+    }
+
+    /// Creates a [`JointFrame`] with the translation and rotation
+    /// set to [`JointTranslation::Auto`] and [`JointRotation::Auto`].
+    ///
+    /// This is used to automatically compute the frame from the current transforms of the connected bodies
+    /// such that the relative translation and rotation of the frames will be zero in world space.
+    #[inline]
+    pub const fn auto() -> Self {
+        Self {
+            translation: JointTranslation::Auto,
+            rotation: JointRotation::Auto,
+        }
+    }
+
+    /// Computes a local frames for the given [`JointFrame`]s
+    /// corresponding to the transforms of two bodies constrained by a joint.
+    ///
+    /// This is used to initialize local frames when a joint is inserted.
+    pub fn compute_local(
+        frame1: Self,
+        frame2: Self,
+        pos1: Vector,
+        pos2: Vector,
+        rot1: &Rotation,
+        rot2: &Rotation,
+        is_dynamic1: bool,
+    ) -> [JointFrame; 2] {
+        let [local_translation1, local_translation2] = JointTranslation::compute_local(
+            frame1.translation,
+            frame2.translation,
+            pos1,
+            pos2,
+            rot1,
+            rot2,
+            is_dynamic1,
+        );
+        let [local_rotation1, local_rotation2] =
+            JointRotation::compute_local(frame1.rotation, frame2.rotation, rot1, rot2);
+
+        [
+            JointFrame {
+                translation: local_translation1,
+                rotation: local_rotation1,
+            },
+            JointFrame {
+                translation: local_translation2,
+                rotation: local_rotation2,
+            },
+        ]
+    }
+}
+
+/// The translation of a [`JointFrame`], defining the anchor point where the bodies are attached to each other.
+///
+/// Reference translations are stored in local space relative to the transforms of the bodies they are attached to.
+/// This way, the initial configuration of the joint is preserved even when the bodies are moved.
+///
+/// However, the translation can also be specified in global coordinates using [`JointTranslation::FromGlobal`],
+/// or computed automatically from the current relative translation of the bodies using [`JointTranslation::Auto`].
+/// These are only used for initialization, and are automatically converted to [`JointTranslation::Local`]
+/// during the next simulation step.
+///
+/// By default, [`JointTranslation::Auto`] is used, and the reference translation is computed from the current transforms
+/// of the connected bodies such that the relative translation of the frames will be zero in world space.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, PartialEq)]
+#[doc(alias = "JointAnchor")]
+pub enum JointTranslation {
+    /// The anchor point is specified in local coordinates relative to the body transform.
     Local(Vector),
     /// The anchor point is specified in global coordinates.
     FromGlobal(Vector),
-    /// The anchor point is automatically computed from the current positions of the bodies.
-    ///
-    /// - If only `anchor1` is set to [`JointAnchor::Auto`], `anchor2` will be computed to match the local origin of the first body.
-    /// - If only `anchor2` is set to [`JointAnchor::Auto`], `anchor1` will be computed to match the local origin of the second body.
-    /// - If both anchors are set to [`JointAnchor::Auto`], they will be computed to match the current relative positions of
-    ///   the bodies in their local spaces. For most joints, `anchor1` will be the local origin of the first body,
-    ///   and `anchor2` will match it in the local space of the second body
+    /// The anchor point is automatically computed from the current transforms of the connected bodies
+    /// such that the relative translation of the frames will be zero in world space.
     #[default]
     Auto,
 }
 
-impl JointAnchor {
-    /// Computes a [`JointAnchor::Local`] for the given [`JointAnchor`]s corresponding to the [`EntityRef`]s of two bodies.
+impl JointTranslation {
+    /// The identity reference translation.
+    ///
+    /// This represents a reference translation that aligns with the body transform.
+    pub const ZERO: Self = Self::Local(Vector::ZERO);
+
+    /// Computes [`JointTranslation::Local`]s for the given [`JointTranslation`]s
+    /// corresponding to the transforms of two bodies constrained by a joint.
     ///
     /// This is used to initialize local anchors when a joint is inserted.
-    pub fn compute_local_anchors(
+    pub fn compute_local(
         anchor1: Self,
         anchor2: Self,
         pos1: Vector,
@@ -493,51 +630,165 @@ impl JointAnchor {
         is_dynamic1: bool,
     ) -> [Self; 2] {
         let [local_anchor1, local_anchor2] = match [anchor1, anchor2] {
-            [JointAnchor::Local(anchor1), JointAnchor::Local(anchor2)] => [anchor1, anchor2],
             [
-                JointAnchor::FromGlobal(anchor1),
-                JointAnchor::FromGlobal(anchor2),
+                JointTranslation::Local(anchor1),
+                JointTranslation::Local(anchor2),
+            ] => [anchor1, anchor2],
+            [
+                JointTranslation::FromGlobal(anchor1),
+                JointTranslation::FromGlobal(anchor2),
             ] => [
                 rot1.inverse() * (anchor1 - pos1),
                 rot2.inverse() * (anchor2 - pos2),
             ],
             [
-                JointAnchor::Local(anchor1),
-                JointAnchor::FromGlobal(anchor2),
+                JointTranslation::Local(anchor1),
+                JointTranslation::FromGlobal(anchor2),
             ] => [anchor1, rot2.inverse() * (anchor2 - pos2)],
             [
-                JointAnchor::FromGlobal(anchor1),
-                JointAnchor::Local(anchor2),
+                JointTranslation::FromGlobal(anchor1),
+                JointTranslation::Local(anchor2),
             ] => [rot1.inverse() * (anchor1 - pos1), anchor2],
-            [JointAnchor::Auto, JointAnchor::Local(anchor2)] => {
+            [JointTranslation::Auto, JointTranslation::Local(anchor2)] => {
                 let global_anchor2 = rot2 * anchor2 + pos2;
                 [rot1.inverse() * (global_anchor2 - pos1), anchor2]
             }
-            [JointAnchor::Local(anchor1), JointAnchor::Auto] => {
+            [JointTranslation::Local(anchor1), JointTranslation::Auto] => {
                 let global_anchor1 = rot1 * anchor1 + pos1;
                 [anchor1, rot2.inverse() * (global_anchor1 - pos2)]
             }
-            [JointAnchor::Auto, JointAnchor::FromGlobal(anchor2)] => [
+            [
+                JointTranslation::Auto,
+                JointTranslation::FromGlobal(anchor2),
+            ] => [
                 rot1.inverse() * (anchor2 - pos1),
                 rot2.inverse() * (anchor2 - pos2),
             ],
-            [JointAnchor::FromGlobal(anchor1), JointAnchor::Auto] => [
+            [
+                JointTranslation::FromGlobal(anchor1),
+                JointTranslation::Auto,
+            ] => [
                 rot1.inverse() * (anchor1 - pos1),
                 rot2.inverse() * (anchor1 - pos2),
             ],
-            [JointAnchor::Auto, JointAnchor::Auto] => {
+            [JointTranslation::Auto, JointTranslation::Auto] => {
                 // Use the dynamic body as the anchor point.
                 if is_dynamic1 {
-                    [Vector::ZERO, rot2.inverse() * (pos2 - pos1)]
+                    [Vector::ZERO, rot2.inverse() * (pos1 - pos2)]
                 } else {
-                    [rot1.inverse() * (pos1 - pos2), Vector::ZERO]
+                    [rot1.inverse() * (pos2 - pos1), Vector::ZERO]
                 }
             }
         };
 
         [
-            JointAnchor::Local(local_anchor1),
-            JointAnchor::Local(local_anchor2),
+            JointTranslation::Local(local_anchor1),
+            JointTranslation::Local(local_anchor2),
         ]
+    }
+}
+
+impl From<JointTranslation> for JointFrame {
+    fn from(translation: JointTranslation) -> Self {
+        Self {
+            translation,
+            rotation: JointRotation::Auto,
+        }
+    }
+}
+
+/// The rotation of a [`JointFrame`], defining the reference orientation of a body relative to its transform.
+///
+/// Reference rotations are stored in local space relative to the transforms of the bodies they are attached to.
+/// This way, the initial configuration of the joint is preserved even when the bodies are moved.
+///
+/// However, the rotation can also be specified in world space using [`JointTranslation::FromGlobal`],
+/// or computed automatically from the current relative rotation of the bodies using [`JointTranslation::Auto`].
+/// These are only used for initialization, and are automatically converted to [`JointTranslation::Local`]
+/// during the next simulation step.
+///
+/// By default, [`JointTranslation::Auto`] is used, and the reference rotation is computed from the current transforms
+/// of the connected bodies such that the relative rotation of the frames will be zero in world space.
+/// If both frames are set to `Auto`, the first frame will be set to the identity rotation,
+/// and the second frame will be set to the relative rotation of the two bodies.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, PartialEq)]
+pub enum JointRotation {
+    /// The reference rotation is specified in local space relative to the body transform.
+    Local(Rot),
+    /// The reference rotation is specified in world space.
+    FromGlobal(Rot),
+    /// The reference rotation is automatically computed from the current transforms of the connected bodies
+    /// such that the relative rotation of the frames will be zero in world space.
+    ///
+    /// If both frames are set to `Auto`, the first frame will be set to the identity rotation,
+    /// and the second frame will be set to the relative rotation of the two bodies.
+    #[default]
+    Auto,
+}
+
+impl JointRotation {
+    /// The identity reference rotation.
+    ///
+    /// This represents a reference rotation that aligns with the body transform.
+    pub const IDENTITY: Self = Self::Local(Rot::IDENTITY);
+
+    /// Computes a [`JointRotation::Local`] for the given [`JointRotation`]s
+    /// corresponding to the transforms of two bodies constrained by a joint.
+    ///
+    /// This is used to initialize local reference rotations when a joint is inserted.
+    pub fn compute_local(rotation1: Self, rotation2: Self, rot1: &Rot, rot2: &Rot) -> [Self; 2] {
+        let [local_rotation1, local_rotation2] = match [rotation1, rotation2] {
+            [
+                JointRotation::Local(rotation1),
+                JointRotation::Local(rotation2),
+            ] => [rotation1, rotation2],
+            [
+                JointRotation::FromGlobal(rotation1),
+                JointRotation::FromGlobal(rotation2),
+            ] => [rotation1 * rot1.inverse(), rotation2 * rot2.inverse()],
+            [
+                JointRotation::Local(rotation1),
+                JointRotation::FromGlobal(rotation2),
+            ] => [rotation1, rotation2 * rot2.inverse()],
+            [
+                JointRotation::FromGlobal(rotation1),
+                JointRotation::Local(rotation2),
+            ] => [rotation1 * rot1.inverse(), rotation2],
+            [JointRotation::Auto, JointRotation::Local(rotation2)] => {
+                let global_rotation2 = rotation2 * *rot2;
+                [global_rotation2 * rot1.inverse(), rotation2]
+            }
+            [JointRotation::Local(rotation1), JointRotation::Auto] => {
+                let global_rotation1 = rotation1 * *rot1;
+                [rotation1, global_rotation1 * rot2.inverse()]
+            }
+            [JointRotation::Auto, JointRotation::FromGlobal(rotation2)] => {
+                [rotation2 * rot1.inverse(), rotation2 * rot2.inverse()]
+            }
+            [JointRotation::FromGlobal(rotation1), JointRotation::Auto] => {
+                [rotation1 * rot1.inverse(), rotation1 * rot2.inverse()]
+            }
+            [JointRotation::Auto, JointRotation::Auto] => {
+                // Use the dynamic body as the rotation point.
+                [Rot::IDENTITY, *rot1 * rot2.inverse()]
+            }
+        };
+
+        [
+            JointRotation::Local(local_rotation1),
+            JointRotation::Local(local_rotation2),
+        ]
+    }
+}
+
+impl From<JointRotation> for JointFrame {
+    fn from(rotation: JointRotation) -> Self {
+        Self {
+            translation: JointTranslation::Auto,
+            rotation,
+        }
     }
 }

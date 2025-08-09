@@ -8,6 +8,7 @@ fn main() {
             DefaultPlugins,
             ExampleCommonPlugin,
             PhysicsPlugins::default(),
+            PhysicsDebugPlugin::default(),
         ))
         .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))
         .insert_resource(SubstepCount(50))
@@ -16,7 +17,9 @@ fn main() {
         .run();
 }
 
-fn setup(mut commands: Commands) {
+fn setup(mut commands: Commands, mut time: ResMut<Time<Physics>>) {
+    time.pause();
+
     commands.spawn(Camera2d);
 
     let square_sprite = Sprite {
@@ -29,18 +32,19 @@ fn setup(mut commands: Commands) {
         .spawn((
             square_sprite.clone(),
             RigidBody::Kinematic,
-            AngularVelocity(1.5),
+            // AngularVelocity(1.5),
         ))
         .id();
 
     let object = commands
         .spawn((
             square_sprite,
-            Transform::from_xyz(100.0, 0.0, 0.0),
+            Transform::from_xyz(50.0, -100.0, 0.0)
+                .with_rotation(Quaternion::from_rotation_z(PI / 8.0)),
             RigidBody::Dynamic,
             MassPropertiesBundle::from_shape(&Rectangle::from_length(50.0), 1.0),
         ))
         .id();
 
-    commands.spawn(FixedJoint::new(anchor, object).with_local_anchor_1(Vector::X * 100.0));
+    commands.spawn(FixedJoint::new(anchor, object).with_global_rotation(PI / 4.0));
 }

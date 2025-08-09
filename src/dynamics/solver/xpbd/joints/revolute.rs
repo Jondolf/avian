@@ -49,10 +49,16 @@ impl XpbdConstraint<2> for RevoluteJoint {
         bodies: [&RigidBodyQueryReadOnlyItem; 2],
         solver_data: &mut RevoluteJointSolverData,
     ) {
-        let JointAnchor::Local(local_anchor1) = self.anchor1 else {
+        let Some(local_anchor1) = self.local_anchor1() else {
             return;
         };
-        let JointAnchor::Local(local_anchor2) = self.anchor2 else {
+        let Some(local_anchor2) = self.local_anchor2() else {
+            return;
+        };
+        let Some(local_rotation1) = self.local_rotation1() else {
+            return;
+        };
+        let Some(local_rotation2) = self.local_rotation2() else {
             return;
         };
 
@@ -64,13 +70,14 @@ impl XpbdConstraint<2> for RevoluteJoint {
         // Prepare the base rotation difference.
         #[cfg(feature = "2d")]
         {
-            solver_data.rotation_difference = bodies[0].rotation.angle_between(*bodies[1].rotation);
+            solver_data.rotation_difference = (local_rotation1 * *bodies[0].rotation)
+                .angle_between(local_rotation2 * *bodies[1].rotation);
         }
         #[cfg(feature = "3d")]
         {
             // Prepare the base axes.
-            solver_data.axis1 = bodies[0].rotation * self.aligned_axis;
-            solver_data.axis2 = bodies[1].rotation * self.aligned_axis;
+            solver_data.axis1 = local_rotation1 * (bodies[0].rotation * self.aligned_axis);
+            solver_data.axis2 = local_rotation2 * (bodies[1].rotation * self.aligned_axis);
         }
     }
 

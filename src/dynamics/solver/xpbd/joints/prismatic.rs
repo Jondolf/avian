@@ -47,10 +47,16 @@ impl XpbdConstraint<2> for PrismaticJoint {
     ) {
         let [body1, body2] = bodies;
 
-        let JointAnchor::Local(local_anchor1) = self.anchor1 else {
+        let Some(local_anchor1) = self.local_anchor1() else {
             return;
         };
-        let JointAnchor::Local(local_anchor2) = self.anchor2 else {
+        let Some(local_anchor2) = self.local_anchor2() else {
+            return;
+        };
+        let Some(local_rotation1) = self.local_rotation1() else {
+            return;
+        };
+        let Some(local_rotation2) = self.local_rotation2() else {
             return;
         };
 
@@ -58,7 +64,8 @@ impl XpbdConstraint<2> for PrismaticJoint {
         solver_data.angle_constraint.prepare(
             body1.rotation,
             body2.rotation,
-            default(), // TODO: Support reference rotation
+            local_rotation1,
+            local_rotation2,
         );
 
         // Prepare the prismatic joint.
@@ -66,7 +73,7 @@ impl XpbdConstraint<2> for PrismaticJoint {
         solver_data.world_r2 = body2.rotation * (local_anchor2 - body2.center_of_mass.0);
         solver_data.center_difference = (body2.position.0 - body1.position.0)
             + (body2.rotation * body2.center_of_mass.0 - body1.rotation * body1.center_of_mass.0);
-        solver_data.free_axis1 = body1.rotation * self.free_axis;
+        solver_data.free_axis1 = local_rotation1 * (body1.rotation * self.free_axis);
     }
 
     fn solve(

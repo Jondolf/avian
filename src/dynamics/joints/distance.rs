@@ -23,9 +23,9 @@ pub struct DistanceJoint {
     /// Second entity constrained by the joint.
     pub entity2: Entity,
     /// The joint anchor point on the first body.
-    pub anchor1: JointAnchor,
+    pub anchor1: JointTranslation,
     /// The joint anchor point on the second body.
-    pub anchor2: JointAnchor,
+    pub anchor2: JointTranslation,
     /// The distance the attached bodies will be kept relative to each other.
     pub rest_length: Scalar,
     /// The extents of the allowed relative translation between the attached bodies.
@@ -47,8 +47,8 @@ impl DistanceJoint {
         Self {
             entity1,
             entity2,
-            anchor1: JointAnchor::Auto,
-            anchor2: JointAnchor::Auto,
+            anchor1: JointTranslation::Auto,
+            anchor2: JointTranslation::Auto,
             rest_length: 0.0,
             length_limits: None,
             compliance: 0.0,
@@ -58,22 +58,22 @@ impl DistanceJoint {
     /// Sets the global [`JointAnchor`] on both bodies.
     #[inline]
     pub const fn with_global_anchor(mut self, anchor: Vector) -> Self {
-        self.anchor1 = JointAnchor::FromGlobal(anchor);
-        self.anchor2 = JointAnchor::FromGlobal(anchor);
+        self.anchor1 = JointTranslation::FromGlobal(anchor);
+        self.anchor2 = JointTranslation::FromGlobal(anchor);
         self
     }
 
     /// Sets the local [`JointAnchor`] on the first body.
     #[inline]
     pub const fn with_local_anchor_1(mut self, anchor: Vector) -> Self {
-        self.anchor1 = JointAnchor::Local(anchor);
+        self.anchor1 = JointTranslation::Local(anchor);
         self
     }
 
     /// Sets the local [`JointAnchor`] on the second body.
     #[inline]
     pub const fn with_local_anchor_2(mut self, anchor: Vector) -> Self {
-        self.anchor2 = JointAnchor::Local(anchor);
+        self.anchor2 = JointTranslation::Local(anchor);
         self
     }
 
@@ -82,7 +82,7 @@ impl DistanceJoint {
     /// This is stored as [`JointAnchor::Local`] after the first physics step
     /// after the joint was initialized.
     #[inline]
-    pub const fn anchor1(&self) -> JointAnchor {
+    pub const fn anchor1(&self) -> JointTranslation {
         self.anchor1
     }
 
@@ -91,7 +91,7 @@ impl DistanceJoint {
     /// This is stored as [`JointAnchor::Local`] after the first physics step
     /// after the joint was initialized.
     #[inline]
-    pub const fn anchor2(&self) -> JointAnchor {
+    pub const fn anchor2(&self) -> JointTranslation {
         self.anchor2
     }
 
@@ -137,8 +137,8 @@ fn update_local_anchors(
     bodies: Query<(&Position, &Rotation, &RigidBody)>,
 ) {
     for mut joint in &mut joints {
-        if matches!(joint.anchor1, JointAnchor::Local(_))
-            && matches!(joint.anchor2, JointAnchor::Local(_))
+        if matches!(joint.anchor1, JointTranslation::Local(_))
+            && matches!(joint.anchor2, JointTranslation::Local(_))
         {
             continue;
         }
@@ -147,7 +147,7 @@ fn update_local_anchors(
             continue;
         };
 
-        let [anchor1, anchor2] = JointAnchor::compute_local_anchors(
+        let [anchor1, anchor2] = JointTranslation::compute_local(
             joint.anchor1,
             joint.anchor2,
             pos1.0,
@@ -175,10 +175,10 @@ impl DebugRenderConstraint<2> for DistanceJoint {
         let [pos1, pos2] = positions;
         let [rot1, rot2] = rotations;
 
-        let JointAnchor::Local(local_anchor1) = self.anchor1 else {
+        let JointTranslation::Local(local_anchor1) = self.anchor1 else {
             return;
         };
-        let JointAnchor::Local(local_anchor2) = self.anchor2 else {
+        let JointTranslation::Local(local_anchor2) = self.anchor2 else {
             return;
         };
 

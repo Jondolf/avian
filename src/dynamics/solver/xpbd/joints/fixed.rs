@@ -43,10 +43,16 @@ impl XpbdConstraint<2> for FixedJoint {
     ) {
         let [body1, body2] = bodies;
 
-        let JointAnchor::Local(local_anchor1) = self.anchor1 else {
+        let Some(local_anchor1) = self.local_anchor1() else {
             return;
         };
-        let JointAnchor::Local(local_anchor2) = self.anchor2 else {
+        let Some(local_anchor2) = self.local_anchor2() else {
+            return;
+        };
+        let Some(local_rotation1) = self.local_rotation1() else {
+            return;
+        };
+        let Some(local_rotation2) = self.local_rotation2() else {
             return;
         };
 
@@ -59,7 +65,8 @@ impl XpbdConstraint<2> for FixedJoint {
         solver_data.angle_constraint.prepare(
             body1.rotation,
             body2.rotation,
-            self.reference_rotation,
+            local_rotation1,
+            local_rotation2,
         );
     }
 

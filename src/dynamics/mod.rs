@@ -77,9 +77,9 @@ pub mod prelude {
         ccd::{CcdPlugin, SpeculativeMargin, SweepMode, SweptCcd},
         integrator::{Gravity, IntegratorPlugin},
         joints::{
-            AngleLimit, DistanceJoint, DistanceLimit, FixedJoint, JointAnchor,
-            JointCollisionDisabled, JointDamping, JointDisabled, JointForces, JointPlugin,
-            PrismaticJoint, RevoluteJoint,
+            AngleLimit, DistanceJoint, DistanceLimit, FixedJoint, JointCollisionDisabled,
+            JointDamping, JointDisabled, JointForces, JointFrame, JointPlugin, JointRotation,
+            JointTranslation, PrismaticJoint, RevoluteJoint,
         },
         rigid_body::{
             forces::{
