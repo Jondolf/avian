@@ -65,14 +65,14 @@ impl DistanceJoint {
 
     /// Sets the local [`JointAnchor`] on the first body.
     #[inline]
-    pub const fn with_local_anchor_1(mut self, anchor: Vector) -> Self {
+    pub const fn with_local_anchor1(mut self, anchor: Vector) -> Self {
         self.anchor1 = JointTranslation::Local(anchor);
         self
     }
 
     /// Sets the local [`JointAnchor`] on the second body.
     #[inline]
-    pub const fn with_local_anchor_2(mut self, anchor: Vector) -> Self {
+    pub const fn with_local_anchor2(mut self, anchor: Vector) -> Self {
         self.anchor2 = JointTranslation::Local(anchor);
         self
     }

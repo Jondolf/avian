@@ -56,7 +56,7 @@
 //!
 //! By default, joints are connected to the centers of entities, but attachment positions can be used to change this.
 //!
-//! You can use `with_local_anchor_1` and `with_local_anchor_2` to set the attachment positions on the first
+//! You can use `with_local_anchor1` and `with_local_anchor2` to set the attachment positions on the first
 //! and second entity respectively.
 //!
 //! ## Damping

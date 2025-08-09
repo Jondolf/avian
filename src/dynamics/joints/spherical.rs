@@ -83,7 +83,7 @@ impl SphericalJoint {
     ///
     /// This configures the [`JointTranslation`] of the first [`JointFrame`].
     #[inline]
-    pub const fn with_local_anchor_1(mut self, anchor: Vector) -> Self {
+    pub const fn with_local_anchor1(mut self, anchor: Vector) -> Self {
         self.frame1.translation = JointTranslation::Local(anchor);
         self
     }
@@ -92,7 +92,7 @@ impl SphericalJoint {
     ///
     /// This configures the [`JointTranslation`] of the second [`JointFrame`].
     #[inline]
-    pub const fn with_local_anchor_2(mut self, anchor: Vector) -> Self {
+    pub const fn with_local_anchor2(mut self, anchor: Vector) -> Self {
         self.frame2.translation = JointTranslation::Local(anchor);
         self
     }
@@ -107,7 +107,7 @@ impl SphericalJoint {
     ///
     /// This is the default behavior.
     #[inline]
-    pub const fn with_auto_anchor_1(mut self) -> Self {
+    pub const fn with_auto_anchor1(mut self) -> Self {
         self.frame1.translation = JointTranslation::Auto;
         self
     }
@@ -120,7 +120,7 @@ impl SphericalJoint {
     ///
     /// This configures the [`JointTranslation`] of the second [`JointFrame`].
     #[inline]
-    pub const fn with_auto_anchor_2(mut self) -> Self {
+    pub const fn with_auto_anchor2(mut self) -> Self {
         self.frame2.translation = JointTranslation::Auto;
         self
     }
