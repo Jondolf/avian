@@ -21,13 +21,16 @@ pub(crate) use bevy::platform::time::Instant;
 /// assert_eq!(slice, vec![1, 3, 5, 7]);
 /// ```
 #[inline(always)]
-pub fn par_for_each<T, F>(mut slice: &mut [T], min_len: usize, f: F)
+#[allow(unused_variables, unused_mut)]
+pub fn par_for_each<T, F>(mut slice: &mut [T], min_len: usize, mut f: F)
 where
     T: Send + Sync,
-    F: Fn(usize, &mut T) + Send + Sync,
+    F: FnMut(usize, &mut T) + Send + Sync,
 {
     #[cfg(not(feature = "parallel"))]
-    slice.iter_mut().enumerate().for_each(f);
+    slice.iter_mut().enumerate().for_each(|(index, item)| {
+        f(index, item);
+    });
 
     #[cfg(feature = "parallel")]
     {
