@@ -701,7 +701,7 @@ pub(crate) fn update_collider_mass_properties<C: AnyCollider>(
 
 #[cfg(test)]
 mod tests {
-    #![expect(clippy::unnecessary_cast)]
+    #![allow(clippy::unnecessary_cast)]
 
     #[cfg(feature = "default-collider")]
     use super::*;
