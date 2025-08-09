@@ -26,10 +26,8 @@ pub struct DistanceJoint {
     pub anchor1: JointTranslation,
     /// The joint anchor point on the second body.
     pub anchor2: JointTranslation,
-    /// The distance the attached bodies will be kept relative to each other.
-    pub rest_length: Scalar,
     /// The extents of the allowed relative translation between the attached bodies.
-    pub length_limits: Option<DistanceLimit>,
+    pub limits: DistanceLimit,
     /// The joint's compliance, the inverse of stiffness (m / N).
     pub compliance: Scalar,
 }
@@ -49,8 +47,7 @@ impl DistanceJoint {
             entity2,
             anchor1: JointTranslation::IDENTITY,
             anchor2: JointTranslation::IDENTITY,
-            rest_length: 0.0,
-            length_limits: None,
+            limits: DistanceLimit::ZERO,
             compliance: 0.0,
         }
     }
@@ -109,15 +106,16 @@ impl DistanceJoint {
 
     /// Sets the joint's rest length, or distance the bodies will be kept at.
     #[inline]
+    #[deprecated(note = "Use `with_limits` instead.", since = "0.4.0")]
     pub const fn with_rest_length(mut self, rest_length: Scalar) -> Self {
-        self.rest_length = rest_length;
+        self.limits = DistanceLimit::new(rest_length, rest_length);
         self
     }
 
     /// Sets the minimum and maximum distances between the attached bodies.
     #[inline]
     pub const fn with_limits(mut self, min: Scalar, max: Scalar) -> Self {
-        self.length_limits = Some(DistanceLimit::new(min, max));
+        self.limits = DistanceLimit::new(min, max);
         self
     }
 

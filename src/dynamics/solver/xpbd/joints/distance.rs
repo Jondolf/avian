@@ -75,15 +75,9 @@ impl XpbdConstraint<2> for DistanceJoint {
             + (world_r2 - world_r1)
             + solver_data.center_difference;
 
-        // If min and max limits aren't specified, use rest length
-        // TODO: Remove rest length, just use min/max limits.
-        let limits = self
-            .length_limits
-            .unwrap_or(DistanceLimit::new(self.rest_length, self.rest_length));
-
         // Compute the direction and magnitude of the positional correction required
         // to keep the bodies within a certain distance from each other.
-        let (dir, distance) = limits.compute_correction(separation);
+        let (dir, distance) = self.limits.compute_correction(separation);
 
         if distance <= Scalar::EPSILON {
             // No separation, no need to apply a correction.
