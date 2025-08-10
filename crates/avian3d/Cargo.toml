@@ -59,6 +59,7 @@ serialize = [
     "bevy_transform_interpolation/serialize",
     "parry3d?/serde-serialize",
     "parry3d-f64?/serde-serialize",
+    "smallvec/serde",
     "bitflags/serde",
 ]
 
