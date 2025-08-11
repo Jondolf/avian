@@ -1,5 +1,5 @@
 use crate::{
-    dynamics::joints::{EntityConstraint, JointSet, impl_joint_frame_helpers},
+    dynamics::joints::{EntityConstraint, JointSet},
     prelude::*,
 };
 use bevy::{
@@ -54,11 +54,148 @@ impl FixedJoint {
             angle_compliance: 0.0,
         }
     }
-}
 
-impl_joint_frame_helpers!(FixedJoint);
+    /// Sets the local [`JointFrame`] of the first body, configuring both the [`JointAnchor`] and [`JointBasis`].
+    #[inline]
+    pub fn with_local_frame1(mut self, frame: impl Into<Isometry>) -> Self {
+        self.frame1 = JointFrame::local(frame);
+        self
+    }
 
-impl FixedJoint {
+    /// Sets the local [`JointFrame`] of the second body, configuring both the [`JointAnchor`] and [`JointBasis`].
+    #[inline]
+    pub fn with_local_frame2(mut self, frame: impl Into<Isometry>) -> Self {
+        self.frame2 = JointFrame::local(frame);
+        self
+    }
+
+    /// Sets the global anchor point on both bodies.
+    ///
+    /// This configures the [`JointAnchor`] of each [`JointFrame`].
+    #[inline]
+    pub const fn with_anchor(mut self, anchor: Vector) -> Self {
+        self.frame1.anchor = JointAnchor::FromGlobal(anchor);
+        self.frame2.anchor = JointAnchor::FromGlobal(anchor);
+        self
+    }
+
+    /// Sets the local anchor point on the first body.
+    ///
+    /// This configures the [`JointAnchor`] of the first [`JointFrame`].
+    #[inline]
+    pub const fn with_local_anchor1(mut self, anchor: Vector) -> Self {
+        self.frame1.anchor = JointAnchor::Local(anchor);
+        self
+    }
+
+    /// Sets the local anchor point on the second body.
+    ///
+    /// This configures the [`JointAnchor`] of the second [`JointFrame`].
+    #[inline]
+    pub const fn with_local_anchor2(mut self, anchor: Vector) -> Self {
+        self.frame2.anchor = JointAnchor::Local(anchor);
+        self
+    }
+
+    /// Sets the global basis for both bodies.
+    ///
+    /// This configures the [`JointBasis`] of each [`JointFrame`].
+    #[inline]
+    pub fn with_basis(mut self, basis: impl Into<Rot>) -> Self {
+        let basis = basis.into();
+        self.frame1.basis = JointBasis::FromGlobal(basis);
+        self.frame2.basis = JointBasis::FromGlobal(basis);
+        self
+    }
+
+    /// Sets the local basis for the first body.
+    ///
+    /// This configures the [`JointBasis`] of the first [`JointFrame`].
+    #[inline]
+    pub fn with_local_basis1(mut self, basis: impl Into<Rot>) -> Self {
+        self.frame1.basis = JointBasis::Local(basis.into());
+        self
+    }
+
+    /// Sets the local basis for the second body.
+    ///
+    /// This configures the [`JointBasis`] of the second [`JointFrame`].
+    #[inline]
+    pub fn with_local_basis2(mut self, basis: impl Into<Rot>) -> Self {
+        self.frame2.basis = JointBasis::Local(basis.into());
+        self
+    }
+
+    /// Returns the local [`JointFrame`] of the first body.
+    ///
+    /// If the [`JointAnchor`] is set to [`FromGlobal`](JointAnchor::FromGlobal),
+    /// and the local anchor has not yet been computed, or the [`JointBasis`] is set to
+    /// [`FromGlobal`](JointBasis::FromGlobal), and the local basis has not yet
+    /// been computed, this will return `None`.
+    #[inline]
+    pub fn local_frame1(&self) -> Option<Isometry> {
+        self.frame1.get_local_isometry()
+    }
+
+    /// Returns the local [`JointFrame`] of the second body.
+    ///
+    /// If the [`JointAnchor`] is set to [`FromGlobal`](JointAnchor::FromGlobal),
+    /// and the local anchor has not yet been computed, or the [`JointBasis`] is set to
+    /// [`FromGlobal`](JointBasis::FromGlobal), and the local basis has not yet
+    /// been computed, this will return `None`.
+    #[inline]
+    pub fn local_frame2(&self) -> Option<Isometry> {
+        self.frame2.get_local_isometry()
+    }
+
+    /// Returns the local anchor point on the first body.
+    ///
+    /// If the [`JointAnchor`] is set to [`FromGlobal`](JointAnchor::FromGlobal),
+    /// and the local anchor has not yet been computed, this will return `None`.
+    #[inline]
+    pub const fn local_anchor1(&self) -> Option<Vector> {
+        match self.frame1.anchor {
+            JointAnchor::Local(anchor) => Some(anchor),
+            _ => None,
+        }
+    }
+
+    /// Returns the local anchor point on the second body.
+    ///
+    /// If the [`JointAnchor`] is set to [`FromGlobal`](JointAnchor::FromGlobal),
+    /// and the local anchor has not yet been computed, this will return `None`.
+    #[inline]
+    pub const fn local_anchor2(&self) -> Option<Vector> {
+        match self.frame2.anchor {
+            JointAnchor::Local(anchor) => Some(anchor),
+            _ => None,
+        }
+    }
+
+    /// Returns the local basis of the first body.
+    ///
+    /// If the [`JointBasis`] is set to [`FromGlobal`](JointBasis::FromGlobal),
+    /// and the local basis has not yet been computed, this will return `None`.
+    #[inline]
+    pub fn local_basis1(&self) -> Option<Rot> {
+        match self.frame1.basis {
+            JointBasis::Local(basis) => Some(basis),
+            _ => None,
+        }
+    }
+
+    /// Returns the local basis of the second body.
+    ///
+    /// If the [`JointBasis`] is set to [`FromGlobal`](JointBasis::FromGlobal),
+    /// and the local basis has not yet been computed, this will return `None`.
+    #[inline]
+    pub fn local_basis2(&self) -> Option<Rot> {
+        match self.frame2.basis {
+            JointBasis::Local(basis) => Some(basis),
+            _ => None,
+        }
+    }
+
     /// Sets the joint's compliance (inverse of stiffness).
     #[inline]
     #[deprecated(

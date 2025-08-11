@@ -557,7 +557,7 @@ impl From<Scalar> for Rotation {
 impl From<Rotation> for Matrix {
     /// Creates a [`Matrix`] rotation matrix from a [`Rotation`].
     fn from(rot: Rotation) -> Self {
-        Matrix::from_cols_array(&[rot.cos, -rot.sin, rot.sin, rot.cos])
+        Matrix::from_cols_array(&[rot.cos, rot.sin, -rot.sin, rot.cos])
     }
 }
 
@@ -566,7 +566,7 @@ impl From<Matrix> for Rotation {
     /// Creates a [`Rotation`] from a [`Matrix`].
     fn from(mat: Matrix) -> Self {
         let cos = mat.x_axis.x;
-        let sin = mat.y_axis.x;
+        let sin = mat.x_axis.y;
         Self::from_sin_cos(sin, cos)
     }
 }

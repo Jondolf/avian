@@ -1,5 +1,5 @@
 use crate::{
-    dynamics::joints::{EntityConstraint, JointSet, impl_joint_frame_helpers},
+    dynamics::joints::{EntityConstraint, JointSet},
     prelude::*,
 };
 use bevy::{
@@ -28,14 +28,6 @@ pub struct SphericalJoint {
     /// The reference frame of the second body, defining the joint anchor and basis
     /// relative to the body transform.
     pub frame2: JointFrame,
-    /// A local axis that the bodies can swing around. Perpendicular to the [`twist_axis`](SphericalJoint::twist_axis).
-    ///
-    /// By default, this is the x-axis.
-    pub swing_axis: Vector,
-    /// The local axis that the bodies can twist around. Perpendicular to the [`swing_axis`](SphericalJoint::swing_axis).
-    ///
-    /// By default, this is the y-axis.
-    pub twist_axis: Vector,
     /// The extents of the allowed relative rotation of the bodies around a swing axis perpendicular to the [`twist_axis`](SphericalJoint::twist_axis).
     pub swing_limit: Option<AngleLimit>,
     /// The extents of the allowed relative rotation of the bodies around the [`twist_axis`](SphericalJoint::twist_axis).
@@ -55,11 +47,15 @@ impl EntityConstraint<2> for SphericalJoint {
 }
 
 impl SphericalJoint {
-    /// The default [`swing_axis`](SphericalJoint::swing_axis) for a spherical joint.
-    pub const DEFAULT_SWING_AXIS: Vector = Vector::X;
+    /// An axis along which the bodies can swing relative to each other.
+    ///
+    /// This is the z-axis of the [`JointBasis`].
+    pub const SWING_AXIS: Vector = Vector::Z;
 
-    /// The default [`twist_axis`](SphericalJoint::twist_axis) for a spherical joint.
-    pub const DEFAULT_TWIST_AXIS: Vector = Vector::Y;
+    /// The axis along which the bodies can twist relative to each other.
+    ///
+    /// This is the y-axis of the [`JointBasis`].
+    pub const TWIST_AXIS: Vector = Vector::Y;
 
     /// Creates a new [`SphericalJoint`] between two entities.
     #[inline]
@@ -69,8 +65,6 @@ impl SphericalJoint {
             entity2,
             frame1: JointFrame::IDENTITY,
             frame2: JointFrame::IDENTITY,
-            swing_axis: Self::DEFAULT_SWING_AXIS,
-            twist_axis: Self::DEFAULT_TWIST_AXIS,
             swing_limit: None,
             twist_limit: None,
             point_compliance: 0.0,
@@ -79,86 +73,238 @@ impl SphericalJoint {
         }
     }
 
-    /// Sets the [`swing_axis`](SphericalJoint::swing_axis) of the joint.
-    ///
-    /// The axis should be a unit vector perpendicular to the [`twist_axis`](SphericalJoint::twist_axis).
-    /// By default, this is the x-axis.
+    /// Sets the local [`JointFrame`] of the first body, configuring both the [`JointAnchor`] and [`JointBasis`].
     #[inline]
-    pub const fn with_swing_axis(mut self, axis: Vector) -> Self {
-        self.swing_axis = axis;
+    pub fn with_local_frame1(mut self, frame: impl Into<Isometry>) -> Self {
+        self.frame1 = JointFrame::local(frame);
         self
     }
 
-    /// Sets the [`twist_axis`](SphericalJoint::twist_axis) of the joint.
-    ///
-    /// The axis should be a unit vector perpendicular to the [`swing_axis`](SphericalJoint::swing_axis).
-    /// By default, this is the y-axis.
+    /// Sets the local [`JointFrame`] of the second body, configuring both the [`JointAnchor`] and [`JointBasis`].
     #[inline]
-    pub const fn with_twist_axis(mut self, axis: Vector) -> Self {
-        self.twist_axis = axis;
+    pub fn with_local_frame2(mut self, frame: impl Into<Isometry>) -> Self {
+        self.frame2 = JointFrame::local(frame);
         self
     }
-}
 
-impl_joint_frame_helpers!(SphericalJoint);
-
-impl SphericalJoint {
-    /// Returns the local [`swing_axis`](SphericalJoint::swing_axis) of the first body.
+    /// Sets the global anchor point on both bodies.
     ///
-    /// This is equivalent to rotating the [`swing_axis`](SphericalJoint::swing_axis)
-    /// by the local basis of [`frame1`](SphericalJoint::frame1).
+    /// This configures the [`JointAnchor`] of each [`JointFrame`].
+    #[inline]
+    pub const fn with_anchor(mut self, anchor: Vector) -> Self {
+        self.frame1.anchor = JointAnchor::FromGlobal(anchor);
+        self.frame2.anchor = JointAnchor::FromGlobal(anchor);
+        self
+    }
+
+    /// Sets the local anchor point on the first body.
+    ///
+    /// This configures the [`JointAnchor`] of the first [`JointFrame`].
+    #[inline]
+    pub const fn with_local_anchor1(mut self, anchor: Vector) -> Self {
+        self.frame1.anchor = JointAnchor::Local(anchor);
+        self
+    }
+
+    /// Sets the local anchor point on the second body.
+    ///
+    /// This configures the [`JointAnchor`] of the second [`JointFrame`].
+    #[inline]
+    pub const fn with_local_anchor2(mut self, anchor: Vector) -> Self {
+        self.frame2.anchor = JointAnchor::Local(anchor);
+        self
+    }
+
+    /// Sets the global basis for both bodies.
+    ///
+    /// This configures the [`JointBasis`] of each [`JointFrame`].
+    #[inline]
+    pub fn with_basis(mut self, basis: impl Into<Rot>) -> Self {
+        let basis = basis.into();
+        self.frame1.basis = JointBasis::FromGlobal(basis);
+        self.frame2.basis = JointBasis::FromGlobal(basis);
+        self
+    }
+
+    /// Sets the local basis for the first body.
+    ///
+    /// This configures the [`JointBasis`] of the first [`JointFrame`].
+    #[inline]
+    pub fn with_local_basis1(mut self, basis: impl Into<Rot>) -> Self {
+        self.frame1.basis = JointBasis::Local(basis.into());
+        self
+    }
+
+    /// Sets the local basis for the second body.
+    ///
+    /// This configures the [`JointBasis`] of the second [`JointFrame`].
+    #[inline]
+    pub fn with_local_basis2(mut self, basis: impl Into<Rot>) -> Self {
+        self.frame2.basis = JointBasis::Local(basis.into());
+        self
+    }
+
+    /// Orients the [`JointBasis`] of [`frame1`](Self::frame1) and [`frame2`](Self::frame2) such that
+    /// the [`SWING_AXIS`](Self::SWING_AXIS) (local z) and [`TWIST_AXIS`](Self::TWIST_AXIS) (local y)
+    /// align with the given `swing_axis` and `twist_axis` in world space.
+    ///
+    /// The remaining axis (local x) is computed as the cross product of the `twist_axis` and `swing_axis`.
+    #[inline]
+    pub fn with_axes(mut self, swing_axis: Vector, twist_axis: Vector) -> Self {
+        let basis = JointBasis::from_global_yz(twist_axis, swing_axis);
+        self.frame1.basis = basis;
+        self.frame2.basis = basis;
+        self
+    }
+
+    /// Orients the [`JointBasis`] of [`frame1`](Self::frame1) such that
+    /// the [`SWING_AXIS`](Self::SWING_AXIS) (local z) and [`TWIST_AXIS`](Self::TWIST_AXIS) (local y)
+    /// align with the given `swing_axis` and `twist_axis` in local space.
+    ///
+    /// The remaining axis (local x) is computed as the cross product of the `twist_axis` and `swing_axis`.
+    #[inline]
+    pub fn with_local_axes1(mut self, swing_axis: Vector, twist_axis: Vector) -> Self {
+        self.frame1.basis = JointBasis::from_local_yz(twist_axis, swing_axis);
+        self
+    }
+
+    /// Orients the [`JointBasis`] of [`frame2`](Self::frame2) such that
+    /// the [`SWING_AXIS`](Self::SWING_AXIS) (local z) and [`TWIST_AXIS`](Self::TWIST_AXIS) (local y)
+    /// align with the given `swing_axis` and `twist_axis` in local space.
+    ///
+    /// The remaining axis (local x) is computed as the cross product of the `twist_axis` and `swing_axis`.
+    #[inline]
+    pub fn with_local_axes2(mut self, swing_axis: Vector, twist_axis: Vector) -> Self {
+        self.frame2.basis = JointBasis::from_local_yz(twist_axis, swing_axis);
+        self
+    }
+
+    /// Returns the local [`JointFrame`] of the first body.
+    ///
+    /// If the [`JointAnchor`] is set to [`FromGlobal`](JointAnchor::FromGlobal),
+    /// and the local anchor has not yet been computed, or the [`JointBasis`] is set to
+    /// [`FromGlobal`](JointBasis::FromGlobal), and the local basis has not yet
+    /// been computed, this will return `None`.
+    #[inline]
+    pub fn local_frame1(&self) -> Option<Isometry> {
+        self.frame1.get_local_isometry()
+    }
+
+    /// Returns the local [`JointFrame`] of the second body.
+    ///
+    /// If the [`JointAnchor`] is set to [`FromGlobal`](JointAnchor::FromGlobal),
+    /// and the local anchor has not yet been computed, or the [`JointBasis`] is set to
+    /// [`FromGlobal`](JointBasis::FromGlobal), and the local basis has not yet
+    /// been computed, this will return `None`.
+    #[inline]
+    pub fn local_frame2(&self) -> Option<Isometry> {
+        self.frame2.get_local_isometry()
+    }
+
+    /// Returns the local anchor point on the first body.
+    ///
+    /// If the [`JointAnchor`] is set to [`FromGlobal`](JointAnchor::FromGlobal),
+    /// and the local anchor has not yet been computed, this will return `None`.
+    #[inline]
+    pub const fn local_anchor1(&self) -> Option<Vector> {
+        match self.frame1.anchor {
+            JointAnchor::Local(anchor) => Some(anchor),
+            _ => None,
+        }
+    }
+
+    /// Returns the local anchor point on the second body.
+    ///
+    /// If the [`JointAnchor`] is set to [`FromGlobal`](JointAnchor::FromGlobal),
+    /// and the local anchor has not yet been computed, this will return `None`.
+    #[inline]
+    pub const fn local_anchor2(&self) -> Option<Vector> {
+        match self.frame2.anchor {
+            JointAnchor::Local(anchor) => Some(anchor),
+            _ => None,
+        }
+    }
+
+    /// Returns the local basis of the first body.
     ///
     /// If the [`JointBasis`] is set to [`FromGlobal`](JointBasis::FromGlobal),
-    /// and the local rotation has not yet been computed, this will return `None`.
+    /// and the local basis has not yet been computed, this will return `None`.
+    #[inline]
+    pub fn local_basis1(&self) -> Option<Rot> {
+        match self.frame1.basis {
+            JointBasis::Local(basis) => Some(basis),
+            _ => None,
+        }
+    }
+
+    /// Returns the local basis of the second body.
+    ///
+    /// If the [`JointBasis`] is set to [`FromGlobal`](JointBasis::FromGlobal),
+    /// and the local basis has not yet been computed, this will return `None`.
+    #[inline]
+    pub fn local_basis2(&self) -> Option<Rot> {
+        match self.frame2.basis {
+            JointBasis::Local(basis) => Some(basis),
+            _ => None,
+        }
+    }
+
+    /// Returns the local swing axis of the first body.
+    ///
+    /// This is equivalent to rotating the [`SWING_AXIS`](Self::SWING_AXIS)
+    /// by the local basis of [`frame1`](Self::frame1).
+    ///
+    /// If the [`JointBasis`] is set to [`FromGlobal`](JointBasis::FromGlobal),
+    /// and the local basis has not yet been computed, this will return `None`.
     #[inline]
     pub fn local_swing_axis1(&self) -> Option<Vector> {
         match self.frame1.basis {
-            JointBasis::Local(rotation) => Some(rotation * self.swing_axis),
+            JointBasis::Local(basis) => Some(basis * Self::SWING_AXIS),
             _ => None,
         }
     }
 
-    /// Returns the local [`swing_axis`](SphericalJoint::swing_axis) of the second body.
+    /// Returns the local swing axis of the second body.
     ///
-    /// This is equivalent to rotating the [`swing_axis`](SphericalJoint::swing_axis)
-    /// by the local basis of [`frame2`](SphericalJoint::frame2).
+    /// This is equivalent to rotating the [`SWING_AXIS`](Self::SWING_AXIS)
+    /// by the local basis of [`frame2`](Self::frame2).
     ///
     /// If the [`JointBasis`] is set to [`FromGlobal`](JointBasis::FromGlobal),
-    /// and the local rotation has not yet been computed, this will return `None`.
+    /// and the local basis has not yet been computed, this will return `None`.
     #[inline]
     pub fn local_swing_axis2(&self) -> Option<Vector> {
         match self.frame2.basis {
-            JointBasis::Local(rotation) => Some(rotation * self.swing_axis),
+            JointBasis::Local(basis) => Some(basis * Self::SWING_AXIS),
             _ => None,
         }
     }
 
-    /// Returns the local [`twist_axis`](SphericalJoint::twist_axis) of the first body.
+    /// Returns the local twist axis of the first body.
     ///
-    /// This is equivalent to rotating the [`twist_axis`](SphericalJoint::twist_axis)
-    /// by the local basis of [`frame1`](SphericalJoint::frame1).
+    /// This is equivalent to rotating the [`TWIST_AXIS`](Self::TWIST_AXIS)
+    /// by the local basis of [`frame1`](Self::frame1).
     ///
     /// If the [`JointBasis`] is set to [`FromGlobal`](JointBasis::FromGlobal),
-    /// and the local rotation has not yet been computed, this will return `None`.
+    /// and the local basis has not yet been computed, this will return `None`.
     #[inline]
     pub fn local_twist_axis1(&self) -> Option<Vector> {
         match self.frame1.basis {
-            JointBasis::Local(rotation) => Some(rotation * self.twist_axis),
+            JointBasis::Local(basis) => Some(basis * Self::TWIST_AXIS),
             _ => None,
         }
     }
 
-    /// Returns the local [`twist_axis`](SphericalJoint::twist_axis) of the second body.
+    /// Returns the local twist axis of the second body.
     ///
-    /// This is equivalent to rotating the [`twist_axis`](SphericalJoint::twist_axis)
-    /// by the local basis of [`frame2`](SphericalJoint::frame2).
+    /// This is equivalent to rotating the [`TWIST_AXIS`](Self::TWIST_AXIS)
+    /// by the local basis of [`frame2`](Self::frame2).
     ///
     /// If the [`JointBasis`] is set to [`FromGlobal`](JointBasis::FromGlobal),
-    /// and the local rotation has not yet been computed, this will return `None`.
+    /// and the local basis has not yet been computed, this will return `None`.
     #[inline]
     pub fn local_twist_axis2(&self) -> Option<Vector> {
         match self.frame2.basis {
-            JointBasis::Local(rotation) => Some(rotation * self.twist_axis),
+            JointBasis::Local(basis) => Some(basis * Self::TWIST_AXIS),
             _ => None,
         }
     }

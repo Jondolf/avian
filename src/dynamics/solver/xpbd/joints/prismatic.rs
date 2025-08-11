@@ -73,7 +73,7 @@ impl XpbdConstraint<2> for PrismaticJoint {
         solver_data.world_r2 = body2.rotation * (local_anchor2 - body2.center_of_mass.0);
         solver_data.center_difference = (body2.position.0 - body1.position.0)
             + (body2.rotation * body2.center_of_mass.0 - body1.rotation * body1.center_of_mass.0);
-        solver_data.free_axis1 = *body1.rotation * local_basis1 * self.slider_axis;
+        solver_data.free_axis1 = *body1.rotation * local_basis1 * PrismaticJoint::SLIDER_AXIS;
     }
 
     fn solve(
@@ -180,7 +180,7 @@ impl PrismaticJoint {
 
         // Compute Lagrange multiplier update
         let delta_lagrange =
-            compute_lagrange_update(0.0, magnitude, &[w1, w2], self.axis_compliance, dt);
+            compute_lagrange_update(0.0, magnitude, &[w1, w2], self.align_compliance, dt);
         let impulse = delta_lagrange * dir;
         solver_data.total_position_lagrange += impulse;
 
