@@ -34,24 +34,24 @@ impl XpbdConstraintSolverData for FixedAngleConstraintShared {
 }
 
 impl FixedAngleConstraintShared {
-    /// Prepares the constraint with the given rotations and reference rotation.
+    /// Prepares the constraint with the given rotations and local basis orientations.
     pub fn prepare(
         &mut self,
         rotation1: &Rotation,
         rotation2: &Rotation,
-        reference_rotation1: Rot,
-        reference_rotation2: Rot,
+        local_basis1: Rot,
+        local_basis2: Rot,
     ) {
         // Prepare the base rotation difference.
         #[cfg(feature = "2d")]
         {
             self.rotation_difference =
-                (reference_rotation1 * *rotation1).angle_between(reference_rotation2 * *rotation2);
+                (*rotation1 * local_basis1).angle_between(*rotation2 * local_basis2);
         }
         #[cfg(feature = "3d")]
         {
             self.rotation_difference =
-                (reference_rotation1 * rotation1.0) * (reference_rotation2 * rotation2.0).inverse();
+                (rotation1.0 * local_basis1) * (rotation2.0 * local_basis2).inverse();
         }
     }
 

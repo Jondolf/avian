@@ -448,9 +448,10 @@ impl JointForces {
 /// For example, a [`RevoluteJoint`] aims to make the positions of the two frames coincide in world space,
 /// while allowing the frames to rotate freely around a common axis.
 ///
-/// Reference frames for joints are expressed as local isometries relative to the transforms of the bodies
-/// they are attached to. The translation defines the local anchor point where the bodies are attached,
-/// and the rotation defines the local orientation of the frame relative to the body transform.
+/// Reference frames for joints are expressed by a local [`JointAnchor`] and [`JointBasis`]
+/// relative to the transforms of the bodies. The anchor determines the attachment point of the joint,
+/// and the basis determines the orientation of the joint frame relative to the body transform.
+/// Together, they form a local isometry that defines the joint frame.
 ///
 /// TODO: SVG
 ///
@@ -471,43 +472,43 @@ pub struct JointFrame {
     /// The translation of the joint frame relative to the body transform.
     ///
     /// This defines the anchor point where the bodies are attached to each other.
-    pub translation: JointTranslation,
+    pub anchor: JointAnchor,
     /// The rotation of the joint frame relative to the body transform.
     ///
-    /// This defines the orientation of the joint frame relative to the body transform.
-    pub rotation: JointRotation,
+    /// This defines the orientation of the basis relative to the body transform.
+    pub basis: JointBasis,
 }
 
 impl JointFrame {
-    /// The identity reference frame, with the local translation and rotation set to zero.
+    /// The identity reference frame, with the local anchor and basis set to zero.
     ///
     /// This represents a reference frame that aligns with the body transform.
     pub const IDENTITY: Self = Self {
-        translation: JointTranslation::IDENTITY,
-        rotation: JointRotation::IDENTITY,
+        anchor: JointAnchor::ZERO,
+        basis: JointBasis::IDENTITY,
     };
 
-    /// Creates a [`JointFrame`] with the given local translation and rotation.
+    /// Creates a [`JointFrame`] with the given local isometry.
     #[inline]
     pub fn local(isometry: impl Into<Isometry>) -> Self {
         let isometry: Isometry = isometry.into();
         #[cfg(feature = "2d")]
-        let translation = isometry.translation.adjust_precision();
+        let anchor = isometry.translation.adjust_precision();
         #[cfg(feature = "3d")]
-        let translation = Vec3::from(isometry.translation).adjust_precision();
+        let anchor = Vec3::from(isometry.translation).adjust_precision();
         Self {
-            translation: JointTranslation::Local(translation),
+            anchor: JointAnchor::Local(anchor),
             #[cfg(feature = "2d")]
-            rotation: JointRotation::Local(Rotation::from_sin_cos(
+            basis: JointBasis::Local(Rotation::from_sin_cos(
                 isometry.rotation.sin as Scalar,
                 isometry.rotation.cos as Scalar,
             )),
             #[cfg(feature = "3d")]
-            rotation: JointRotation::Local(isometry.rotation.adjust_precision()),
+            basis: JointBasis::Local(isometry.rotation.adjust_precision()),
         }
     }
 
-    /// Creates a [`JointFrame`] with the given global translation and rotation.
+    /// Creates a [`JointFrame`] with the given global isometry.
     ///
     /// The global frame will be converted to a local frame relative to the body transform
     /// during the next simulation step.
@@ -515,25 +516,67 @@ impl JointFrame {
     pub fn global(isometry: impl Into<Isometry>) -> Self {
         let isometry: Isometry = isometry.into();
         #[cfg(feature = "2d")]
-        let translation = isometry.translation.adjust_precision();
+        let anchor = isometry.translation.adjust_precision();
         #[cfg(feature = "3d")]
-        let translation = Vec3::from(isometry.translation).adjust_precision();
+        let anchor = Vec3::from(isometry.translation).adjust_precision();
         Self {
-            translation: JointTranslation::FromGlobal(translation),
+            anchor: JointAnchor::FromGlobal(anchor),
             #[cfg(feature = "2d")]
-            rotation: JointRotation::FromGlobal(Rotation::from_sin_cos(
+            basis: JointBasis::FromGlobal(Rotation::from_sin_cos(
                 isometry.rotation.sin as Scalar,
                 isometry.rotation.cos as Scalar,
             )),
             #[cfg(feature = "3d")]
-            rotation: JointRotation::FromGlobal(isometry.rotation.adjust_precision()),
+            basis: JointBasis::FromGlobal(isometry.rotation.adjust_precision()),
         }
+    }
+
+    /// Returns the joint frame as a local isometry.
+    ///
+    /// If the frame is specified in global coordinates, this returns `None`.
+    #[inline]
+    #[allow(clippy::unnecessary_cast)]
+    pub fn get_local_isometry(&self) -> Option<Isometry> {
+        let translation = match self.anchor {
+            JointAnchor::Local(anchor) => anchor.f32(),
+            JointAnchor::FromGlobal(_) => return None,
+        };
+        let rotation = match self.basis {
+            #[cfg(feature = "2d")]
+            JointBasis::Local(basis) => Rot2::from_sin_cos(basis.sin as f32, basis.cos as f32),
+            #[cfg(feature = "3d")]
+            JointBasis::Local(basis) => basis.f32(),
+            JointBasis::FromGlobal(_) => return None,
+        };
+        Some(Isometry::new(translation, rotation))
+    }
+
+    /// Returns the joint frame as a global isometry.
+    ///
+    /// If the frame is specified in local coordinates, this returns `None`.
+    #[inline]
+    #[allow(clippy::unnecessary_cast)]
+    pub fn get_global_isometry(&self) -> Option<Isometry> {
+        let translation = match self.anchor {
+            JointAnchor::FromGlobal(anchor) => anchor.f32(),
+            JointAnchor::Local(_) => return None,
+        };
+        let rotation = match self.basis {
+            #[cfg(feature = "2d")]
+            JointBasis::FromGlobal(basis) => Rot2::from_sin_cos(basis.sin as f32, basis.cos as f32),
+            #[cfg(feature = "3d")]
+            JointBasis::FromGlobal(basis) => basis.f32(),
+            JointBasis::Local(_) => return None,
+        };
+        Some(Isometry::new(translation, rotation))
     }
 
     /// Computes a local frames for the given [`JointFrame`]s
     /// corresponding to the transforms of two bodies constrained by a joint.
     ///
     /// This is used to initialize local frames when a joint is inserted.
+    #[inline]
+    #[must_use]
     pub fn compute_local(
         frame1: Self,
         frame2: Self,
@@ -542,25 +585,19 @@ impl JointFrame {
         rot1: &Rotation,
         rot2: &Rotation,
     ) -> [JointFrame; 2] {
-        let [local_translation1, local_translation2] = JointTranslation::compute_local(
-            frame1.translation,
-            frame2.translation,
-            pos1,
-            pos2,
-            rot1,
-            rot2,
-        );
-        let [local_rotation1, local_rotation2] =
-            JointRotation::compute_local(frame1.rotation, frame2.rotation, rot1, rot2);
+        let [local_anchor1, local_anchor2] =
+            JointAnchor::compute_local(frame1.anchor, frame2.anchor, pos1, pos2, rot1, rot2);
+        let [local_basis1, local_basis2] =
+            JointBasis::compute_local(frame1.basis, frame2.basis, rot1, rot2);
 
         [
             JointFrame {
-                translation: local_translation1,
-                rotation: local_rotation1,
+                anchor: local_anchor1,
+                basis: local_basis1,
             },
             JointFrame {
-                translation: local_translation2,
-                rotation: local_rotation2,
+                anchor: local_anchor2,
+                basis: local_basis2,
             },
         ]
     }
@@ -568,38 +605,37 @@ impl JointFrame {
 
 /// The translation of a [`JointFrame`], defining the anchor point where the bodies are attached to each other.
 ///
-/// Reference translations are stored in local space relative to the transforms of the bodies they are attached to.
-/// This way, the initial configuration of the joint is preserved even when the bodies are moved.
+/// Each joint anchor is stored in local space relative to the transform of the body it is attached to.
+/// This way, the initial configuration of the joint is preserved even when the body is moved.
 ///
-/// The initial translation can also be specified in world space using [`JointTranslation::FromGlobal`],
-/// but it is automatically converted to [`JointTranslation::Local`] during the next simulation step.
+/// The initial anchor can also be specified in world space using [`JointAnchor::FromGlobal`],
+/// but it is automatically converted to [`JointAnchor::Local`] during the next simulation step.
 ///
-/// By default, a local identity translation is used, and the reference translation matches the body transform.
+/// By default, a local anchor of zero is used, and the anchor aligns with the body transform.
 #[derive(Clone, Copy, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, PartialEq)]
-#[doc(alias = "JointAnchor")]
-pub enum JointTranslation {
+pub enum JointAnchor {
     /// The anchor point is specified in local coordinates relative to the body transform.
     Local(Vector),
     /// The anchor point is specified in global coordinates.
     FromGlobal(Vector),
 }
 
-impl Default for JointTranslation {
+impl Default for JointAnchor {
     fn default() -> Self {
-        Self::IDENTITY
+        Self::ZERO
     }
 }
 
-impl JointTranslation {
-    /// The identity reference translation.
+impl JointAnchor {
+    /// The anchor point at the local origin.
     ///
-    /// This represents a reference translation that aligns with the body transform.
-    pub const IDENTITY: Self = Self::Local(Vector::ZERO);
+    /// This represents an anchor that aligns with the body transform.
+    pub const ZERO: Self = Self::Local(Vector::ZERO);
 
-    /// Computes [`JointTranslation::Local`]s for the given [`JointTranslation`]s
+    /// Computes [`JointAnchor::Local`]s for the given [`JointAnchor`]s
     /// corresponding to the transforms of two bodies constrained by a joint.
     pub fn compute_local(
         anchor1: Self,
@@ -610,109 +646,534 @@ impl JointTranslation {
         rot2: &Rotation,
     ) -> [Self; 2] {
         let [local_anchor1, local_anchor2] = match [anchor1, anchor2] {
+            [JointAnchor::Local(anchor1), JointAnchor::Local(anchor2)] => [anchor1, anchor2],
             [
-                JointTranslation::Local(anchor1),
-                JointTranslation::Local(anchor2),
-            ] => [anchor1, anchor2],
-            [
-                JointTranslation::FromGlobal(anchor1),
-                JointTranslation::FromGlobal(anchor2),
+                JointAnchor::FromGlobal(anchor1),
+                JointAnchor::FromGlobal(anchor2),
             ] => [
                 rot1.inverse() * (anchor1 - pos1),
                 rot2.inverse() * (anchor2 - pos2),
             ],
             [
-                JointTranslation::Local(anchor1),
-                JointTranslation::FromGlobal(anchor2),
+                JointAnchor::Local(anchor1),
+                JointAnchor::FromGlobal(anchor2),
             ] => [anchor1, rot2.inverse() * (anchor2 - pos2)],
             [
-                JointTranslation::FromGlobal(anchor1),
-                JointTranslation::Local(anchor2),
+                JointAnchor::FromGlobal(anchor1),
+                JointAnchor::Local(anchor2),
             ] => [rot1.inverse() * (anchor1 - pos1), anchor2],
         };
 
         [
-            JointTranslation::Local(local_anchor1),
-            JointTranslation::Local(local_anchor2),
+            JointAnchor::Local(local_anchor1),
+            JointAnchor::Local(local_anchor2),
         ]
     }
 }
 
-impl From<JointTranslation> for JointFrame {
-    fn from(translation: JointTranslation) -> Self {
+impl From<JointAnchor> for JointFrame {
+    fn from(anchor: JointAnchor) -> Self {
         Self {
-            translation,
-            rotation: JointRotation::IDENTITY,
+            anchor,
+            basis: JointBasis::IDENTITY,
         }
     }
 }
 
-/// The rotation of a [`JointFrame`], defining the reference orientation of a body relative to its transform.
+/// The rotation of a [`JointFrame`], defining the basis of the joint frame relative to the body transform.
 ///
-/// Reference rotations are stored in local space relative to the transforms of the bodies they are attached to.
-/// This way, the initial configuration of the joint is preserved even when the bodies are moved.
+/// Each joint basis is stored in local space relative to the transform of the body it is attached to.
+/// This way, the initial configuration of the joint is preserved even when the body is moved.
 ///
-/// The initial rotation can also be specified in world space using [`JointRotation::FromGlobal`],
-/// but it is automatically converted to [`JointRotation::Local`] during the next simulation step.
+/// The initial basis can also be specified in world space using [`JointBasis::FromGlobal`],
+/// but it is automatically converted to [`JointBasis::Local`] during the next simulation step.
 ///
-/// By default, a local identity rotation is used, and the reference rotation matches the body transform.
+/// By default, a local identity basis is used, and the basis aligns with the body transform.
 #[derive(Clone, Copy, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, PartialEq)]
-pub enum JointRotation {
-    /// The reference rotation is specified in local space relative to the body transform.
+pub enum JointBasis {
+    /// The basis is specified in local space relative to the body transform.
     Local(Rot),
-    /// The reference rotation is specified in world space.
+    /// The basis is specified in world space.
     FromGlobal(Rot),
 }
 
-impl Default for JointRotation {
+impl Default for JointBasis {
     fn default() -> Self {
         Self::IDENTITY
     }
 }
 
-impl JointRotation {
-    /// The identity reference rotation.
+impl JointBasis {
+    /// The identity basis.
     ///
-    /// This represents a reference rotation that aligns with the body transform.
+    /// This represents a basis that aligns with the body transform.
     pub const IDENTITY: Self = Self::Local(Rot::IDENTITY);
 
-    /// Computes a [`JointRotation::Local`] for the given [`JointRotation`]s
+    /// Creates a [`JointBasis::Local`] from the given local `x_axis`.
+    ///
+    /// The y-axis is computed as the counterclockwise perpendicular axis to the x-axis.
+    #[inline]
+    #[cfg(feature = "2d")]
+    pub fn from_local_x(x_axis: Vector) -> Self {
+        Self::Local(orthonormal_basis([
+            x_axis,
+            Vector::new(-x_axis.y, x_axis.x),
+        ]))
+    }
+
+    /// Creates a [`JointBasis::Local`] from the given local `y_axis`.
+    ///
+    /// The x-axis is computed as the clockwise perpendicular axis to the y-axis.
+    #[inline]
+    #[cfg(feature = "2d")]
+    pub fn from_local_y(y_axis: Vector) -> Self {
+        Self::Local(orthonormal_basis([
+            Vector::new(y_axis.y, -y_axis.x),
+            y_axis,
+        ]))
+    }
+
+    /// Creates a [`JointBasis::Local`] from the given local `x_axis` and `y_axis`.
+    ///
+    /// The z-axis is computed as the cross product of the x and y axes.
+    #[inline]
+    #[cfg(feature = "3d")]
+    pub fn from_local_xy(x_axis: Vector, y_axis: Vector) -> Self {
+        Self::Local(orthonormal_basis([x_axis, y_axis, x_axis.cross(y_axis)]))
+    }
+
+    /// Creates a [`JointBasis::Local`] from the given local `x_axis` and `z_axis`.
+    ///
+    /// The y-axis is computed as the cross product of the z and x axes.
+    #[inline]
+    #[cfg(feature = "3d")]
+    pub fn from_local_xz(x_axis: Vector, z_axis: Vector) -> Self {
+        Self::Local(orthonormal_basis([x_axis, z_axis.cross(x_axis), z_axis]))
+    }
+
+    /// Creates a [`JointBasis::Local`] from the given local `y_axis` and `z_axis`.
+    ///
+    /// The x-axis is computed as the cross product of the y and z axes.
+    #[inline]
+    #[cfg(feature = "3d")]
+    pub fn from_local_yz(y_axis: Vector, z_axis: Vector) -> Self {
+        Self::Local(orthonormal_basis([y_axis.cross(z_axis), y_axis, z_axis]))
+    }
+
+    /// Creates a [`JointBasis::FromGlobal`] from the given global `x_axis`.
+    ///
+    /// The y-axis is computed as the counterclockwise perpendicular axis to the x-axis.
+    #[inline]
+    #[cfg(feature = "2d")]
+    pub fn from_global_x(x_axis: Vector) -> Self {
+        Self::FromGlobal(orthonormal_basis([
+            x_axis,
+            Vector::new(-x_axis.y, x_axis.x),
+        ]))
+    }
+
+    /// Creates a [`JointBasis::FromGlobal`] from the given global `y_axis`.
+    ///
+    /// The x-axis is computed as the clockwise perpendicular axis to the y-axis.
+    #[inline]
+    #[cfg(feature = "2d")]
+    pub fn from_global_y(y_axis: Vector) -> Self {
+        Self::FromGlobal(orthonormal_basis([
+            Vector::new(y_axis.y, -y_axis.x),
+            y_axis,
+        ]))
+    }
+
+    /// Creates a [`JointBasis::FromGlobal`] from the given global `x_axis` and `y_axis`.
+    ///
+    /// The z-axis is computed as the cross product of the x and y axes.
+    #[inline]
+    #[cfg(feature = "3d")]
+    pub fn from_global_xy(x_axis: Vector, y_axis: Vector) -> Self {
+        Self::FromGlobal(orthonormal_basis([x_axis, y_axis, x_axis.cross(y_axis)]))
+    }
+
+    /// Creates a [`JointBasis::FromGlobal`] from the given global `x_axis` and `z_axis`.
+    ///
+    /// The y-axis is computed as the cross product of the z and x axes.
+    #[inline]
+    #[cfg(feature = "3d")]
+    pub fn from_global_xz(x_axis: Vector, z_axis: Vector) -> Self {
+        Self::FromGlobal(orthonormal_basis([x_axis, z_axis.cross(x_axis), z_axis]))
+    }
+
+    /// Creates a [`JointBasis::FromGlobal`] from the given global `y_axis` and `z_axis`.
+    ///
+    /// The x-axis is computed as the cross product of the y and z axes.
+    #[inline]
+    #[cfg(feature = "3d")]
+    pub fn from_global_yz(y_axis: Vector, z_axis: Vector) -> Self {
+        Self::FromGlobal(orthonormal_basis([y_axis.cross(z_axis), y_axis, z_axis]))
+    }
+
+    /// Computes a [`JointBasis::Local`] for the given [`JointBasis`]s
     /// corresponding to the transforms of two bodies constrained by a joint.
     pub fn compute_local(rotation1: Self, rotation2: Self, rot1: &Rot, rot2: &Rot) -> [Self; 2] {
-        let [local_rotation1, local_rotation2] = match [rotation1, rotation2] {
+        let [local_basis1, local_basis2] = match [rotation1, rotation2] {
+            [JointBasis::Local(basis1), JointBasis::Local(basis2)] => [basis1, basis2],
             [
-                JointRotation::Local(rotation1),
-                JointRotation::Local(rotation2),
-            ] => [rotation1, rotation2],
-            [
-                JointRotation::FromGlobal(rotation1),
-                JointRotation::FromGlobal(rotation2),
-            ] => [rotation1 * rot1.inverse(), rotation2 * rot2.inverse()],
-            [
-                JointRotation::Local(rotation1),
-                JointRotation::FromGlobal(rotation2),
-            ] => [rotation1, rotation2 * rot2.inverse()],
-            [
-                JointRotation::FromGlobal(rotation1),
-                JointRotation::Local(rotation2),
-            ] => [rotation1 * rot1.inverse(), rotation2],
+                JointBasis::FromGlobal(basis1),
+                JointBasis::FromGlobal(basis2),
+            ] => [basis1 * rot1.inverse(), basis2 * rot2.inverse()],
+            [JointBasis::Local(basis1), JointBasis::FromGlobal(basis2)] => {
+                [basis1, basis2 * rot2.inverse()]
+            }
+            [JointBasis::FromGlobal(basis1), JointBasis::Local(basis2)] => {
+                [basis1 * rot1.inverse(), basis2]
+            }
         };
 
         [
-            JointRotation::Local(local_rotation1),
-            JointRotation::Local(local_rotation2),
+            JointBasis::Local(local_basis1),
+            JointBasis::Local(local_basis2),
         ]
     }
 }
 
-impl From<JointRotation> for JointFrame {
-    fn from(rotation: JointRotation) -> Self {
+impl From<JointBasis> for JointFrame {
+    fn from(basis: JointBasis) -> Self {
         Self {
-            translation: JointTranslation::IDENTITY,
-            rotation,
+            anchor: JointAnchor::ZERO,
+            basis,
         }
     }
 }
+
+/// Helper macro for implementing [`JointFrame`] helper methods for joints.
+macro_rules! impl_joint_frame_helpers {
+    ($n:ident) => {
+        impl $n {
+            /// Sets the local [`JointFrame`] of the first body, configuring both the local anchor and basis.
+            ///
+            /// This is equivalent to using both [`with_local_anchor1`](Self::with_local_anchor1) and
+            /// [`with_local_basis1`](Self::with_local_basis1).
+            #[inline]
+            pub fn with_local_frame1(mut self, frame: impl Into<Isometry>) -> Self {
+                self.frame1 = JointFrame::local(frame);
+                self
+            }
+
+            /// Sets the local [`JointFrame`] of the second body, configuring both the local anchor and basis.
+            ///
+            /// This is equivalent to using both [`with_local_anchor2`](Self::with_local_anchor2) and
+            /// [`with_local_basis2`](Self::with_local_basis2).
+            #[inline]
+            pub fn with_local_frame2(mut self, frame: impl Into<Isometry>) -> Self {
+                self.frame2 = JointFrame::local(frame);
+                self
+            }
+
+            /// Sets the global anchor point on both bodies.
+            ///
+            /// This configures the [`JointAnchor`] of each [`JointFrame`].
+            #[inline]
+            pub const fn with_anchor(mut self, anchor: Vector) -> Self {
+                self.frame1.anchor = JointAnchor::FromGlobal(anchor);
+                self.frame2.anchor = JointAnchor::FromGlobal(anchor);
+                self
+            }
+
+            /// Sets the local anchor point on the first body.
+            ///
+            /// This configures the [`JointAnchor`] of the first [`JointFrame`].
+            #[inline]
+            pub const fn with_local_anchor1(mut self, anchor: Vector) -> Self {
+                self.frame1.anchor = JointAnchor::Local(anchor);
+                self
+            }
+
+            /// Sets the local anchor point on the second body.
+            ///
+            /// This configures the [`JointAnchor`] of the second [`JointFrame`].
+            #[inline]
+            pub const fn with_local_anchor2(mut self, anchor: Vector) -> Self {
+                self.frame2.anchor = JointAnchor::Local(anchor);
+                self
+            }
+
+            /// Sets the global basis for both bodies.
+            ///
+            /// This configures the [`JointBasis`] of each [`JointFrame`].
+            #[inline]
+            pub fn with_basis(mut self, basis: impl Into<Rot>) -> Self {
+                let basis = basis.into();
+                self.frame1.basis = JointBasis::FromGlobal(basis);
+                self.frame2.basis = JointBasis::FromGlobal(basis);
+                self
+            }
+
+            /// Sets the local basis for the first body.
+            ///
+            /// This configures the [`JointBasis`] of the first [`JointFrame`].
+            #[inline]
+            pub fn with_local_basis1(mut self, basis: impl Into<Rot>) -> Self {
+                self.frame1.basis = JointBasis::Local(basis.into());
+                self
+            }
+
+            /// Sets the local basis for the second body.
+            ///
+            /// This configures the [`JointBasis`] of the second [`JointFrame`].
+            #[inline]
+            pub fn with_local_basis2(mut self, basis: impl Into<Rot>) -> Self {
+                self.frame2.basis = JointBasis::Local(basis.into());
+                self
+            }
+
+            /// Orients the [`JointBasis`] of [`frame1`](Self::frame1) and [`frame2`](Self::frame2)
+            /// such that its global x-axis is aligned with the given `x_axis`.
+            ///
+            /// The y-axis is computed as the counterclockwise perpendicular axis to the x-axis.
+            #[inline]
+            #[cfg(feature = "2d")]
+            pub fn with_basis_x(mut self, x_axis: Vector) -> Self {
+                let basis = JointBasis::from_global_x(x_axis);
+                self.frame1.basis = basis;
+                self.frame2.basis = basis;
+                self
+            }
+
+            /// Orients the [`JointBasis`] of [`frame1`](Self::frame1) and [`frame2`](Self::frame2)
+            /// such that its global y-axis is aligned with the given `y_axis`.
+            ///
+            /// The x-axis is computed as the counterclockwise perpendicular axis to the y-axis.
+            #[inline]
+            #[cfg(feature = "2d")]
+            pub fn with_basis_y(mut self, y_axis: Vector) -> Self {
+                let basis = JointBasis::from_global_y(y_axis);
+                self.frame1.basis = basis;
+                self.frame2.basis = basis;
+                self
+            }
+
+            /// Orients the [`JointBasis`] of [`frame1`](Self::frame1) such that it's local x-axis
+            /// is aligned with the given `x_axis`.
+            ///
+            /// The y-axis is computed as the counterclockwise perpendicular axis to the x-axis.
+            #[inline]
+            #[cfg(feature = "2d")]
+            pub fn with_local_basis1_x(mut self, x_axis: Vector) -> Self {
+                self.frame1.basis = JointBasis::from_local_x(x_axis);
+                self
+            }
+
+            /// Orients the [`JointBasis`] of [`frame1`](Self::frame1) such that its local y-axis
+            /// is aligned with the given `y_axis`.
+            ///
+            /// The x-axis is computed as the counterclockwise perpendicular axis to the y-axis.
+            #[inline]
+            #[cfg(feature = "2d")]
+            pub fn with_local_basis1_y(mut self, y_axis: Vector) -> Self {
+                self.frame1.basis = JointBasis::from_local_y(y_axis);
+                self
+            }
+
+            /// Orients the [`JointBasis`] of [`frame2`](Self::frame2) such that it's local x-axis
+            /// is aligned with the given `x_axis`.
+            ///
+            /// The y-axis is computed as the counterclockwise perpendicular axis to the x-axis.
+            #[inline]
+            #[cfg(feature = "2d")]
+            pub fn with_local_basis2_x(mut self, x_axis: Vector) -> Self {
+                self.frame2.basis = JointBasis::from_local_x(x_axis);
+                self
+            }
+
+            /// Orients the [`JointBasis`] of [`frame2`](Self::frame2) such that its local y-axis
+            /// is aligned with the given `y_axis`.
+            ///
+            /// The x-axis is computed as the counterclockwise perpendicular axis to the y-axis.
+            #[inline]
+            #[cfg(feature = "2d")]
+            pub fn with_local_basis2_y(mut self, y_axis: Vector) -> Self {
+                self.frame2.basis = JointBasis::from_local_y(y_axis);
+                self
+            }
+
+            /// Orients the [`JointBasis`] of [`frame1`](Self::frame1) and [`frame2`](Self::frame2)
+            /// such that its global x and y axes are aligned with the given `x_axis` and `y_axis`.
+            ///
+            /// The z-axis is computed as the cross product of the x and y axes.
+            #[inline]
+            #[cfg(feature = "3d")]
+            pub fn with_basis_xy(mut self, x_axis: Vector, y_axis: Vector) -> Self {
+                let basis = JointBasis::from_global_xy(x_axis, y_axis);
+                self.frame1.basis = basis;
+                self.frame2.basis = basis;
+                self
+            }
+
+            /// Orients the [`JointBasis`] of [`frame1`](Self::frame1) and [`frame2`](Self::frame2)
+            /// such that its global x and z axes are aligned with the given `x_axis` and `z_axis`.
+            ///
+            /// The y-axis is computed as the cross product of the z and x axes.
+            #[inline]
+            #[cfg(feature = "3d")]
+            pub fn with_basis_xz(mut self, x_axis: Vector, z_axis: Vector) -> Self {
+                let basis = JointBasis::from_global_xz(x_axis, z_axis);
+                self.frame1.basis = basis;
+                self.frame2.basis = basis;
+                self
+            }
+
+            /// Orients the [`JointBasis`] of [`frame1`](Self::frame1) and [`frame2`](Self::frame2)
+            /// such that its global y and z axes are aligned with the given `y_axis` and `z_axis`.
+            ///
+            /// The x-axis is computed as the cross product of the y and z axes.
+            #[inline]
+            #[cfg(feature = "3d")]
+            pub fn with_basis_yz(mut self, y_axis: Vector, z_axis: Vector) -> Self {
+                let basis = JointBasis::from_global_yz(y_axis, z_axis);
+                self.frame1.basis = basis;
+                self.frame2.basis = basis;
+                self
+            }
+
+            /// Orients the [`JointBasis`] of [`frame1`](Self::frame1) such that its local x and y axes
+            /// are aligned with the given `x_axis` and `y_axis`.
+            ///
+            /// The z-axis is computed as the cross product of the x and y axes.
+            #[inline]
+            #[cfg(feature = "3d")]
+            pub fn with_local_basis1_xy(mut self, x_axis: Vector, y_axis: Vector) -> Self {
+                self.frame1.basis = JointBasis::from_local_xy(x_axis, y_axis);
+                self
+            }
+
+            /// Orients the [`JointBasis`] of [`frame1`](Self::frame1) such that its local x and z axes
+            /// are aligned with the given `x_axis` and `z_axis`.
+            ///
+            /// The y-axis is computed as the cross product of the z and x axes.
+            #[inline]
+            #[cfg(feature = "3d")]
+            pub fn with_local_basis1_xz(mut self, x_axis: Vector, z_axis: Vector) -> Self {
+                self.frame1.basis = JointBasis::from_local_xz(x_axis, z_axis);
+                self
+            }
+
+            /// Orients the [`JointBasis`] of [`frame1`](Self::frame1) such that its local y and z axes
+            /// are aligned with the given `y_axis` and `z_axis`.
+            ///
+            /// The x-axis is computed as the cross product of the y and z axes.
+            #[inline]
+            #[cfg(feature = "3d")]
+            pub fn with_local_basis1_yz(mut self, y_axis: Vector, z_axis: Vector) -> Self {
+                self.frame1.basis = JointBasis::from_local_yz(y_axis, z_axis);
+                self
+            }
+
+            /// Orients the [`JointBasis`] of [`frame2`](Self::frame2) such that its local x and y axes
+            /// are aligned with the given `x_axis` and `y_axis`.
+            ///
+            /// The z-axis is computed as the cross product of the x and y axes.
+            #[inline]
+            #[cfg(feature = "3d")]
+            pub fn with_local_basis2_xy(mut self, x_axis: Vector, y_axis: Vector) -> Self {
+                self.frame2.basis = JointBasis::from_local_xy(x_axis, y_axis);
+                self
+            }
+
+            /// Orients the [`JointBasis`] of [`frame2`](Self::frame2) such that its local x and z axes
+            /// are aligned with the given `x_axis` and `z_axis`.
+            ///
+            /// The y-axis is computed as the cross product of the z and x axes.
+            #[inline]
+            #[cfg(feature = "3d")]
+            pub fn with_local_basis2_xz(mut self, x_axis: Vector, z_axis: Vector) -> Self {
+                self.frame2.basis = JointBasis::from_local_xz(x_axis, z_axis);
+                self
+            }
+
+            /// Orients the [`JointBasis`] of [`frame2`](Self::frame2) such that its local y and z axes
+            /// are aligned with the given `y_axis` and `z_axis`.
+            ///
+            /// The x-axis is computed as the cross product of the y and z axes.
+            #[inline]
+            #[cfg(feature = "3d")]
+            pub fn with_local_basis2_yz(mut self, y_axis: Vector, z_axis: Vector) -> Self {
+                self.frame2.basis = JointBasis::from_local_yz(y_axis, z_axis);
+                self
+            }
+
+            /// Returns the local [`JointFrame`] of the first body.
+            ///
+            /// If the [`JointAnchor`] is set to [`FromGlobal`](JointAnchor::FromGlobal),
+            /// and the local anchor has not yet been computed, or the [`JointBasis`] is set to
+            /// [`FromGlobal`](JointBasis::FromGlobal), and the local basis has not yet
+            /// been computed, this will return `None`.
+            #[inline]
+            pub fn local_frame1(&self) -> Option<Isometry> {
+                self.frame1.get_local_isometry()
+            }
+
+            /// Returns the local [`JointFrame`] of the second body.
+            ///
+            /// If the [`JointAnchor`] is set to [`FromGlobal`](JointAnchor::FromGlobal),
+            /// and the local anchor has not yet been computed, or the [`JointBasis`] is set to
+            /// [`FromGlobal`](JointBasis::FromGlobal), and the local basis has not yet
+            /// been computed, this will return `None`.
+            #[inline]
+            pub fn local_frame2(&self) -> Option<Isometry> {
+                self.frame2.get_local_isometry()
+            }
+
+            /// Returns the local anchor point on the first body.
+            ///
+            /// If the [`JointAnchor`] is set to [`FromGlobal`](JointAnchor::FromGlobal),
+            /// and the local anchor has not yet been computed, this will return `None`.
+            #[inline]
+            pub const fn local_anchor1(&self) -> Option<Vector> {
+                match self.frame1.anchor {
+                    JointAnchor::Local(anchor) => Some(anchor),
+                    _ => None,
+                }
+            }
+
+            /// Returns the local anchor point on the second body.
+            ///
+            /// If the [`JointAnchor`] is set to [`FromGlobal`](JointAnchor::FromGlobal),
+            /// and the local anchor has not yet been computed, this will return `None`.
+            #[inline]
+            pub const fn local_anchor2(&self) -> Option<Vector> {
+                match self.frame2.anchor {
+                    JointAnchor::Local(anchor) => Some(anchor),
+                    _ => None,
+                }
+            }
+
+            /// Returns the local basis of the first body.
+            ///
+            /// If the [`JointBasis`] is set to [`FromGlobal`](JointBasis::FromGlobal),
+            /// and the local basis has not yet been computed, this will return `None`.
+            #[inline]
+            pub fn local_basis1(&self) -> Option<Rot> {
+                match self.frame1.basis {
+                    JointBasis::Local(rotation) => Some(rotation),
+                    _ => None,
+                }
+            }
+
+            /// Returns the local basis of the second body.
+            ///
+            /// If the [`JointBasis`] is set to [`FromGlobal`](JointBasis::FromGlobal),
+            /// and the local basis has not yet been computed, this will return `None`.
+            #[inline]
+            pub fn local_basis2(&self) -> Option<Rot> {
+                match self.frame2.basis {
+                    JointBasis::Local(rotation) => Some(rotation),
+                    _ => None,
+                }
+            }
+        }
+    };
+}
+
+use impl_joint_frame_helpers;

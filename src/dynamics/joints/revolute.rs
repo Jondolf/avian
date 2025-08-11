@@ -1,5 +1,5 @@
 use crate::{
-    dynamics::joints::{EntityConstraint, JointSet},
+    dynamics::joints::{EntityConstraint, JointSet, impl_joint_frame_helpers},
     prelude::*,
 };
 use bevy::{
@@ -10,7 +10,7 @@ use bevy::{
     prelude::*,
 };
 
-/// A revolute joint prevents relative movement of the attached bodies, except for rotation around one `aligned_axis`.
+/// A revolute joint prevents relative movement of the attached bodies, except for rotation around one [`hinge_axis`](RevoluteJoint::hinge_axis).
 ///
 /// Revolute joints can be useful for things like wheels, fans, revolving doors etc.
 #[derive(Component, Clone, Debug, PartialEq, Reflect)]
@@ -22,20 +22,23 @@ pub struct RevoluteJoint {
     pub entity1: Entity,
     /// Second entity constrained by the joint.
     pub entity2: Entity,
-    /// The reference frame of the first body, defining the anchor point and reference rotation
+    /// The reference frame of the first body, defining the joint anchor and basis
     /// relative to the body transform.
     pub frame1: JointFrame,
-    /// The reference frame of the second body, defining the anchor point and reference rotation
+    /// The reference frame of the second body, defining the joint anchor and basis
     /// relative to the body transform.
     pub frame2: JointFrame,
-    /// A unit vector that controls which axis should be aligned for both bodies.
+    /// The local axis that the bodies can rotate around.
+    ///
+    /// By default, this is the z-axis.
     #[cfg(feature = "3d")]
-    pub aligned_axis: Vector,
-    /// The extents of the allowed relative rotation of the bodies around the `aligned_axis`.
+    pub hinge_axis: Vector,
+    /// The extents of the allowed relative rotation of the bodies around the [`hinge_axis`](RevoluteJoint::hinge_axis).
     pub angle_limit: Option<AngleLimit>,
     /// The compliance of the point-to-point constraint (inverse of stiffness, m / N).
     pub point_compliance: Scalar,
-    /// The compliance used for aligning the bodies along the `aligned_axis` (inverse of stiffness, N * m / rad).
+    /// The compliance used for aligning the bodies along the [`hinge_axis`](RevoluteJoint::hinge_axis) (inverse of stiffness, N * m / rad).
+    #[cfg(feature = "3d")]
     pub align_compliance: Scalar,
     /// The compliance of the angle limit (inverse of stiffness, N * m / rad).
     pub limit_compliance: Scalar,
@@ -48,7 +51,15 @@ impl EntityConstraint<2> for RevoluteJoint {
 }
 
 impl RevoluteJoint {
+    #[cfg(feature = "3d")]
+    /// The default [`hinge_axis`](RevoluteJoint::hinge_axis) for a revolute joint.
+    pub const DEFAULT_HINGE_AXIS: Vector = Vector::Z;
+
     /// Creates a new [`RevoluteJoint`] between two entities.
+    #[cfg_attr(
+        feature = "3d",
+        doc = "\nThe default [`hinge_axis`](RevoluteJoint::hinge_axis) that relative rotation is allowed around is the z-axis. This can be changed using [`with_hinge_axis`](Self::with_hinge_axis)."
+    )]
     #[inline]
     pub const fn new(entity1: Entity, entity2: Entity) -> Self {
         Self {
@@ -57,128 +68,62 @@ impl RevoluteJoint {
             frame1: JointFrame::IDENTITY,
             frame2: JointFrame::IDENTITY,
             #[cfg(feature = "3d")]
-            aligned_axis: Vector::Z,
+            hinge_axis: Self::DEFAULT_HINGE_AXIS,
             angle_limit: None,
             point_compliance: 0.0,
+            #[cfg(feature = "3d")]
             align_compliance: 0.0,
             limit_compliance: 0.0,
         }
     }
 
-    /// Sets the global anchor point on both bodies.
+    /// Sets the [`hinge_axis`](RevoluteJoint::hinge_axis) of the joint.
     ///
-    /// This configures the [`JointTranslation`] of each [`JointFrame`].
-    #[inline]
-    pub const fn with_global_anchor(mut self, anchor: Vector) -> Self {
-        self.frame1.translation = JointTranslation::FromGlobal(anchor);
-        self.frame2.translation = JointTranslation::FromGlobal(anchor);
-        self
-    }
-
-    /// Sets the local anchor point on the first body.
-    ///
-    /// This configures the [`JointTranslation`] of the first [`JointFrame`].
-    #[inline]
-    pub const fn with_local_anchor1(mut self, anchor: Vector) -> Self {
-        self.frame1.translation = JointTranslation::Local(anchor);
-        self
-    }
-
-    /// Sets the local anchor point on the second body.
-    ///
-    /// This configures the [`JointTranslation`] of the second [`JointFrame`].
-    #[inline]
-    pub const fn with_local_anchor2(mut self, anchor: Vector) -> Self {
-        self.frame2.translation = JointTranslation::Local(anchor);
-        self
-    }
-
-    /// Sets the global reference rotation of both bodies.
-    ///
-    /// This configures the [`JointRotation`] of each [`JointFrame`].
-    #[inline]
-    pub fn with_global_rotation(mut self, rotation: impl Into<Rot>) -> Self {
-        let rotation = rotation.into();
-        self.frame1.rotation = JointRotation::FromGlobal(rotation);
-        self.frame2.rotation = JointRotation::FromGlobal(rotation);
-        self
-    }
-
-    /// Sets the local reference rotation of the first body.
-    ///
-    /// This configures the [`JointRotation`] of the first [`JointFrame`].
-    #[inline]
-    pub fn with_local_rotation1(mut self, rotation: impl Into<Rot>) -> Self {
-        self.frame1.rotation = JointRotation::Local(rotation.into());
-        self
-    }
-
-    /// Sets the local reference rotation of the second body.
-    ///
-    /// This configures the [`JointRotation`] of the second [`JointFrame`].
-    #[inline]
-    pub fn with_local_rotation2(mut self, rotation: impl Into<Rot>) -> Self {
-        self.frame2.rotation = JointRotation::Local(rotation.into());
-        self
-    }
-
-    /// Returns the local anchor point on the first body.
-    ///
-    /// If the [`JointTranslation`] is set to [`FromGlobal`](JointTranslation::FromGlobal),
-    /// and the local anchor has not yet been computed, this will return `None`.
-    #[inline]
-    pub const fn local_anchor1(&self) -> Option<Vector> {
-        match self.frame1.translation {
-            JointTranslation::Local(anchor) => Some(anchor),
-            _ => None,
-        }
-    }
-
-    /// Returns the local anchor point on the second body.
-    ///
-    /// If the [`JointTranslation`] is set to [`FromGlobal`](JointTranslation::FromGlobal),
-    /// and the local anchor has not yet been computed, this will return `None`.
-    #[inline]
-    pub const fn local_anchor2(&self) -> Option<Vector> {
-        match self.frame2.translation {
-            JointTranslation::Local(anchor) => Some(anchor),
-            _ => None,
-        }
-    }
-
-    /// Returns the local reference rotation of the first body.
-    ///
-    /// If the [`JointRotation`] is set to [`FromGlobal`](JointRotation::FromGlobal),
-    /// and the local rotation has not yet been computed, this will return `None`.
-    #[inline]
-    pub const fn local_rotation1(&self) -> Option<Rot> {
-        match self.frame1.rotation {
-            JointRotation::Local(rotation) => Some(rotation),
-            _ => None,
-        }
-    }
-
-    /// Returns the local reference rotation of the second body.
-    ///
-    /// If the [`JointRotation`] is set to [`FromGlobal`](JointRotation::FromGlobal),
-    /// and the local rotation has not yet been computed, this will return `None`.
-    #[inline]
-    pub const fn local_rotation2(&self) -> Option<Rot> {
-        match self.frame2.rotation {
-            JointRotation::Local(rotation) => Some(rotation),
-            _ => None,
-        }
-    }
-
-    /// Sets the axis that the bodies should be aligned on.
+    /// The axis should be a unit vector. By default, this is the z-axis.
     #[inline]
     #[cfg(feature = "3d")]
-    pub const fn with_aligned_axis(mut self, axis: Vector) -> Self {
-        self.aligned_axis = axis;
+    pub const fn with_hinge_axis(mut self, axis: Vector) -> Self {
+        self.hinge_axis = axis;
         self
     }
+}
 
-    /// Sets the limits of the allowed relative rotation around the `aligned_axis`.
+impl_joint_frame_helpers!(RevoluteJoint);
+
+impl RevoluteJoint {
+    /// Returns the local [`hinge_axis`](RevoluteJoint::hinge_axis) of the first body.
+    ///
+    /// This is equivalent to rotating the [`hinge_axis`](RevoluteJoint::hinge_axis)
+    /// by the local basis of [`frame1`](RevoluteJoint::frame1).
+    ///
+    /// If the [`JointBasis`] is set to [`FromGlobal`](JointBasis::FromGlobal),
+    /// and the local rotation has not yet been computed, this will return `None`.
+    #[inline]
+    #[cfg(feature = "3d")]
+    pub fn local_hinge_axis1(&self) -> Option<Vector> {
+        match self.frame1.basis {
+            JointBasis::Local(rotation) => Some(rotation * self.hinge_axis),
+            _ => None,
+        }
+    }
+
+    /// Returns the local [`hinge_axis`](RevoluteJoint::hinge_axis) of the second body.
+    ///
+    /// This is equivalent to rotating the [`hinge_axis`](RevoluteJoint::hinge_axis)
+    /// by the local basis of [`frame2`](RevoluteJoint::frame2).
+    ///
+    /// If the [`JointBasis`] is set to [`FromGlobal`](JointBasis::FromGlobal),
+    /// and the local rotation has not yet been computed, this will return `None`.
+    #[inline]
+    #[cfg(feature = "3d")]
+    pub fn local_hinge_axis2(&self) -> Option<Vector> {
+        match self.frame2.basis {
+            JointBasis::Local(rotation) => Some(rotation * self.hinge_axis),
+            _ => None,
+        }
+    }
+
+    /// Sets the limits of the allowed relative rotation around the [`hinge_axis`](RevoluteJoint::hinge_axis).
     #[inline]
     pub const fn with_angle_limits(mut self, min: Scalar, max: Scalar) -> Self {
         self.angle_limit = Some(AngleLimit::new(min, max));
@@ -193,7 +138,10 @@ impl RevoluteJoint {
     )]
     pub const fn with_compliance(mut self, compliance: Scalar) -> Self {
         self.point_compliance = compliance;
-        self.align_compliance = compliance;
+        #[cfg(feature = "3d")]
+        {
+            self.align_compliance = compliance;
+        }
         self.limit_compliance = compliance;
         self
     }
@@ -207,6 +155,7 @@ impl RevoluteJoint {
 
     /// Sets the compliance of the axis alignment constraint (inverse of stiffness, N * m / rad).
     #[inline]
+    #[cfg(feature = "3d")]
     pub const fn with_align_compliance(mut self, compliance: Scalar) -> Self {
         self.align_compliance = compliance;
         self
@@ -240,10 +189,10 @@ fn update_local_frames(
     bodies: Query<(&Position, &Rotation)>,
 ) {
     for mut joint in &mut joints {
-        if matches!(joint.frame1.translation, JointTranslation::Local(_))
-            && matches!(joint.frame2.translation, JointTranslation::Local(_))
-            && matches!(joint.frame1.rotation, JointRotation::Local(_))
-            && matches!(joint.frame2.rotation, JointRotation::Local(_))
+        if matches!(joint.frame1.anchor, JointAnchor::Local(_))
+            && matches!(joint.frame2.anchor, JointAnchor::Local(_))
+            && matches!(joint.frame1.basis, JointBasis::Local(_))
+            && matches!(joint.frame2.basis, JointBasis::Local(_))
         {
             continue;
         }

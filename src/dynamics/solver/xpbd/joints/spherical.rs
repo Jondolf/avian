@@ -55,10 +55,10 @@ impl XpbdConstraint<2> for SphericalJoint {
         let Some(local_anchor2) = self.local_anchor2() else {
             return;
         };
-        let Some(local_rotation1) = self.local_rotation1() else {
+        let Some(local_basis1) = self.local_basis1() else {
             return;
         };
-        let Some(local_rotation2) = self.local_rotation2() else {
+        let Some(local_basis2) = self.local_basis2() else {
             return;
         };
 
@@ -74,10 +74,10 @@ impl XpbdConstraint<2> for SphericalJoint {
             + (body2.rotation * body2.center_of_mass.0 - body1.rotation * body1.center_of_mass.0);
 
         // Prepare the base swing and twist axes.
-        solver_data.swing_axis1 = local_rotation1 * (rot1_mat * self.swing_axis);
-        solver_data.swing_axis2 = local_rotation2 * (rot2_mat * self.swing_axis);
-        solver_data.twist_axis1 = local_rotation1 * (rot1_mat * self.twist_axis);
-        solver_data.twist_axis2 = local_rotation2 * (rot2_mat * self.twist_axis);
+        solver_data.swing_axis1 = rot1_mat * (local_basis1 * self.swing_axis);
+        solver_data.swing_axis2 = rot2_mat * (local_basis2 * self.swing_axis);
+        solver_data.twist_axis1 = rot1_mat * (local_basis1 * self.twist_axis);
+        solver_data.twist_axis2 = rot2_mat * (local_basis2 * self.twist_axis);
     }
 
     fn solve(

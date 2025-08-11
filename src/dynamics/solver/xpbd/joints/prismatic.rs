@@ -53,10 +53,10 @@ impl XpbdConstraint<2> for PrismaticJoint {
         let Some(local_anchor2) = self.local_anchor2() else {
             return;
         };
-        let Some(local_rotation1) = self.local_rotation1() else {
+        let Some(local_basis1) = self.local_basis1() else {
             return;
         };
-        let Some(local_rotation2) = self.local_rotation2() else {
+        let Some(local_basis2) = self.local_basis2() else {
             return;
         };
 
@@ -64,8 +64,8 @@ impl XpbdConstraint<2> for PrismaticJoint {
         solver_data.angle_constraint.prepare(
             body1.rotation,
             body2.rotation,
-            local_rotation1,
-            local_rotation2,
+            local_basis1,
+            local_basis2,
         );
 
         // Prepare the prismatic joint.
@@ -73,7 +73,7 @@ impl XpbdConstraint<2> for PrismaticJoint {
         solver_data.world_r2 = body2.rotation * (local_anchor2 - body2.center_of_mass.0);
         solver_data.center_difference = (body2.position.0 - body1.position.0)
             + (body2.rotation * body2.center_of_mass.0 - body1.rotation * body1.center_of_mass.0);
-        solver_data.free_axis1 = local_rotation1 * (body1.rotation * self.free_axis);
+        solver_data.free_axis1 = *body1.rotation * local_basis1 * self.slider_axis;
     }
 
     fn solve(
@@ -120,7 +120,7 @@ impl PrismaticJoint {
         let mut delta_x = Vector::ZERO;
 
         let axis1 = body1.delta_rotation * solver_data.free_axis1;
-        if let Some(limits) = self.free_axis_limits {
+        if let Some(limits) = self.limits {
             let separation = (body2.delta_position - body1.delta_position)
                 + (world_r2 - world_r1)
                 + solver_data.center_difference;

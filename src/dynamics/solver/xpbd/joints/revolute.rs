@@ -55,10 +55,10 @@ impl XpbdConstraint<2> for RevoluteJoint {
         let Some(local_anchor2) = self.local_anchor2() else {
             return;
         };
-        let Some(local_rotation1) = self.local_rotation1() else {
+        let Some(local_basis1) = self.local_basis1() else {
             return;
         };
-        let Some(local_rotation2) = self.local_rotation2() else {
+        let Some(local_basis2) = self.local_basis2() else {
             return;
         };
 
@@ -70,14 +70,14 @@ impl XpbdConstraint<2> for RevoluteJoint {
         // Prepare the base rotation difference.
         #[cfg(feature = "2d")]
         {
-            solver_data.rotation_difference = (local_rotation1 * *bodies[0].rotation)
-                .angle_between(local_rotation2 * *bodies[1].rotation);
+            solver_data.rotation_difference = (*bodies[0].rotation * local_basis1)
+                .angle_between(*bodies[1].rotation * local_basis2);
         }
         #[cfg(feature = "3d")]
         {
             // Prepare the base axes.
-            solver_data.axis1 = local_rotation1 * (bodies[0].rotation * self.aligned_axis);
-            solver_data.axis2 = local_rotation2 * (bodies[1].rotation * self.aligned_axis);
+            solver_data.axis1 = *bodies[0].rotation * local_basis1 * self.hinge_axis;
+            solver_data.axis2 = *bodies[1].rotation * local_basis2 * self.hinge_axis;
         }
     }
 
@@ -132,7 +132,7 @@ impl XpbdConstraint<2> for RevoluteJoint {
 }
 
 impl RevoluteJoint {
-    /// Applies angle limits to limit the relative rotation of the bodies around the `aligned_axis`.
+    /// Applies angle limits to limit the relative rotation of the bodies around the `hinge_axis`.
     fn apply_angle_limits(
         &self,
         body1: &mut SolverBody,
@@ -152,9 +152,9 @@ impl RevoluteJoint {
             #[cfg(feature = "3d")]
             {
                 // [n, n1, n2] = [a1, b1, b2], where [a, b, c] are perpendicular unit axes on the bodies.
-                let a1 = body1.delta_rotation * self.aligned_axis;
+                let a1 = body1.delta_rotation * self.hinge_axis;
                 let b1 = a1.any_orthonormal_vector();
-                let b2 = body2.delta_rotation * self.aligned_axis.any_orthonormal_vector();
+                let b2 = body2.delta_rotation * self.hinge_axis.any_orthonormal_vector();
                 angle_limit.compute_correction(a1, b1, b2, PI)
             }
         }) else {
@@ -168,7 +168,7 @@ impl RevoluteJoint {
             inv_angular_inertia2,
             correction,
             0.0,
-            self.align_compliance,
+            self.limit_compliance,
             dt,
         );
     }

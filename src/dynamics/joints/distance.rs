@@ -23,9 +23,9 @@ pub struct DistanceJoint {
     /// Second entity constrained by the joint.
     pub entity2: Entity,
     /// The joint anchor point on the first body.
-    pub anchor1: JointTranslation,
+    pub anchor1: JointAnchor,
     /// The joint anchor point on the second body.
-    pub anchor2: JointTranslation,
+    pub anchor2: JointAnchor,
     /// The extents of the allowed relative translation between the attached bodies.
     pub limits: DistanceLimit,
     /// The joint's compliance, the inverse of stiffness (m / N).
@@ -45,8 +45,8 @@ impl DistanceJoint {
         Self {
             entity1,
             entity2,
-            anchor1: JointTranslation::IDENTITY,
-            anchor2: JointTranslation::IDENTITY,
+            anchor1: JointAnchor::ZERO,
+            anchor2: JointAnchor::ZERO,
             limits: DistanceLimit::ZERO,
             compliance: 0.0,
         }
@@ -56,9 +56,9 @@ impl DistanceJoint {
     ///
     /// This configures the [`JointTranslation`] of each [`JointFrame`].
     #[inline]
-    pub const fn with_global_anchor(mut self, anchor: Vector) -> Self {
-        self.anchor1 = JointTranslation::FromGlobal(anchor);
-        self.anchor2 = JointTranslation::FromGlobal(anchor);
+    pub const fn with_anchor(mut self, anchor: Vector) -> Self {
+        self.anchor1 = JointAnchor::FromGlobal(anchor);
+        self.anchor2 = JointAnchor::FromGlobal(anchor);
         self
     }
 
@@ -67,7 +67,7 @@ impl DistanceJoint {
     /// This configures the [`JointTranslation`] of the first [`JointFrame`].
     #[inline]
     pub const fn with_local_anchor1(mut self, anchor: Vector) -> Self {
-        self.anchor1 = JointTranslation::Local(anchor);
+        self.anchor1 = JointAnchor::Local(anchor);
         self
     }
 
@@ -76,7 +76,7 @@ impl DistanceJoint {
     /// This configures the [`JointTranslation`] of the second [`JointFrame`].
     #[inline]
     pub const fn with_local_anchor2(mut self, anchor: Vector) -> Self {
-        self.anchor2 = JointTranslation::Local(anchor);
+        self.anchor2 = JointAnchor::Local(anchor);
         self
     }
 
@@ -87,7 +87,7 @@ impl DistanceJoint {
     #[inline]
     pub const fn local_anchor1(&self) -> Option<Vector> {
         match self.anchor1 {
-            JointTranslation::Local(anchor) => Some(anchor),
+            JointAnchor::Local(anchor) => Some(anchor),
             _ => None,
         }
     }
@@ -99,7 +99,7 @@ impl DistanceJoint {
     #[inline]
     pub const fn local_anchor2(&self) -> Option<Vector> {
         match self.anchor2 {
-            JointTranslation::Local(anchor) => Some(anchor),
+            JointAnchor::Local(anchor) => Some(anchor),
             _ => None,
         }
     }
@@ -147,8 +147,8 @@ fn update_local_anchors(
     bodies: Query<(&Position, &Rotation)>,
 ) {
     for mut joint in &mut joints {
-        if matches!(joint.anchor1, JointTranslation::Local(_))
-            && matches!(joint.anchor2, JointTranslation::Local(_))
+        if matches!(joint.anchor1, JointAnchor::Local(_))
+            && matches!(joint.anchor2, JointAnchor::Local(_))
         {
             continue;
         }
@@ -157,14 +157,8 @@ fn update_local_anchors(
             continue;
         };
 
-        let [anchor1, anchor2] = JointTranslation::compute_local(
-            joint.anchor1,
-            joint.anchor2,
-            pos1.0,
-            pos2.0,
-            rot1,
-            rot2,
-        );
+        let [anchor1, anchor2] =
+            JointAnchor::compute_local(joint.anchor1, joint.anchor2, pos1.0, pos2.0, rot1, rot2);
         joint.anchor1 = anchor1;
         joint.anchor2 = anchor2;
     }
@@ -184,10 +178,10 @@ impl DebugRenderConstraint<2> for DistanceJoint {
         let [pos1, pos2] = positions;
         let [rot1, rot2] = rotations;
 
-        let JointTranslation::Local(local_anchor1) = self.anchor1 else {
+        let JointAnchor::Local(local_anchor1) = self.anchor1 else {
             return;
         };
-        let JointTranslation::Local(local_anchor2) = self.anchor2 else {
+        let JointAnchor::Local(local_anchor2) = self.anchor2 else {
             return;
         };
 

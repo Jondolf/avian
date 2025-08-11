@@ -562,6 +562,16 @@ impl From<Rotation> for Matrix {
 }
 
 #[cfg(feature = "2d")]
+impl From<Matrix> for Rotation {
+    /// Creates a [`Rotation`] from a [`Matrix`].
+    fn from(mat: Matrix) -> Self {
+        let cos = mat.x_axis.x;
+        let sin = mat.y_axis.x;
+        Self::from_sin_cos(sin, cos)
+    }
+}
+
+#[cfg(feature = "2d")]
 impl From<Rot2> for Rotation {
     /// Creates a [`Rotation`] from a [`Rot2`].
     fn from(rot: Rot2) -> Self {
@@ -829,6 +839,60 @@ impl core::ops::Mul for Rotation {
 impl core::ops::MulAssign for Rotation {
     fn mul_assign(&mut self, rhs: Self) {
         self.0 *= rhs.0;
+    }
+}
+
+#[cfg(feature = "3d")]
+impl core::ops::Mul<Quaternion> for Rotation {
+    type Output = Quaternion;
+
+    fn mul(self, quaternion: Quaternion) -> Self::Output {
+        self.0 * quaternion
+    }
+}
+
+#[cfg(feature = "3d")]
+impl core::ops::Mul<Quaternion> for &Rotation {
+    type Output = Quaternion;
+
+    fn mul(self, quaternion: Quaternion) -> Self::Output {
+        self.0 * quaternion
+    }
+}
+
+#[cfg(feature = "3d")]
+impl core::ops::Mul<Quaternion> for &mut Rotation {
+    type Output = Quaternion;
+
+    fn mul(self, quaternion: Quaternion) -> Self::Output {
+        self.0 * quaternion
+    }
+}
+
+#[cfg(feature = "3d")]
+impl core::ops::Mul<Rotation> for Quaternion {
+    type Output = Rotation;
+
+    fn mul(self, rotation: Rotation) -> Self::Output {
+        Rotation(self * rotation.0)
+    }
+}
+
+#[cfg(feature = "3d")]
+impl core::ops::Mul<Rotation> for &Quaternion {
+    type Output = Rotation;
+
+    fn mul(self, rotation: Rotation) -> Self::Output {
+        Rotation(*self * rotation.0)
+    }
+}
+
+#[cfg(feature = "3d")]
+impl core::ops::Mul<Rotation> for &mut Quaternion {
+    type Output = Rotation;
+
+    fn mul(self, rotation: Rotation) -> Self::Output {
+        Rotation(*self * rotation.0)
     }
 }
 

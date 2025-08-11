@@ -632,3 +632,39 @@ pub(crate) fn make_isometry(
 pub fn skew_symmetric_mat3(v: Vector3) -> Matrix3 {
     Matrix3::from_cols_array(&[0.0, v.z, -v.y, -v.z, 0.0, v.x, v.y, -v.x, 0.0])
 }
+
+/// Computes the rotation matrix of the orthonormal basis computed from the given axis.
+///
+/// The `axis` must be a unit vector.
+#[inline]
+#[must_use]
+pub fn orthonormal_basis_from_vec(axis: Vector) -> Rot {
+    #[cfg(feature = "2d")]
+    {
+        let normal = axis.perp();
+        orthonormal_basis([axis, normal])
+    }
+    #[cfg(feature = "3d")]
+    {
+        let (normal1, normal2) = axis.any_orthonormal_pair();
+        orthonormal_basis([axis, normal1, normal2])
+    }
+}
+
+/// Computes the rotation matrix of the orthonormal basis computed from the given axes.
+///
+/// Each axis must be a unit vector.
+#[inline]
+#[must_use]
+pub fn orthonormal_basis(axes: [Vector; DIM]) -> Rot {
+    #[cfg(feature = "2d")]
+    {
+        let mat = Matrix2::from_cols(axes[0], axes[1]);
+        Rotation::from(mat)
+    }
+    #[cfg(feature = "3d")]
+    {
+        let mat = Matrix3::from_cols(axes[0], axes[1], axes[2]);
+        Quaternion::from_mat3(&mat)
+    }
+}

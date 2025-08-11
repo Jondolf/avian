@@ -39,10 +39,10 @@ impl XpbdConstraint<2> for DistanceJoint {
     ) {
         let [body1, body2] = bodies;
 
-        let JointTranslation::Local(local_anchor1) = self.anchor1 else {
+        let JointAnchor::Local(local_anchor1) = self.anchor1 else {
             return;
         };
-        let JointTranslation::Local(local_anchor2) = self.anchor2 else {
+        let JointAnchor::Local(local_anchor2) = self.anchor2 else {
             return;
         };
 
