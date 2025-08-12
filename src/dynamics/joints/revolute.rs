@@ -10,7 +10,7 @@ use bevy::{
     prelude::*,
 };
 
-/// A revolute joint prevents relative movement of the attached bodies, except for rotation around one [`HINGE_AXIS`](Self::HINGE_AXIS).
+/// A revolute joint prevents relative movement of the attached bodies, except for rotation around one [`hinge_axis`](Self::hinge_axis).
 ///
 /// Revolute joints can be useful for things like wheels, fans, revolving doors etc.
 #[derive(Component, Clone, Debug, PartialEq, Reflect)]
@@ -28,11 +28,16 @@ pub struct RevoluteJoint {
     /// The reference frame of the second body, defining the joint anchor and basis
     /// relative to the body transform.
     pub frame2: JointFrame,
-    /// The extents of the allowed relative rotation of the bodies around the [`HINGE_AXIS`](Self::HINGE_AXIS).
+    /// The local axis around which the bodies can rotate relative to each other.
+    ///
+    /// By default, this is the z-axis.
+    #[cfg(feature = "3d")]
+    pub hinge_axis: Vector,
+    /// The extents of the allowed relative rotation of the bodies.
     pub angle_limit: Option<AngleLimit>,
     /// The compliance of the point-to-point constraint (inverse of stiffness, m / N).
     pub point_compliance: Scalar,
-    /// The compliance used for aligning the bodies along the [`HINGE_AXIS`](Self::HINGE_AXIS) (inverse of stiffness, N * m / rad).
+    /// The compliance used for aligning the bodies along the [`hinge_axis`](Self::hinge_axis) (inverse of stiffness, N * m / rad).
     #[cfg(feature = "3d")]
     pub align_compliance: Scalar,
     /// The compliance of the angle limit (inverse of stiffness, N * m / rad).
@@ -46,17 +51,9 @@ impl EntityConstraint<2> for RevoluteJoint {
 }
 
 impl RevoluteJoint {
-    /// The axis along which the bodies can rotate relative to each other.
-    ///
-    /// This is the z-axis of the [`JointBasis`].
+    /// The default [`hinge_axis`](Self::hinge_axis) for a revolute joint.
     #[cfg(feature = "3d")]
-    pub const HINGE_AXIS: Vector = Vector::Z;
-
-    /// A normal axis that is perpendicular to the [`HINGE_AXIS`](Self::HINGE_AXIS).
-    ///
-    /// This is the y-axis of the [`JointBasis`] and determines the rotation about the [`HINGE_AXIS`](Self::HINGE_AXIS).
-    #[cfg(feature = "3d")]
-    pub const NORMAL_AXIS: Vector = Vector::Y;
+    pub const DEFAULT_HINGE_AXIS: Vector = Vector::Z;
 
     /// Creates a new [`RevoluteJoint`] between two entities.
     #[inline]
@@ -66,12 +63,24 @@ impl RevoluteJoint {
             entity2,
             frame1: JointFrame::IDENTITY,
             frame2: JointFrame::IDENTITY,
+            #[cfg(feature = "3d")]
+            hinge_axis: Self::DEFAULT_HINGE_AXIS,
             angle_limit: None,
             point_compliance: 0.0,
             #[cfg(feature = "3d")]
             align_compliance: 0.0,
             limit_compliance: 0.0,
         }
+    }
+
+    /// Sets the [`hinge_axis`](Self::hinge_axis) of the joint.
+    ///
+    /// The axis should be a unit vector. By default, this is the z-axis.
+    #[inline]
+    #[cfg(feature = "3d")]
+    pub const fn with_hinge_axis(mut self, axis: Vector) -> Self {
+        self.hinge_axis = axis;
+        self
     }
 
     /// Sets the local [`JointFrame`] of the first body, configuring both the [`JointAnchor`] and [`JointBasis`].
@@ -142,44 +151,6 @@ impl RevoluteJoint {
     #[inline]
     pub fn with_local_basis2(mut self, basis: impl Into<Rot>) -> Self {
         self.frame2.basis = JointBasis::Local(basis.into());
-        self
-    }
-
-    /// Orients the [`JointBasis`] of [`frame1`](Self::frame1) and [`frame2`](Self::frame2) such that
-    /// the [`HINGE_AXIS`](Self::HINGE_AXIS) (local z) and [`NORMAL_AXIS`](Self::NORMAL_AXIS) (local y)
-    /// align with the given `hinge_axis` and `normal_axis` in world space.
-    ///
-    /// The remaining axis (local x) is computed as the cross product of the `normal_axis` and `hinge_axis`.
-    #[inline]
-    #[cfg(feature = "3d")]
-    pub fn with_axes(mut self, hinge_axis: Vector, normal_axis: Vector) -> Self {
-        let basis = JointBasis::from_global_yz(normal_axis, hinge_axis);
-        self.frame1.basis = basis;
-        self.frame2.basis = basis;
-        self
-    }
-
-    /// Orients the [`JointBasis`] of [`frame1`](Self::frame1) such that
-    /// the [`HINGE_AXIS`](Self::HINGE_AXIS) (local z) and [`NORMAL_AXIS`](Self::NORMAL_AXIS) (local y)
-    /// align with the given `hinge_axis` and `normal_axis` in local space.
-    ///
-    /// The remaining axis (local x) is computed as the cross product of the `normal_axis` and `hinge_axis`.
-    #[inline]
-    #[cfg(feature = "3d")]
-    pub fn with_local_axes1(mut self, hinge_axis: Vector, normal_axis: Vector) -> Self {
-        self.frame1.basis = JointBasis::from_local_yz(normal_axis, hinge_axis);
-        self
-    }
-
-    /// Orients the [`JointBasis`] of [`frame2`](Self::frame2) such that
-    /// the [`HINGE_AXIS`](Self::HINGE_AXIS) (local z) and [`NORMAL_AXIS`](Self::NORMAL_AXIS) (local y)
-    /// align with the given `hinge_axis` and `normal_axis` in local space.
-    ///
-    /// The remaining axis (local x) is computed as the cross product of the `normal_axis` and `hinge_axis`.
-    #[inline]
-    #[cfg(feature = "3d")]
-    pub fn with_local_axes2(mut self, hinge_axis: Vector, normal_axis: Vector) -> Self {
-        self.frame2.basis = JointBasis::from_local_yz(normal_axis, hinge_axis);
         self
     }
 
@@ -255,7 +226,7 @@ impl RevoluteJoint {
 
     /// Returns the local hinge axis of the first body.
     ///
-    /// This is equivalent to rotating the [`HINGE_AXIS`](Self::HINGE_AXIS)
+    /// This is equivalent to rotating the [`hinge_axis`](Self::hinge_axis)
     /// by the local basis of [`frame1`](Self::frame1).
     ///
     /// If the [`JointBasis`] is set to [`FromGlobal`](JointBasis::FromGlobal),
@@ -264,14 +235,14 @@ impl RevoluteJoint {
     #[cfg(feature = "3d")]
     pub fn local_hinge_axis1(&self) -> Option<Vector> {
         match self.frame1.basis {
-            JointBasis::Local(basis) => Some(basis * Self::HINGE_AXIS),
+            JointBasis::Local(basis) => Some(basis * self.hinge_axis),
             _ => None,
         }
     }
 
     /// Returns the local hinge axis of the second body.
     ///
-    /// This is equivalent to rotating the [`HINGE_AXIS`](Self::HINGE_AXIS)
+    /// This is equivalent to rotating the [`hinge_axis`](Self::hinge_axis)
     /// by the local basis of [`frame2`](Self::frame2).
     ///
     /// If the [`JointBasis`] is set to [`FromGlobal`](JointBasis::FromGlobal),
@@ -280,7 +251,7 @@ impl RevoluteJoint {
     #[cfg(feature = "3d")]
     pub fn local_hinge_axis2(&self) -> Option<Vector> {
         match self.frame2.basis {
-            JointBasis::Local(basis) => Some(basis * Self::HINGE_AXIS),
+            JointBasis::Local(basis) => Some(basis * self.hinge_axis),
             _ => None,
         }
     }

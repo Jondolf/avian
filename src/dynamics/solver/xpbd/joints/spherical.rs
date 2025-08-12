@@ -74,10 +74,10 @@ impl XpbdConstraint<2> for SphericalJoint {
             + (body2.rotation * body2.center_of_mass.0 - body1.rotation * body1.center_of_mass.0);
 
         // Prepare the base swing and twist axes.
-        solver_data.swing_axis1 = rot1_mat * (local_basis1 * SphericalJoint::SWING_AXIS);
-        solver_data.swing_axis2 = rot2_mat * (local_basis2 * SphericalJoint::SWING_AXIS);
-        solver_data.twist_axis1 = rot1_mat * (local_basis1 * SphericalJoint::TWIST_AXIS);
-        solver_data.twist_axis2 = rot2_mat * (local_basis2 * SphericalJoint::TWIST_AXIS);
+        solver_data.swing_axis1 = rot1_mat * (local_basis1 * self.swing_axis);
+        solver_data.swing_axis2 = rot2_mat * (local_basis2 * self.swing_axis);
+        solver_data.twist_axis1 = rot1_mat * (local_basis1 * self.twist_axis);
+        solver_data.twist_axis2 = rot2_mat * (local_basis2 * self.twist_axis);
     }
 
     fn solve(

@@ -10,7 +10,7 @@ use bevy::{
     prelude::*,
 };
 
-/// A prismatic joint prevents relative movement of the attached bodies, except for translation along the [`SLIDER_AXIS`](Self::SLIDER_AXIS).
+/// A prismatic joint prevents relative movement of the attached bodies, except for translation along the [`slider_axis`](Self::slider_axis).
 ///
 /// Prismatic joints can be useful for things like elevators, pistons, sliding doors and moving platforms.
 #[derive(Component, Clone, Copy, Debug, PartialEq, Reflect)]
@@ -28,9 +28,13 @@ pub struct PrismaticJoint {
     /// The reference frame of the second body, defining the joint anchor and basis
     /// relative to the body transform.
     pub frame2: JointFrame,
-    /// The extents of the allowed relative translation along the [`SLIDER_AXIS`](Self::SLIDER_AXIS).
+    /// The local axis along which the bodies can translate relative to each other.
+    ///
+    /// By default, this is the x-axis.
+    pub slider_axis: Vector,
+    /// The extents of the allowed relative translation along the [`slider_axis`](Self::slider_axis).
     pub limits: Option<DistanceLimit>,
-    /// The compliance used for aligning the positions of the bodies to the [`SLIDER_AXIS`](Self::SLIDER_AXIS) (inverse of stiffness, m / N).
+    /// The compliance used for aligning the positions of the bodies to the [`slider_axis`](Self::slider_axis) (inverse of stiffness, m / N).
     pub align_compliance: Scalar,
     /// The compliance of the angular constraint (inverse of stiffness, N * m / rad).
     pub angle_compliance: Scalar,
@@ -45,16 +49,8 @@ impl EntityConstraint<2> for PrismaticJoint {
 }
 
 impl PrismaticJoint {
-    /// The axis along which the bodies can translate relative to each other.
-    ///
-    /// This is the x-axis axis of the [`JointBasis`].
-    pub const SLIDER_AXIS: Vector = Vector::X;
-
-    /// A normal axis that is perpendicular to the [`SLIDER_AXIS`](Self::SLIDER_AXIS).
-    ///
-    /// This is the y-axis of the [`JointBasis`] and determines the rotation about the [`SLIDER_AXIS`](Self::SLIDER_AXIS).
-    #[cfg(feature = "3d")]
-    pub const NORMAL_AXIS: Vector = Vector::Y;
+    /// The default [`slider_axis`](Self::slider_axis) for a prismatic joint.
+    pub const DEFAULT_SLIDER_AXIS: Vector = Vector::X;
 
     /// Creates a new [`PrismaticJoint`] between two entities.
     #[inline]
@@ -64,11 +60,21 @@ impl PrismaticJoint {
             entity2,
             frame1: JointFrame::IDENTITY,
             frame2: JointFrame::IDENTITY,
+            slider_axis: Self::DEFAULT_SLIDER_AXIS,
             limits: None,
             align_compliance: 0.0,
             angle_compliance: 0.0,
             limit_compliance: 0.0,
         }
+    }
+
+    /// Sets the [`slider_axis`](Self::slider_axis) of the joint.
+    ///
+    /// The axis should be a unit vector. By default, this is the x-axis.
+    #[inline]
+    pub const fn with_slider_axis(mut self, axis: Vector) -> Self {
+        self.slider_axis = axis;
+        self
     }
 
     /// Sets the local [`JointFrame`] of the first body, configuring both the [`JointAnchor`] and [`JointBasis`].
@@ -139,73 +145,6 @@ impl PrismaticJoint {
     #[inline]
     pub fn with_local_basis2(mut self, basis: impl Into<Rot>) -> Self {
         self.frame2.basis = JointBasis::Local(basis.into());
-        self
-    }
-
-    /// Orients the [`JointBasis`] of [`frame1`](Self::frame1) and [`frame2`](Self::frame2)
-    /// such that its global [`SLIDER_AXIS`](Self::SLIDER_AXIS) is aligned with the given `slider_axis`.
-    #[inline]
-    #[cfg(feature = "2d")]
-    pub fn with_axis(mut self, slider_axis: Vector) -> Self {
-        let basis = JointBasis::from_global_x(slider_axis);
-        self.frame1.basis = basis;
-        self.frame2.basis = basis;
-        self
-    }
-
-    /// Orients the [`JointBasis`] of [`frame1`](Self::frame1) such that its local
-    /// [`SLIDER_AXIS`](Self::SLIDER_AXIS) is aligned with the given `slider_axis`.
-    #[inline]
-    #[cfg(feature = "2d")]
-    pub fn with_local_axis1(mut self, slider_axis: Vector) -> Self {
-        self.frame1.basis = JointBasis::from_local_x(slider_axis);
-        self
-    }
-
-    /// Orients the [`JointBasis`] of [`frame2`](Self::frame2) such that its local
-    /// [`SLIDER_AXIS`](Self::SLIDER_AXIS) is aligned with the given `slider_axis`.
-    #[inline]
-    #[cfg(feature = "2d")]
-    pub fn with_local_axis2(mut self, slider_axis: Vector) -> Self {
-        self.frame2.basis = JointBasis::from_local_x(slider_axis);
-        self
-    }
-
-    /// Orients the [`JointBasis`] of [`frame1`](Self::frame1) and [`frame2`](Self::frame2) such that
-    /// the [`SLIDER_AXIS`](Self::SLIDER_AXIS) (local x) and [`NORMAL_AXIS`](Self::NORMAL_AXIS) (local y)
-    /// align with the given `slider_axis` and `normal_axis` in world space.
-    ///
-    /// The remaining axis (local z) is computed as the cross product of the `slider_axis` and `normal_axis`.
-    #[inline]
-    #[cfg(feature = "3d")]
-    pub fn with_axes(mut self, slider_axis: Vector, normal_axis: Vector) -> Self {
-        let basis = JointBasis::from_global_xy(slider_axis, normal_axis);
-        self.frame1.basis = basis;
-        self.frame2.basis = basis;
-        self
-    }
-
-    /// Orients the [`JointBasis`] of [`frame1`](Self::frame1) such that
-    /// the [`SLIDER_AXIS`](Self::SLIDER_AXIS) (local x) and [`NORMAL_AXIS`](Self::NORMAL_AXIS) (local y)
-    /// align with the given `slider_axis` and `normal_axis` in local space.
-    ///
-    /// The remaining axis (local z) is computed as the cross product of the `slider_axis` and `normal_axis`.
-    #[inline]
-    #[cfg(feature = "3d")]
-    pub fn with_local_axes1(mut self, slider_axis: Vector, normal_axis: Vector) -> Self {
-        self.frame1.basis = JointBasis::from_local_xy(slider_axis, normal_axis);
-        self
-    }
-
-    /// Orients the [`JointBasis`] of [`frame2`](Self::frame2) such that
-    /// the [`SLIDER_AXIS`](Self::SLIDER_AXIS) (local x) and [`NORMAL_AXIS`](Self::NORMAL_AXIS) (local y)
-    /// align with the given `slider_axis` and `normal_axis` in local space.
-    ///
-    /// The remaining axis (local z) is computed as the cross product of the `slider_axis` and `normal_axis`.
-    #[inline]
-    #[cfg(feature = "3d")]
-    pub fn with_local_axes2(mut self, slider_axis: Vector, normal_axis: Vector) -> Self {
-        self.frame2.basis = JointBasis::from_local_xy(slider_axis, normal_axis);
         self
     }
 
@@ -281,35 +220,35 @@ impl PrismaticJoint {
 
     /// Returns the local slider axis of the first body.
     ///
-    /// This is equivalent to rotating the [`SLIDER_AXIS`](Self::SLIDER_AXIS)
+    /// This is equivalent to rotating the [`slider_axis`](Self::slider_axis)
     /// by the local basis of [`frame1`](Self::frame1).
     ///
     /// If the [`JointBasis`] is set to [`FromGlobal`](JointBasis::FromGlobal),
     /// and the local basis has not yet been computed, this will return `None`.
     #[inline]
-    pub fn local_axis1(&self) -> Option<Vector> {
+    pub fn local_slider_axis1(&self) -> Option<Vector> {
         match self.frame1.basis {
-            JointBasis::Local(basis) => Some(basis * Self::SLIDER_AXIS),
+            JointBasis::Local(basis) => Some(basis * self.slider_axis),
             _ => None,
         }
     }
 
     /// Returns the local slider axis of the second body.
     ///
-    /// This is equivalent to rotating the [`SLIDER_AXIS`](Self::SLIDER_AXIS)
+    /// This is equivalent to rotating the [`slider_axis`](Self::slider_axis)
     /// by the local basis of [`frame2`](Self::frame2).
     ///
     /// If the [`JointBasis`] is set to [`FromGlobal`](JointBasis::FromGlobal),
     /// and the local basis has not yet been computed, this will return `None`.
     #[inline]
-    pub fn local_axis2(&self) -> Option<Vector> {
+    pub fn local_slider_axis2(&self) -> Option<Vector> {
         match self.frame2.basis {
-            JointBasis::Local(basis) => Some(basis * Self::SLIDER_AXIS),
+            JointBasis::Local(basis) => Some(basis * self.slider_axis),
             _ => None,
         }
     }
 
-    /// Sets the translational limits along the [`SLIDER_AXIS`](Self::SLIDER_AXIS).
+    /// Sets the translational limits along the [`slider_axis`](Self::slider_axis).
     #[inline]
     pub const fn with_limits(mut self, min: Scalar, max: Scalar) -> Self {
         self.limits = Some(DistanceLimit::new(min, max));

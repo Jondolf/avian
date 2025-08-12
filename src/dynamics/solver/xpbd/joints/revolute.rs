@@ -76,8 +76,8 @@ impl XpbdConstraint<2> for RevoluteJoint {
         #[cfg(feature = "3d")]
         {
             // Prepare the base axes.
-            solver_data.axis1 = *bodies[0].rotation * local_basis1 * RevoluteJoint::HINGE_AXIS;
-            solver_data.axis2 = *bodies[1].rotation * local_basis2 * RevoluteJoint::HINGE_AXIS;
+            solver_data.axis1 = *bodies[0].rotation * local_basis1 * self.hinge_axis;
+            solver_data.axis2 = *bodies[1].rotation * local_basis2 * self.hinge_axis;
         }
     }
 
@@ -152,9 +152,9 @@ impl RevoluteJoint {
             #[cfg(feature = "3d")]
             {
                 // [n, n1, n2] = [a1, b1, b2], where [a, b, c] are perpendicular unit axes on the bodies.
-                let a1 = body1.delta_rotation * RevoluteJoint::HINGE_AXIS;
+                let a1 = body1.delta_rotation * self.hinge_axis;
                 let b1 = a1.any_orthonormal_vector();
-                let b2 = body2.delta_rotation * RevoluteJoint::HINGE_AXIS.any_orthonormal_vector();
+                let b2 = body2.delta_rotation * self.hinge_axis.any_orthonormal_vector();
                 angle_limit.compute_correction(a1, b1, b2, PI)
             }
         }) else {

@@ -28,6 +28,16 @@ pub struct SphericalJoint {
     /// The reference frame of the second body, defining the joint anchor and basis
     /// relative to the body transform.
     pub frame2: JointFrame,
+    /// The local axis around which the bodies can swing relative to each other.
+    ///
+    /// A second swing axis is automatically computed perpendicular to this axis and the [`twist_axis`](SphericalJoint::twist_axis).
+    ///
+    /// By default, this is the z-axis.
+    pub swing_axis: Vector,
+    /// The local axis around which the bodies can twist relative to each other.
+    ///
+    /// By default, this is the y-axis.
+    pub twist_axis: Vector,
     /// The extents of the allowed relative rotation of the bodies around a swing axis perpendicular to the [`twist_axis`](SphericalJoint::twist_axis).
     pub swing_limit: Option<AngleLimit>,
     /// The extents of the allowed relative rotation of the bodies around the [`twist_axis`](SphericalJoint::twist_axis).
@@ -47,15 +57,11 @@ impl EntityConstraint<2> for SphericalJoint {
 }
 
 impl SphericalJoint {
-    /// An axis along which the bodies can swing relative to each other.
-    ///
-    /// This is the z-axis of the [`JointBasis`].
-    pub const SWING_AXIS: Vector = Vector::Z;
+    /// The default [`swing_axis`](Self::swing_axis) for a spherical joint,
+    pub const DEFAULT_SWING_AXIS: Vector = Vector::Z;
 
-    /// The axis along which the bodies can twist relative to each other.
-    ///
-    /// This is the y-axis of the [`JointBasis`].
-    pub const TWIST_AXIS: Vector = Vector::Y;
+    /// The default [`twist_axis`](Self::twist_axis) for a spherical joint.
+    pub const DEFAULT_TWIST_AXIS: Vector = Vector::Y;
 
     /// Creates a new [`SphericalJoint`] between two entities.
     #[inline]
@@ -65,12 +71,36 @@ impl SphericalJoint {
             entity2,
             frame1: JointFrame::IDENTITY,
             frame2: JointFrame::IDENTITY,
+            swing_axis: Self::DEFAULT_SWING_AXIS,
+            twist_axis: Self::DEFAULT_TWIST_AXIS,
             swing_limit: None,
             twist_limit: None,
             point_compliance: 0.0,
             swing_compliance: 0.0,
             twist_compliance: 0.0,
         }
+    }
+
+    /// Sets the [`swing_axis`](Self::swing_axis) of the joint.
+    ///
+    /// A second swing axis is automatically computed perpendicular to this axis and the [`twist_axis`](Self::twist_axis).
+    ///
+    /// The axis should be a unit vector perpendicular to the [`twist_axis`](Self::twist_axis).
+    /// By default, this is the z-axis.
+    #[inline]
+    pub const fn with_swing_axis(mut self, swing_axis: Vector) -> Self {
+        self.swing_axis = swing_axis;
+        self
+    }
+
+    /// Sets the [`twist_axis`](Self::twist_axis) of the joint.
+    ///
+    /// The axis should be a unit vector perpendicular to the [`swing_axis`](Self::swing_axis).
+    /// By default, this is the y-axis.
+    #[inline]
+    pub const fn with_twist_axis(mut self, twist_axis: Vector) -> Self {
+        self.twist_axis = twist_axis;
+        self
     }
 
     /// Sets the local [`JointFrame`] of the first body, configuring both the [`JointAnchor`] and [`JointBasis`].
@@ -144,41 +174,6 @@ impl SphericalJoint {
         self
     }
 
-    /// Orients the [`JointBasis`] of [`frame1`](Self::frame1) and [`frame2`](Self::frame2) such that
-    /// the [`SWING_AXIS`](Self::SWING_AXIS) (local z) and [`TWIST_AXIS`](Self::TWIST_AXIS) (local y)
-    /// align with the given `swing_axis` and `twist_axis` in world space.
-    ///
-    /// The remaining axis (local x) is computed as the cross product of the `twist_axis` and `swing_axis`.
-    #[inline]
-    pub fn with_axes(mut self, swing_axis: Vector, twist_axis: Vector) -> Self {
-        let basis = JointBasis::from_global_yz(twist_axis, swing_axis);
-        self.frame1.basis = basis;
-        self.frame2.basis = basis;
-        self
-    }
-
-    /// Orients the [`JointBasis`] of [`frame1`](Self::frame1) such that
-    /// the [`SWING_AXIS`](Self::SWING_AXIS) (local z) and [`TWIST_AXIS`](Self::TWIST_AXIS) (local y)
-    /// align with the given `swing_axis` and `twist_axis` in local space.
-    ///
-    /// The remaining axis (local x) is computed as the cross product of the `twist_axis` and `swing_axis`.
-    #[inline]
-    pub fn with_local_axes1(mut self, swing_axis: Vector, twist_axis: Vector) -> Self {
-        self.frame1.basis = JointBasis::from_local_yz(twist_axis, swing_axis);
-        self
-    }
-
-    /// Orients the [`JointBasis`] of [`frame2`](Self::frame2) such that
-    /// the [`SWING_AXIS`](Self::SWING_AXIS) (local z) and [`TWIST_AXIS`](Self::TWIST_AXIS) (local y)
-    /// align with the given `swing_axis` and `twist_axis` in local space.
-    ///
-    /// The remaining axis (local x) is computed as the cross product of the `twist_axis` and `swing_axis`.
-    #[inline]
-    pub fn with_local_axes2(mut self, swing_axis: Vector, twist_axis: Vector) -> Self {
-        self.frame2.basis = JointBasis::from_local_yz(twist_axis, swing_axis);
-        self
-    }
-
     /// Returns the local [`JointFrame`] of the first body.
     ///
     /// If the [`JointAnchor`] is set to [`FromGlobal`](JointAnchor::FromGlobal),
@@ -230,7 +225,7 @@ impl SphericalJoint {
     /// If the [`JointBasis`] is set to [`FromGlobal`](JointBasis::FromGlobal),
     /// and the local basis has not yet been computed, this will return `None`.
     #[inline]
-    pub fn local_basis1(&self) -> Option<Rot> {
+    pub const fn local_basis1(&self) -> Option<Rot> {
         match self.frame1.basis {
             JointBasis::Local(basis) => Some(basis),
             _ => None,
@@ -242,7 +237,7 @@ impl SphericalJoint {
     /// If the [`JointBasis`] is set to [`FromGlobal`](JointBasis::FromGlobal),
     /// and the local basis has not yet been computed, this will return `None`.
     #[inline]
-    pub fn local_basis2(&self) -> Option<Rot> {
+    pub const fn local_basis2(&self) -> Option<Rot> {
         match self.frame2.basis {
             JointBasis::Local(basis) => Some(basis),
             _ => None,
@@ -251,7 +246,7 @@ impl SphericalJoint {
 
     /// Returns the local swing axis of the first body.
     ///
-    /// This is equivalent to rotating the [`SWING_AXIS`](Self::SWING_AXIS)
+    /// This is equivalent to rotating the [`swing_axis`](Self::swing_axis)
     /// by the local basis of [`frame1`](Self::frame1).
     ///
     /// If the [`JointBasis`] is set to [`FromGlobal`](JointBasis::FromGlobal),
@@ -259,14 +254,14 @@ impl SphericalJoint {
     #[inline]
     pub fn local_swing_axis1(&self) -> Option<Vector> {
         match self.frame1.basis {
-            JointBasis::Local(basis) => Some(basis * Self::SWING_AXIS),
+            JointBasis::Local(basis) => Some(basis * self.swing_axis),
             _ => None,
         }
     }
 
     /// Returns the local swing axis of the second body.
     ///
-    /// This is equivalent to rotating the [`SWING_AXIS`](Self::SWING_AXIS)
+    /// This is equivalent to rotating the [`swing_axis`](Self::swing_axis)
     /// by the local basis of [`frame2`](Self::frame2).
     ///
     /// If the [`JointBasis`] is set to [`FromGlobal`](JointBasis::FromGlobal),
@@ -274,14 +269,14 @@ impl SphericalJoint {
     #[inline]
     pub fn local_swing_axis2(&self) -> Option<Vector> {
         match self.frame2.basis {
-            JointBasis::Local(basis) => Some(basis * Self::SWING_AXIS),
+            JointBasis::Local(basis) => Some(basis * self.swing_axis),
             _ => None,
         }
     }
 
     /// Returns the local twist axis of the first body.
     ///
-    /// This is equivalent to rotating the [`TWIST_AXIS`](Self::TWIST_AXIS)
+    /// This is equivalent to rotating the [`twist_axis`](Self::twist_axis)
     /// by the local basis of [`frame1`](Self::frame1).
     ///
     /// If the [`JointBasis`] is set to [`FromGlobal`](JointBasis::FromGlobal),
@@ -289,14 +284,14 @@ impl SphericalJoint {
     #[inline]
     pub fn local_twist_axis1(&self) -> Option<Vector> {
         match self.frame1.basis {
-            JointBasis::Local(basis) => Some(basis * Self::TWIST_AXIS),
+            JointBasis::Local(basis) => Some(basis * self.twist_axis),
             _ => None,
         }
     }
 
     /// Returns the local twist axis of the second body.
     ///
-    /// This is equivalent to rotating the [`TWIST_AXIS`](Self::TWIST_AXIS)
+    /// This is equivalent to rotating the [`twist_axis`](Self::twist_axis)
     /// by the local basis of [`frame2`](Self::frame2).
     ///
     /// If the [`JointBasis`] is set to [`FromGlobal`](JointBasis::FromGlobal),
@@ -304,19 +299,19 @@ impl SphericalJoint {
     #[inline]
     pub fn local_twist_axis2(&self) -> Option<Vector> {
         match self.frame2.basis {
-            JointBasis::Local(basis) => Some(basis * Self::TWIST_AXIS),
+            JointBasis::Local(basis) => Some(basis * self.twist_axis),
             _ => None,
         }
     }
 
-    /// Sets the limits of the allowed relative rotation around the `swing_axis`.
+    /// Sets the limits of the allowed relative rotation around the [`swing_axis`](Self::swing_axis).
     #[inline]
     pub const fn with_swing_limits(mut self, min: Scalar, max: Scalar) -> Self {
         self.swing_limit = Some(AngleLimit::new(min, max));
         self
     }
 
-    /// Sets the limits of the allowed relative rotation around the `twist_axis`.
+    /// Sets the limits of the allowed relative rotation around the [`twist_axis`](Self::twist_axis).
     #[inline]
     pub const fn with_twist_limits(mut self, min: Scalar, max: Scalar) -> Self {
         self.twist_limit = Some(AngleLimit::new(min, max));
