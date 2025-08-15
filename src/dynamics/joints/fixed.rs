@@ -32,10 +32,10 @@ use bevy::{
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Component, Debug, MapEntities, PartialEq)]
 pub struct FixedJoint {
-    /// First entity constrained by the joint.
-    pub entity1: Entity,
-    /// Second entity constrained by the joint.
-    pub entity2: Entity,
+    /// T*he first body constrained by the joint.
+    pub body1: Entity,
+    /// The second body constrained by the joint.
+    pub body2: Entity,
     /// The reference frame of the first body, defining the joint anchor and basis
     /// relative to the body transform.
     pub frame1: JointFrame,
@@ -50,17 +50,17 @@ pub struct FixedJoint {
 
 impl EntityConstraint<2> for FixedJoint {
     fn entities(&self) -> [Entity; 2] {
-        [self.entity1, self.entity2]
+        [self.body1, self.body2]
     }
 }
 
 impl FixedJoint {
     /// Creates a new [`FixedJoint`] between two entities.
     #[inline]
-    pub const fn new(entity1: Entity, entity2: Entity) -> Self {
+    pub const fn new(body1: Entity, body2: Entity) -> Self {
         Self {
-            entity1,
-            entity2,
+            body1,
+            body2,
             frame1: JointFrame::IDENTITY,
             frame2: JointFrame::IDENTITY,
             point_compliance: 0.0,
@@ -238,8 +238,8 @@ impl FixedJoint {
 
 impl MapEntities for FixedJoint {
     fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
-        self.entity1 = entity_mapper.get_mapped(self.entity1);
-        self.entity2 = entity_mapper.get_mapped(self.entity2);
+        self.body1 = entity_mapper.get_mapped(self.body1);
+        self.body2 = entity_mapper.get_mapped(self.body2);
     }
 }
 

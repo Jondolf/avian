@@ -24,10 +24,10 @@ use bevy::{
 #[reflect(Component, Debug, MapEntities, PartialEq)]
 #[doc(alias = "SliderJoint")]
 pub struct PrismaticJoint {
-    /// First entity constrained by the joint.
-    pub entity1: Entity,
-    /// Second entity constrained by the joint.
-    pub entity2: Entity,
+    /// T*he first body constrained by the joint.
+    pub body1: Entity,
+    /// The second body constrained by the joint.
+    pub body2: Entity,
     /// The reference frame of the first body, defining the joint anchor and basis
     /// relative to the body transform.
     pub frame1: JointFrame,
@@ -50,7 +50,7 @@ pub struct PrismaticJoint {
 
 impl EntityConstraint<2> for PrismaticJoint {
     fn entities(&self) -> [Entity; 2] {
-        [self.entity1, self.entity2]
+        [self.body1, self.body2]
     }
 }
 
@@ -60,10 +60,10 @@ impl PrismaticJoint {
 
     /// Creates a new [`PrismaticJoint`] between two entities.
     #[inline]
-    pub const fn new(entity1: Entity, entity2: Entity) -> Self {
+    pub const fn new(body1: Entity, body2: Entity) -> Self {
         Self {
-            entity1,
-            entity2,
+            body1,
+            body2,
             frame1: JointFrame::IDENTITY,
             frame2: JointFrame::IDENTITY,
             slider_axis: Self::DEFAULT_SLIDER_AXIS,
@@ -298,8 +298,8 @@ impl PrismaticJoint {
 
 impl MapEntities for PrismaticJoint {
     fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
-        self.entity1 = entity_mapper.get_mapped(self.entity1);
-        self.entity2 = entity_mapper.get_mapped(self.entity2);
+        self.body1 = entity_mapper.get_mapped(self.body1);
+        self.body2 = entity_mapper.get_mapped(self.body2);
     }
 }
 
