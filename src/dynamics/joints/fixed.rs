@@ -32,7 +32,7 @@ use bevy::{
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Component, Debug, MapEntities, PartialEq)]
 pub struct FixedJoint {
-    /// T*he first body constrained by the joint.
+    /// The first body constrained by the joint.
     pub body1: Entity,
     /// The second body constrained by the joint.
     pub body2: Entity,

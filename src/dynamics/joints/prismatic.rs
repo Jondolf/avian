@@ -24,7 +24,7 @@ use bevy::{
 #[reflect(Component, Debug, MapEntities, PartialEq)]
 #[doc(alias = "SliderJoint")]
 pub struct PrismaticJoint {
-    /// T*he first body constrained by the joint.
+    /// The first body constrained by the joint.
     pub body1: Entity,
     /// The second body constrained by the joint.
     pub body2: Entity,

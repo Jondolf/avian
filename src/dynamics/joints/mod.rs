@@ -1,16 +1,20 @@
-//! **Joints** are a way to connect entities in a way that restricts their movement relative to each other.
-//! They act as [constraints](dynamics::solver::xpbd#constraints) that restrict different *Degrees Of Freedom*
-//! depending on the joint type.
+//! **Joints** are a way to connect rigid bodies in a way that restricts their movement relative to each other.
+//! They act as constraints that restrict different *Degrees of Freedom* depending on the joint type.
 //!
 //! # Degrees of Freedom (DOF)
 //!
-//! In 3D, entities can normally translate and rotate along the `X`, `Y` and `Z` axes.
+//! In 3D, rigid bodies can normally translate and rotate along the x, y, and z axes.
 //! Therefore, they have 3 translational DOF and 3 rotational DOF, which is a total of 6 DOF.
 //!
-//! Joints reduce the number of DOF that entities have. For example, [revolute joints](RevoluteJoint)
-//! only allow rotation around one axis.
+//! TODO: SVGs for 2D and 3D DOF
 //!
-//! Below is a table containing the joints that are currently implemented.
+//! Joints limit the degrees of freedom that bodies can have. For example, a [`RevoluteJoint`] or hinge
+//! prevents any relative movement between two bodies, except for rotation about a single axis
+//! at the anchor point.
+//!
+#![doc = include_str!("./images/revolute_joint.svg")]
+//!
+//! Below is a table containing all joints that are currently implemented.
 //!
 //! | Joint              | Allowed 2D DOF            | Allowed 3D DOF              |
 //! | ------------------ | ------------------------- | --------------------------- |
@@ -25,9 +29,8 @@
 //!
 //! # Using Joints
 //!
-//! In Avian, joints are modeled as components. You can create a joint by simply spawning
-//! an entity and adding the joint component you want, giving the connected entities as arguments
-//! to the `new` method.
+//! In Avian, joints are modeled as components. Each joint is spawned as its own entity,
+//! providing the [`Entity`] identifiers of the bodies it should constrain.
 //!
 //! ```
 #![cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -35,35 +38,75 @@
 //! use bevy::prelude::*;
 //!
 //! fn setup(mut commands: Commands) {
-//!     let entity1 = commands.spawn(RigidBody::Dynamic).id();
-//!     let entity2 = commands.spawn(RigidBody::Dynamic).id();
+//!     let body1 = commands.spawn(RigidBody::Dynamic).id();
+//!     let body2 = commands.spawn(RigidBody::Dynamic).id();
 //!     
-//!     // Connect the bodies with a fixed joint
-//!     commands.spawn(FixedJoint::new(entity1, entity2));
+//!     // Connect the bodies with a fixed joint.
+//!     commands.spawn(FixedJoint::new(body1, body2));
 //! }
 //! ```
 //!
 //! By default, the attached bodies can still collide with each other.
 //! This behavior can be disabled with the [`JointCollisionDisabled`] component.
 //!
-//! ## Stiffness
+//! ## Joint Frames
 //!
-//! You can control the stiffness of a joint with the `with_compliance` method.
-//! *Compliance* refers to the inverse of stiffness, so using a compliance of 0 corresponds to
-//! infinite stiffness.
+//! By default, joints use body transforms as their reference for how to constrain the connected bodies.
+//! For example, a [`RevoluteJoint`] aims to make the positions of the two bodies coincide in world space,
+//! while allowing the bodies to rotate freely around a common axis.
 //!
-//! ## Attachment Positions
+//! However, it can often be useful to define the attachment point or orientation separately from the body transform.
+//! For example, you may want the [`RevoluteJoint`] to be attached to the corner of a body instead of its center,
+//! and that the other body is rotated by 90 degrees relative to the first body.
 //!
-//! By default, joints are connected to the centers of entities, but attachment positions can be used to change this.
+//! This can be done by configuring the [`JointFrame`] associated with each body. Each joint frame is expressed
+//! by a local [`JointAnchor`] and [`JointBasis`] relative to the transforms of the bodies. The anchor determines
+//! the attachment point, while the basis determines the orientation of the joint frame relative to the body transform.
 //!
-//! You can use `with_local_anchor1` and `with_local_anchor2` to set the attachment positions on the first
-//! and second entity respectively.
+//! TODO: SVG
+//!
+//! Storing the frames in local space allows the initial configuration to be preserved even when the bodies are moved.
+//! The frames can also be specified in global coordinates using [`JointFrame::global`], but they are automatically converted
+//! to local frames during the next simulation step.
 //!
 //! ## Damping
 //!
-//! You can configure the linear and angular damping caused by joints using the `with_linear_velocity_damping` and
-//! `with_angular_velocity_damping` methods. Increasing the damping values will cause the velocities
-//! of the connected entities to decrease faster.
+//! By default, no work is done to dampen the movement of bodies connected by a joint.
+//! A pendulum will swing indefinitely, unless explicitly stopped or it loses energy due to simulation inaccuracies.
+//!
+//! It can often be desirable to dampen the relative velocities of bodies connected by a joint.
+//! This can be done using the [`JointDamping`] component.
+//!
+//! ```
+#![cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#![cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+//! # use bevy::prelude::*;
+//! #
+//! # fn setup(mut commands: Commands) {
+//! #     let body1 = commands.spawn(RigidBody::Dynamic).id();
+//! #     let body2 = commands.spawn(RigidBody::Dynamic).id();
+//! #
+//! // Connect two bodies with a revolute joint.
+//! // Apply linear and angular damping to the joint.
+//! commands.spawn((
+//!     RevoluteJoint::new(body1, body2),
+//!     JointDamping {
+//!         linear: 0.1,  // Linear damping
+//!         angular: 0.1, // Angular damping
+//!     },
+//! ));
+//! # }
+//! ```
+//!
+//! ## Reading Joint Forces
+//!
+//! TODO
+//! TODO: Segway to breaking joints via joint disabling
+//!
+//! ## Disabling Joints
+//!
+//! TODO
+//! TODO: Also mention joint breaking
 //!
 //! ## Other Configuration
 //!
@@ -71,20 +114,6 @@
 //! translation or rotation, and they may have distance or angle limits along these axes.
 //!
 //! Take a look at the documentation and methods of each joint to see all of the configuration options.
-//!
-//! # Custom Joints
-//!
-//! Joints are [constraints](dynamics::solver::xpbd#constraints) that implement [`Joint`] and [`XpbdConstraint`].
-//!
-//! The process of creating a joint is essentially the same as [creating a constraint](dynamics::solver::xpbd#custom-constraints),
-//! except you should also implement the [`Joint`] trait's methods. The trait has some useful helper methods
-//! like `align_position` and `align_orientation` to reduce some common boilerplate.
-//!
-//! Many joints also have joint limits. You can use [`DistanceLimit`] and [`AngleLimit`] to help store these limits
-//! and to compute the current distance from the specified limits.
-//!
-//! [See the code implementations](https://github.com/Jondolf/avian/tree/main/src/constraints/joints)
-//! of the implemented joints to get a better idea of how to create joints.
 
 mod distance;
 mod fixed;
@@ -379,7 +408,32 @@ impl JointCollisionDisabled {
     }
 }
 
-/// A component for the linear and angular damping applied by a [joint](self).
+/// A component for applying damping to the relative linear and angular velocities
+/// of bodies connected by a [joint](self).
+///
+/// # Example
+///
+///
+/// ```
+#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+/// # use bevy::prelude::*;
+/// #
+/// # fn setup(mut commands: Commands) {
+/// #     let body1 = commands.spawn(RigidBody::Dynamic).id();
+/// #     let body2 = commands.spawn(RigidBody::Dynamic).id();
+/// #
+/// // Connect two bodies with a revolute joint.
+/// // Apply linear and angular damping to the joint.
+/// commands.spawn((
+///     RevoluteJoint::new(body1, body2),
+///     JointDamping {
+///         linear: 0.1,  // Linear damping
+///         angular: 0.1, // Angular damping
+///     },
+/// ));
+/// # }
+/// ```
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
@@ -444,13 +498,13 @@ impl JointForces {
 
 /// The [reference frame] of a body that is being constrained by a [joint](self).
 ///
-/// Each joint defines a relationship between the translation and rotation of two reference frames.
+/// Each joint defines a connection between the translation and rotation of two reference frames.
 /// For example, a [`RevoluteJoint`] aims to make the positions of the two frames coincide in world space,
 /// while allowing the frames to rotate freely around a common axis.
 ///
 /// Reference frames for joints are expressed by a local [`JointAnchor`] and [`JointBasis`]
-/// relative to the transforms of the bodies. The anchor determines the attachment point of the joint,
-/// and the basis determines the orientation of the joint frame relative to the body transform.
+/// relative to the transforms of the bodies. The anchor determines the attachment point,
+/// while the basis determines the orientation of the joint frame relative to the body transform.
 /// Together, they form a local isometry that defines the joint frame.
 ///
 /// TODO: SVG
