@@ -10,11 +10,24 @@ use bevy::{
     prelude::*,
 };
 
-/// A fixed joint prevents any relative movement of the attached bodies.
+/// A fixed joint prevents any relative movement between two bodies, effectively locking them together.
 ///
-/// You should generally prefer using a single body instead of multiple bodies fixed together,
-/// but fixed joints can be useful for things like rigid structures where a force can dynamically break the joints connecting individual bodies.
-#[derive(Component, Clone, Copy, Debug, PartialEq, Reflect)]
+/// This can be useful for cases where attaching multiple colliders to a single body is not enough,
+/// for example when you need to read forces applied by the joint to determine when the connection should break.
+///
+/// <div class="warning">
+///
+/// Due to the nature of iterative solvers, fixed joints can still have some error and allow small relative movement,
+/// even when using infinite stiffness. If you do not need features such as stiffness or reading back forces,
+/// consider attaching multiple colliders to a single rigid body instead. This is more efficient and stable than using joints.
+///
+/// </div>
+///
+/// Each fixed joint is defined by a [`JointFrame`] on each body. The joint aims to keep the anchor point
+/// and basis of each frame aligned, locking them together.
+///
+#[doc = include_str!("./images/point_constraint.svg")]
+#[derive(Component, Clone, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Component, Debug, MapEntities, PartialEq)]

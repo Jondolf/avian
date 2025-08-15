@@ -10,13 +10,19 @@ use bevy::{
     prelude::*,
 };
 
-/// A prismatic joint prevents relative movement of the attached bodies, except for translation along the [`slider_axis`](Self::slider_axis).
+/// A prismatic joint prevents any relative movement between two bodies, except for translation along the [`slider_axis`](Self::slider_axis).
 ///
-/// Prismatic joints can be useful for things like elevators, pistons, sliding doors and moving platforms.
-#[derive(Component, Clone, Copy, Debug, PartialEq, Reflect)]
+/// This can be useful for things like elevators, pistons, sliding doors and moving platforms.
+///
+/// Each prismatic joint is defined by a [`JointFrame`] on each body, a [`slider_axis`](Self::slider_axis)
+/// along which the bodies can translate, and an optional [`DistanceLimit`] that defines the extents of the allowed translation.
+///
+#[doc = include_str!("./images/prismatic_joint.svg")]
+#[derive(Component, Clone, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Component, Debug, MapEntities, PartialEq)]
+#[doc(alias = "SliderJoint")]
 pub struct PrismaticJoint {
     /// First entity constrained by the joint.
     pub entity1: Entity,

@@ -10,10 +10,15 @@ use bevy::{
     prelude::*,
 };
 
-/// A distance joint keeps the attached bodies at a certain distance from each other while while allowing rotation around all axes.
+/// A distance joint maintains an upper and/or lower bound on the distance between anchor points on two bodies.
 ///
-/// Distance joints can be useful for things like springs, muscles, and mass-spring networks.
-#[derive(Component, Clone, Copy, Debug, PartialEq, Reflect)]
+/// This can be useful for things like springs, muscles, and mass-spring networks.
+///
+/// A distance joint is defined by a [`JointAnchor`] on each body, and a [`DistanceLimit`]. The joint aims to keep
+/// the distance between the two anchor points within the specified limits.
+///
+#[doc = include_str!("./images/distance_joint.svg")]
+#[derive(Component, Clone, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Component, Debug, MapEntities, PartialEq)]

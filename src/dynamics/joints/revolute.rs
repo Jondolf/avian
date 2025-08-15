@@ -10,13 +10,38 @@ use bevy::{
     prelude::*,
 };
 
-/// A revolute joint prevents relative movement of the attached bodies, except for rotation around one [`hinge_axis`](Self::hinge_axis).
+#[cfg_attr(
+    feature = "2d",
+    doc = "A revolute joint or hinge prevents any relative movement of the attached bodies, except for rotation about a pivot point defined by the joint anchor."
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "A revolute joint or hinge prevents any relative movement of the attached bodies, except for rotation about the [`hinge_axis`](Self::hinge_axis) at a pivot point defined by the joint anchor."
+)]
 ///
-/// Revolute joints can be useful for things like wheels, fans, revolving doors etc.
+/// This can be useful for things like wheels, fans, doors, and other rotating mechanisms.
+///
+#[cfg_attr(
+    feature = "2d",
+    doc = "Each revolute joint is defined by a [`JointFrame`] on each body,"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "Each revolute joint is defined by a [`JointFrame`] on each body, a [`hinge_axis`](Self::hinge_axis) about which the bodies can rotate,"
+)]
+/// and an optional [`AngleLimit`] that defines the extents of the allowed rotation. The joint aims to keep the anchor point of each frame aligned,
+#[cfg_attr(feature = "2d", doc = "while allowing rotation at the anchor point.")]
+#[cfg_attr(
+    feature = "3d",
+    doc = "while allowing rotation about the hinge axis at the anchor point."
+)]
+///
+#[doc = include_str!("./images/revolute_joint.svg")]
 #[derive(Component, Clone, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Component, Debug, MapEntities, PartialEq)]
+#[doc(alias = "HingeJoint")]
 pub struct RevoluteJoint {
     /// First entity constrained by the joint.
     pub entity1: Entity,

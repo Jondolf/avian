@@ -20,7 +20,7 @@
 //! | [`RevoluteJoint`]  | 1 Rotation                | 1 Rotation                  |
 #![cfg_attr(
     feature = "3d",
-    doc = "| [`SphericalJoint`] | 1 Rotation                | 3 Rotations                 |"
+    doc = "| [`SphericalJoint`] | -                         | 3 Rotations                 |"
 )]
 //!
 //! # Using Joints
