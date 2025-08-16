@@ -70,11 +70,38 @@ Therefore, they have 3 translational DOF and 3 rotational DOF, which is a total 
 //! by a local [`JointAnchor`] and [`JointBasis`] relative to the transforms of the bodies. The anchor determines
 //! the attachment point, while the basis determines the orientation of the joint frame relative to the body transform.
 //!
-//! TODO: SVG
+#![doc = include_str!("./images/joint_frame.svg")]
 //!
 //! Storing the frames in local space allows the initial configuration to be preserved even when the bodies are moved.
 //! The frames can also be specified in global coordinates using [`JointFrame::global`], but they are automatically converted
 //! to local frames during the next simulation step.
+//!
+//! Below is an example of configuring [`JointFrame`]s for a [`RevoluteJoint`].
+//!
+//! ```
+#![cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#![cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+//! # use bevy::prelude::*;
+//! # use core::f32::consts::PI;
+//! #
+//! # #[cfg(feature = "f32")]
+//! # fn setup(mut commands: Commands) {
+//! #     let body1 = commands.spawn(RigidBody::Dynamic).id();
+//! #     let body2 = commands.spawn(RigidBody::Dynamic).id();
+//! #
+//! // Connect two bodies with a revolute joint.
+//! // Set the global anchor point and rotate the first frame by 45 degrees about the local z axis.
+//! commands.spawn((
+//!     RevoluteJoint::new(body1, body2)
+#![cfg_attr(feature = "2d", doc = "        .with_anchor(Vec2::new(5.0, 2.0))")]
+#![cfg_attr(feature = "3d", doc = "        .with_anchor(Vec3::new(5.0, 2.0, 0.0))")]
+#![cfg_attr(feature = "2d", doc = "        .with_local_basis1(PI / 4.0),")]
+#![cfg_attr(
+    feature = "3d",
+    doc = "        .with_local_basis1(Quat::from_rotation_z(PI / 4.0)),"
+)]
+//! ));
+//! ```
 //!
 //! ## Damping
 //!
@@ -93,10 +120,10 @@ Therefore, they have 3 translational DOF and 3 rotational DOF, which is a total 
 //! #     let body1 = commands.spawn(RigidBody::Dynamic).id();
 //! #     let body2 = commands.spawn(RigidBody::Dynamic).id();
 //! #
-//! // Connect two bodies with a revolute joint.
+//! // Connect two bodies with a distance joint.
 //! // Apply linear and angular damping to the joint.
 //! commands.spawn((
-//!     RevoluteJoint::new(body1, body2),
+//!     DistanceJoint::new(body1, body2),
 //!     JointDamping {
 //!         linear: 0.1,  // Linear damping
 //!         angular: 0.1, // Angular damping
@@ -160,6 +187,7 @@ Therefore, they have 3 translational DOF and 3 rotational DOF, which is a total 
 //! #
 //! const BREAK_THRESHOLD: f32 = 500.0; // Example threshold
 //!
+//! # #[cfg(feature = "f32")]
 //! fn break_joints(
 //!     mut commands: Commands,
 //!     query: Query<(Entity, &JointForces), Without<JointDisabled>>,
@@ -442,6 +470,7 @@ impl AngleLimit {
 ///
 /// # Related Components
 ///
+/// - [`JointCollisionDisabled`]: Disables collision between bodies connected by a joint.
 /// - [`RigidBodyDisabled`]: Disables a rigid body.
 /// - [`ColliderDisabled`]: Disables a collider.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default)]
@@ -450,7 +479,7 @@ impl AngleLimit {
 #[reflect(Debug, Component, Default)]
 pub struct JointDisabled;
 
-/// A marker component that disables collision for [rigid bodies](RigidBody)
+/// A marker component that disables collision between [rigid bodies](RigidBody)
 /// connected by a [joint](self). Must be on the same entity as the joint.
 ///
 /// # Example
@@ -465,7 +494,7 @@ pub struct JointDisabled;
 /// # let entity2 = commands.spawn(RigidBody::Dynamic).id();
 /// #
 /// // Connect the bodies with a fixed joint.
-/// // Disables collision between the two bodies.
+/// // Disable collision between the two bodies.
 /// commands.spawn((
 ///     FixedJoint::new(entity1, entity2),
 ///     JointCollisionDisabled,
@@ -517,10 +546,10 @@ impl JointCollisionDisabled {
 /// #     let body1 = commands.spawn(RigidBody::Dynamic).id();
 /// #     let body2 = commands.spawn(RigidBody::Dynamic).id();
 /// #
-/// // Connect two bodies with a revolute joint.
+/// // Connect two bodies with a distance joint.
 /// // Apply linear and angular damping to the joint.
 /// commands.spawn((
-///     RevoluteJoint::new(body1, body2),
+///     DistanceJoint::new(body1, body2),
 ///     JointDamping {
 ///         linear: 0.1,  // Linear damping
 ///         angular: 0.1, // Angular damping
@@ -640,7 +669,7 @@ impl JointForces {
 /// while the basis determines the orientation of the joint frame relative to the body transform.
 /// Together, they form a local isometry that defines the joint frame.
 ///
-/// TODO: SVG
+#[doc = include_str!("./images/joint_frame.svg")]
 ///
 /// Storing the frames in local space allows the initial configuration to be preserved even when the bodies are moved.
 /// The frames can also be specified in global coordinates using [`JointFrame::global`], but they are automatically converted
@@ -650,7 +679,30 @@ impl JointForces {
 ///
 /// # Example
 ///
-/// TODO
+/// ```
+#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+/// # use bevy::prelude::*;
+/// # use core::f32::consts::PI;
+/// #
+/// # #[cfg(feature = "f32")]
+/// # fn setup(mut commands: Commands) {
+/// #     let body1 = commands.spawn(RigidBody::Dynamic).id();
+/// #     let body2 = commands.spawn(RigidBody::Dynamic).id();
+/// #
+/// // Connect two bodies with a revolute joint.
+/// // Set the global anchor point and rotate the first frame by 45 degrees about the local z axis.
+/// commands.spawn((
+///     RevoluteJoint::new(body1, body2)
+#[cfg_attr(feature = "2d", doc = "        .with_anchor(Vec2::new(5.0, 2.0))")]
+#[cfg_attr(feature = "3d", doc = "        .with_anchor(Vec3::new(5.0, 2.0, 0.0))")]
+#[cfg_attr(feature = "2d", doc = "        .with_local_basis1(PI / 4.0),")]
+#[cfg_attr(
+    feature = "3d",
+    doc = "        .with_local_basis1(Quat::from_rotation_z(PI / 4.0)),"
+)]
+/// ));
+/// ```
 #[derive(Clone, Copy, Debug, Default, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]

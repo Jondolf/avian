@@ -10,7 +10,8 @@ use bevy::{
     prelude::*,
 };
 
-/// A spherical joint prevents any relative translation between two bodies, while allowing limited rotation about all axes.
+/// A spherical [joint](dynamics::joints) prevents any relative translation between two bodies,
+/// while allowing limited rotation about all axes.
 ///
 /// This is similar to the ball-and-socket joint in the human shoulder, and can be useful for things like ragdolls, robotic arms,
 /// pendula, chains, and other mechanisms where you need to allow free rotation around a point.

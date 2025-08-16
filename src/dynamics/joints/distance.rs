@@ -10,7 +10,8 @@ use bevy::{
     prelude::*,
 };
 
-/// A distance joint maintains an upper and/or lower bound on the distance between anchor points on two bodies.
+/// A distance [joint](dynamics::joints) maintains an upper and/or lower bound on the distance
+/// between anchor points on two bodies.
 ///
 /// This can be useful for things like springs, muscles, and mass-spring networks.
 ///

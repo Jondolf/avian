@@ -10,7 +10,8 @@ use bevy::{
     prelude::*,
 };
 
-/// A prismatic joint prevents any relative movement between two bodies, except for translation along the [`slider_axis`](Self::slider_axis).
+/// A prismatic [joint](dynamics::joints) prevents any relative movement between two bodies,
+/// except for translation along the [`slider_axis`](Self::slider_axis).
 ///
 /// This can be useful for things like elevators, pistons, sliding doors and moving platforms.
 ///

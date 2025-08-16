@@ -12,11 +12,11 @@ use bevy::{
 
 #[cfg_attr(
     feature = "2d",
-    doc = "A revolute joint or hinge prevents any relative movement between two bodies, except for rotation about a pivot point defined by the joint anchor."
+    doc = "A revolute [joint](dynamics::joints) or hinge prevents any relative movement between two bodies, except for rotation about a pivot point defined by the joint anchor."
 )]
 #[cfg_attr(
     feature = "3d",
-    doc = "A revolute joint or hinge prevents any relative movement between two bodies, except for rotation about the [`hinge_axis`](Self::hinge_axis) at a pivot point defined by the joint anchor."
+    doc = "A revolute [joint](dynamics::joints) or hinge prevents any relative movement between two bodies, except for rotation about the [`hinge_axis`](Self::hinge_axis) at a pivot point defined by the joint anchor."
 )]
 ///
 /// This can be useful for things like wheels, fans, doors, and other rotating mechanisms.

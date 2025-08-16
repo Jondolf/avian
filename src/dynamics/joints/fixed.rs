@@ -10,7 +10,8 @@ use bevy::{
     prelude::*,
 };
 
-/// A fixed joint prevents any relative movement between two bodies, effectively locking them together.
+/// A fixed [joint](dynamics::joints) prevents any relative movement between two bodies,
+/// effectively locking them together.
 ///
 /// This can be useful for cases where attaching multiple colliders to a single body is not enough,
 /// for example when you need to read forces applied by the joint to determine when the connection should break.
