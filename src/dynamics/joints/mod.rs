@@ -3,16 +3,23 @@
 //!
 //! # Degrees of Freedom (DOF)
 //!
-//! In 3D, rigid bodies can normally translate and rotate along the x, y, and z axes.
-//! Therefore, they have 3 translational DOF and 3 rotational DOF, which is a total of 6 DOF.
+#![cfg_attr(
+    feature = "2d",
+    doc = r#"In 2D, rigid bodies can normally translate along the x and y axes and rotate about the z axis.
+Therefore, they have 2 translational DOF and 1 rotational DOF, which is a total of 3 DOF."#
+)]
+#![cfg_attr(
+    feature = "3d",
+    doc = r#"In 3D, rigid bodies can normally translate and rotate along the x, y, and z axes.
+Therefore, they have 3 translational DOF and 3 rotational DOF, which is a total of 6 DOF."#
+)]
 //!
-//! TODO: SVGs for 2D and 3D DOF
+#![cfg_attr(feature="2d", doc = include_str!("./images/2d_dofs.svg"))]
+#![cfg_attr(feature="3d", doc = include_str!("./images/3d_dofs.svg"))]
 //!
 //! Joints limit the degrees of freedom that bodies can have. For example, a [`RevoluteJoint`] or hinge
 //! prevents any relative movement between two bodies, except for rotation about a single axis
-//! at the anchor point.
-//!
-#![doc = include_str!("./images/revolute_joint.svg")]
+//! at an anchor point.
 //!
 //! Below is a table containing all joints that are currently implemented.
 //!
