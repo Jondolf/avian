@@ -8,6 +8,7 @@ fn main() {
             DefaultPlugins,
             ExampleCommonPlugin,
             PhysicsPlugins::default(),
+            PhysicsDebugPlugin::default(),
         ))
         .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))
         .insert_resource(SubstepCount(50))
@@ -44,7 +45,7 @@ fn setup(mut commands: Commands) {
 
     commands.spawn(
         RevoluteJoint::new(anchor, object)
-            .with_local_anchor_2(Vector::Y * 100.0)
+            .with_local_anchor2(Vector::Y * 100.0)
             .with_angle_limits(-1.0, 1.0),
     );
 }

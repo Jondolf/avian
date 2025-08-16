@@ -1,8 +1,6 @@
 use bevy::{diagnostic::DiagnosticPath, prelude::*};
 
-use crate::{
-    ColliderMarker, PhysicsSchedule, PhysicsStepSet, RigidBody, dynamics::solver::joints::*,
-};
+use crate::{ColliderMarker, PhysicsSchedule, PhysicsStepSet, RigidBody, dynamics::joints::*};
 
 use super::{AppDiagnosticsExt, PhysicsDiagnostics, impl_diagnostic_paths};
 

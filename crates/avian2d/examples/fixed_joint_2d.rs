@@ -36,11 +36,12 @@ fn setup(mut commands: Commands) {
     let object = commands
         .spawn((
             square_sprite,
-            Transform::from_xyz(100.0, 0.0, 0.0),
+            Transform::from_xyz(50.0, -100.0, 0.0)
+                .with_rotation(Quaternion::from_rotation_z(PI / 8.0)),
             RigidBody::Dynamic,
             MassPropertiesBundle::from_shape(&Rectangle::from_length(50.0), 1.0),
         ))
         .id();
 
-    commands.spawn(FixedJoint::new(anchor, object).with_local_anchor_1(Vector::X * 100.0));
+    commands.spawn(FixedJoint::new(anchor, object).with_local_anchor1(Vector::X * 100.0));
 }

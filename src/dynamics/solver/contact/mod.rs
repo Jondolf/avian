@@ -123,7 +123,7 @@ impl ContactConstraint {
         let inertia2 = body2.inertia.unwrap_or(&SolverBodyInertia::DUMMY);
 
         // Compute the relative dominance of the bodies.
-        let relative_dominance = body1.dominance() - body2.dominance();
+        let relative_dominance = inertia1.dominance() - inertia2.dominance();
 
         // Compute the inverse mass and angular inertia, taking into account the relative dominance.
         let (inv_mass1, i1, inv_mass2, i2) = match relative_dominance.cmp(&0) {

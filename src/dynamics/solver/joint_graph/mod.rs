@@ -1,7 +1,7 @@
 //! A [`JointGraph`] for tracking how [rigid bodies] are connected by [joints].
 //!
 //! [rigid bodies]: crate::dynamics::RigidBody
-//! [joints]: crate::dynamics::solver::joints
+//! [joints]: crate::dynamics::joints
 
 mod plugin;
 pub use plugin::{JointComponentId, JointGraphPlugin};
@@ -17,7 +17,7 @@ use bevy::prelude::*;
 /// A resource for the joint graph, tracking how [rigid bodies] are connected by [joints].
 ///
 /// [rigid bodies]: crate::dynamics::RigidBody
-/// [joints]: crate::dynamics::solver::joints
+/// [joints]: crate::dynamics::joints
 #[derive(Resource, Clone, Debug, Default)]
 pub struct JointGraph {
     graph: UnGraph<Entity, JointGraphEdge>,
@@ -37,7 +37,7 @@ pub struct JointGraphEdge {
     ///
     /// This is controlled by the [`JointCollisionDisabled`] component.
     ///
-    /// [`JointCollisionDisabled`]: crate::dynamics::solver::joints::JointCollisionDisabled
+    /// [`JointCollisionDisabled`]: crate::dynamics::joints::JointCollisionDisabled
     pub collision_disabled: bool,
 }
 

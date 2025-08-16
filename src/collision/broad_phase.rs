@@ -6,8 +6,7 @@
 use core::marker::PhantomData;
 
 use crate::{
-    data_structures::pair_key::PairKey,
-    prelude::{joint_graph::JointGraph, *},
+    data_structures::pair_key::PairKey, dynamics::solver::joint_graph::JointGraph, prelude::*,
 };
 use bevy::{
     ecs::{

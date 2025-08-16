@@ -17,6 +17,7 @@ default = [
     "f32",
     "parry-f32",
     "debug-plugin",
+    "xpbd_joints",
     "parallel",
     "bevy_scene",
     "bevy_picking",
@@ -46,6 +47,9 @@ default-collider = ["dep:nalgebra"]
 # because Parry uses separate crates for f32 and f64.
 parry-f32 = ["f32", "dep:parry2d", "default-collider"]
 parry-f64 = ["f64", "dep:parry2d-f64", "default-collider"]
+
+# Enables the XPBD constraint solver for joints.
+xpbd_joints = []
 
 bevy_scene = ["bevy/bevy_scene"]
 bevy_picking = ["bevy/bevy_picking"]
