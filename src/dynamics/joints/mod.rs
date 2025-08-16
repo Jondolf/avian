@@ -74,7 +74,7 @@
 //! By default, no work is done to dampen the movement of bodies connected by a joint.
 //! A pendulum will swing indefinitely, unless explicitly stopped or it loses energy due to simulation inaccuracies.
 //!
-//! It can often be desirable to dampen the relative velocities of bodies connected by a joint.
+//! It can often be desirable to dampen the relative velocities of bodies connected by a joint to slow them down over time.
 //! This can be done using the [`JointDamping`] component.
 //!
 //! ```
@@ -100,20 +100,81 @@
 //!
 //! ## Reading Joint Forces
 //!
-//! TODO
-//! TODO: Segway to breaking joints via joint disabling
+//! Joints apply forces and torques to constrain the bodies they are attached to.
+//! These forces can be read by adding the [`JointForces`] component to the joint entity:
+//!
+//! ```
+#![cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#![cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+//! # use bevy::prelude::*;
+//! #
+//! # fn setup(mut commands: Commands) {
+//! #     let body1 = commands.spawn(RigidBody::Dynamic).id();
+//! #     let body2 = commands.spawn(RigidBody::Dynamic).id();
+//! #
+//! // Connect two bodies with a revolute joint.
+//! // Read the forces applied by the joint.
+//! commands.spawn((
+//!     RevoluteJoint::new(body1, body2),
+//!     JointForces::new(),
+//! ));
+//! # }
+//! ```
+//!
+//! and querying for it in a system:
+//!
+//! ```
+#![cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#![cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+//! # use bevy::prelude::*;
+//! #
+//! fn read_joint_forces(query: Query<&JointForces>) {
+//!     for joint_forces in &query {
+//!         println!("Joint force: {}", joint_forces.force());
+//!     }
+//! }
+//! ```
+//!
+//! This can often be useful for determining when to "break" a joint with the [`JointDisabled`] component
+//! when its forces exceed a certain threshold. An example of this can be found in the next section on disabling joints.
 //!
 //! ## Disabling Joints
 //!
-//! TODO
-//! TODO: Also mention joint breaking
+//! It can sometimes be useful to temporarily disable a joint without removing it from the world.
+//! This can be done by adding the [`JointDisabled`] component to the joint entity.
+//!
+//! A common use case is to "break" a joint when its [`JointForces`] exceed a certain threshold.
+//! This could be done with a system like the following:
+//!
+//! ```
+#![cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#![cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+//! # use bevy::prelude::*;
+//! #
+//! const BREAK_THRESHOLD: f32 = 500.0; // Example threshold
+//!
+//! fn break_joints(
+//!     mut commands: Commands,
+//!     query: Query<(Entity, &JointForces), Without<JointDisabled>>,
+//! ) {
+//!     for (entity, joint_forces) in &query {
+//!         if joint_forces.force().length() > BREAK_THRESHOLD {
+//!             // Break the joint by adding the `JointDisabled` component.
+//!             // Alternatively, you could simply remove the joint component or despawn the entity.
+//!            commands.entity(entity).insert(JointDisabled);
+//!         }
+//!     }
+//! }
+//! ```
+//!
+//! Disabled joints can be re-enabled by removing the [`JointDisabled`] component.
 //!
 //! ## Other Configuration
 //!
-//! Different joints may have different configuration options. Many joints allow you to change the axis of allowed
-//! translation or rotation, and they may have distance or angle limits along these axes.
+//! Different joints may have different configuration options. They may allow you to change the axis of allowed
+//! translation or rotation, and can have distance or angle limits for those axes.
 //!
-//! Take a look at the documentation and methods of each joint to see all of the configuration options.
+//! Take a look at the documentation and methods of each joint to see all the different configuration options.
 
 mod distance;
 mod fixed;
@@ -335,8 +396,7 @@ impl AngleLimit {
     }
 }
 
-/// A marker component that indicates that a [joint](self) is disabled
-/// and should not constrain the bodies it is attached to.
+/// A marker component that indicates that a [joint](self) is disabled and should not constrain the bodies it is attached to.
 /// Must be on the same entity as the joint.
 ///
 /// This is useful for temporarily disabling a joint without removing it from the world.
@@ -344,6 +404,34 @@ impl AngleLimit {
 ///
 /// Note that when re-enabling the joint, the bodies may snap back violently
 /// if they have moved significantly from the constrained positions while the joint was disabled.
+///
+/// # Example
+///
+/// A common use case is to "break" a joint when its [`JointForces`] exceed a certain threshold.
+/// This could be done with a system like the following:
+///
+/// ```
+#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+/// # use bevy::prelude::*;
+/// #
+/// const BREAK_THRESHOLD: f32 = 500.0;
+///
+/// fn break_joints(
+///     mut commands: Commands,
+///     query: Query<(Entity, &JointForces), Without<JointDisabled>>,
+/// ) {
+///     for (entity, joint_forces) in &query {
+///         if joint_forces.force().length() > BREAK_THRESHOLD {
+///             // Break the joint by adding the `JointDisabled` component.
+///             // Alternatively, you could simply remove the joint component or despawn the entity.
+///            commands.entity(entity).insert(JointDisabled);
+///         }
+///     }
+/// }
+/// ```
+///
+/// Disabled joints can be re-enabled by removing the [`JointDisabled`] component.
 ///
 /// # Related Components
 ///
@@ -361,21 +449,21 @@ pub struct JointDisabled;
 /// # Example
 ///
 /// ```
-#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
-/// use bevy::prelude::*;
-///
-/// fn setup(mut commands: Commands) {
-///     let entity1 = commands.spawn(RigidBody::Dynamic).id();
-///     let entity2 = commands.spawn(RigidBody::Dynamic).id();
-///     
-///     // Connect the bodies with a fixed joint.
-///     // Disables collision between the two bodies.
-///     commands.spawn((
-///         FixedJoint::new(entity1, entity2),
-///         JointCollisionDisabled,
-///     ));
-/// }
+#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+/// # use bevy::prelude::*;
+/// #
+/// # fn setup(mut commands: Commands) {
+/// # let entity1 = commands.spawn(RigidBody::Dynamic).id();
+/// # let entity2 = commands.spawn(RigidBody::Dynamic).id();
+/// #
+/// // Connect the bodies with a fixed joint.
+/// // Disables collision between the two bodies.
+/// commands.spawn((
+///     FixedJoint::new(entity1, entity2),
+///     JointCollisionDisabled,
+/// ));
+/// # }
 /// ```
 #[derive(Component, Debug, Default, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -413,7 +501,6 @@ impl JointCollisionDisabled {
 ///
 /// # Example
 ///
-///
 /// ```
 #[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
@@ -445,9 +532,48 @@ pub struct JointDamping {
     pub angular: Scalar,
 }
 
-/// A component for reading the force and torque applied by a [joint](self).
+/// A component for reading the force and torque exerted by a [joint](self).
 ///
 /// This is not inserted automatically for joints, and must be added manually.
+///
+/// # Example
+///
+/// The forces exerted by a joint can be read by adding the [`JointForces`] component to the joint entity:
+///
+/// ```
+#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+/// # use bevy::prelude::*;
+/// #
+/// # fn setup(mut commands: Commands) {
+/// #     let body1 = commands.spawn(RigidBody::Dynamic).id();
+/// #     let body2 = commands.spawn(RigidBody::Dynamic).id();
+/// #
+/// // Connect two bodies with a revolute joint.
+/// // Read the forces applied by the joint.
+/// commands.spawn((
+///     RevoluteJoint::new(body1, body2),
+///     JointForces::new(),
+/// ));
+/// # }
+/// ```
+///
+/// and querying for it in a system:
+///
+/// ```
+#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+/// # use bevy::prelude::*;
+/// #
+/// fn read_joint_forces(query: Query<&JointForces>) {
+///     for joint_forces in &query {
+///         println!("Joint force: {}", joint_forces.force());
+///     }
+/// }
+/// ```
+///
+/// This can often be useful for determining when to "break" a joint with the [`JointDisabled`] component
+/// when its forces exceed a certain threshold. An example of this can be found in the [`JointDisabled`] documentation.
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
