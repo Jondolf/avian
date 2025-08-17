@@ -86,7 +86,6 @@ impl SphericalJoint {
 
     /// Sets the [`twist_axis`](Self::twist_axis) of the joint.
     ///
-    /// The axis should be a unit vector perpendicular to the [`swing_axis`](Self::swing_axis).
     /// By default, this is the y-axis.
     #[inline]
     pub const fn with_twist_axis(mut self, twist_axis: Vector) -> Self {
@@ -265,7 +264,7 @@ impl SphericalJoint {
         }
     }
 
-    /// Sets the limits of the allowed relative rotation around the [`swing_axis`](Self::swing_axis).
+    /// Sets the limits of the allowed relative rotation around a swing axis perpendicular to the [`twist_axis`](Self::twist_axis).
     #[inline]
     pub const fn with_swing_limits(mut self, min: Scalar, max: Scalar) -> Self {
         self.swing_limit = Some(AngleLimit::new(min, max));

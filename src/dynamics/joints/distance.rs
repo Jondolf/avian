@@ -60,7 +60,7 @@ impl DistanceJoint {
 
     /// Sets the global anchor point on both bodies.
     ///
-    /// This configures the [`JointTranslation`] of each [`JointFrame`].
+    /// This configures the [`JointAnchor`] of each [`JointFrame`].
     #[inline]
     pub const fn with_anchor(mut self, anchor: Vector) -> Self {
         self.anchor1 = JointAnchor::FromGlobal(anchor);
@@ -70,7 +70,7 @@ impl DistanceJoint {
 
     /// Sets the local anchor point on the first body.
     ///
-    /// This configures the [`JointTranslation`] of the first [`JointFrame`].
+    /// This configures the [`JointAnchor`] of the first [`JointFrame`].
     #[inline]
     pub const fn with_local_anchor1(mut self, anchor: Vector) -> Self {
         self.anchor1 = JointAnchor::Local(anchor);
@@ -79,7 +79,7 @@ impl DistanceJoint {
 
     /// Sets the local anchor point on the second body.
     ///
-    /// This configures the [`JointTranslation`] of the second [`JointFrame`].
+    /// This configures the [`JointAnchor`] of the second [`JointFrame`].
     #[inline]
     pub const fn with_local_anchor2(mut self, anchor: Vector) -> Self {
         self.anchor2 = JointAnchor::Local(anchor);
@@ -88,7 +88,7 @@ impl DistanceJoint {
 
     /// Returns the local anchor point on the first body.
     ///
-    /// If the [`JointTranslation`] is set to [`FromGlobal`](JointTranslation::FromGlobal),
+    /// If the [`JointAnchor`] is set to [`FromGlobal`](JointAnchor::FromGlobal),
     /// and the local anchor has not yet been computed, this will return `None`.
     #[inline]
     pub const fn local_anchor1(&self) -> Option<Vector> {
@@ -100,7 +100,7 @@ impl DistanceJoint {
 
     /// Returns the local anchor point on the second body.
     ///
-    /// If the [`JointTranslation`] is set to [`FromGlobal`](JointTranslation::FromGlobal),
+    /// If the [`JointAnchor`] is set to [`FromGlobal`](JointAnchor::FromGlobal),
     /// and the local anchor has not yet been computed, this will return `None`.
     #[inline]
     pub const fn local_anchor2(&self) -> Option<Vector> {

@@ -6,12 +6,12 @@
 #![cfg_attr(
     feature = "2d",
     doc = r#"In 2D, rigid bodies can normally translate along the x and y axes and rotate about the z axis.
-Therefore, they have 2 translational DOF and 1 rotational DOF, which is a total of 3 DOF."#
+Therefore, they have 2 translational DOF and 1 rotational DOF, a total of 3 DOF."#
 )]
 #![cfg_attr(
     feature = "3d",
     doc = r#"In 3D, rigid bodies can normally translate and rotate along the x, y, and z axes.
-Therefore, they have 3 translational DOF and 3 rotational DOF, which is a total of 6 DOF."#
+Therefore, they have 3 translational DOF and 3 rotational DOF, a total of 6 DOF."#
 )]
 //!
 #![cfg_attr(feature="2d", doc = include_str!("./images/2d_dofs.svg"))]

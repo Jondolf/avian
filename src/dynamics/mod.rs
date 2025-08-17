@@ -10,7 +10,7 @@
 //! - Acceleration caused by external forces and [`Gravity`].
 //! - Collision response, preventing objects from overlapping each other,
 //!   considering properties such as [`Friction`] and [`Restitution`].
-//! - [Joints](solver::joints) connecting rigid bodies to each other.
+//! - [Joints](joints) connecting rigid bodies to each other.
 //! - Everything else related to the physical behavior and properties of rigid bodies.
 //!
 //! Rigid body dynamics does *not* include:

@@ -37,7 +37,7 @@ use bevy::{app::PluginGroupBuilder, prelude::*};
 /// | [`SolverPlugin`]                  | Manages and solves contacts, [joints](dynamics::joints), and other constraints.                                                                            |
 /// | [`CcdPlugin`]                     | Performs sweep-based [Continuous Collision Detection](dynamics::ccd) for bodies with the [`SweptCcd`] component.                                           |
 /// | [`SleepingPlugin`]                | Manages sleeping and waking for bodies, automatically deactivating them to save computational resources.                                                   |
-/// | [`JointGraphPlugin`]              | Manages the [`JointGraph`] for each joint type.                                                                                                            |
+/// | [`JointGraphPlugin`]              | Manages the [`JointGraph`](joint_graph::JointGraph) for each joint type.                                                                                                            |
 /// | [`XpbdSolverPlugin`]              | Solves joints using Extended Position-Based Dynamics (XPBD). Requires the `xpbd_joints` feature.                                                           |
 ///
 /// Refer to the documentation of the plugins for more information about their responsibilities and implementations.

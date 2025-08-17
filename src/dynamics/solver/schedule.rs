@@ -93,7 +93,7 @@ pub struct SubstepSchedule;
 pub enum SolverSet {
     /// Prepares [solver bodies] for the substepping loop.
     ///
-    /// [solver bodies]: super::SolverBody
+    /// [solver bodies]: crate::dynamics::solver::solver_body::SolverBody
     PrepareSolverBodies,
     /// Prepares joint constraints for the substepping loop.
     PrepareJoints,

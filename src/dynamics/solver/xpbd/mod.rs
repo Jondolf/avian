@@ -133,8 +133,7 @@
 //! system that handles some of the background work for you.
 //!
 //! Add the `solve_xpbd_joint::<YourConstraint>` system to the [substepping schedule's](SubstepSchedule)
-//! [`XpbdSolverSet::SolveUserConstraints`](dynamics::solver::xpbd::XpbdSolverSet::SolveUserConstraints) system set.
-//! It should look like this:
+//! [`XpbdSolverSet::SolveUserConstraints`] system set. It should look like this:
 //!
 //! ```ignore
 //! // Prepare custom constraint
@@ -332,8 +331,8 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize> {
     ///    and the [Lagrange multiplier](self#lagrange-multipliers) update.
     /// 2. Apply corrections along the gradients using the Lagrange multiplier update.
     ///
-    /// [`XpbdConstraint`] provides the [`compute_lagrange_update`](XpbdConstraint::compute_lagrange_update)
-    /// method for all constraints. It requires the gradients and inverse masses of the participating entities.
+    /// The [`compute_lagrange_update`] function is provided for all constraints.
+    /// It requires the gradients and inverse masses of the participating entities.
     ///
     /// For constraints between two bodies, you can implement [`PositionConstraint`]. and [`AngularConstraint`]
     /// to get the associated `compute_generalized_inverse_mass`, `apply_positional_correction` and
