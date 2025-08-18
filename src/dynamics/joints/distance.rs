@@ -119,9 +119,35 @@ impl DistanceJoint {
     }
 
     /// Sets the minimum and maximum distance between the anchor points of the bodies.
+    ///
+    /// `min` and `max` should be non-negative, and `min` should be less than or equal to `max`.
     #[inline]
     pub const fn with_limits(mut self, min: Scalar, max: Scalar) -> Self {
         self.limits = DistanceLimit::new(min, max);
+        self
+    }
+
+    /// Sets the minimum distance between the anchor points of the bodies.
+    ///
+    /// If `min` is larger than the current maximum distance, the maximum distance will be set to `min`.
+    #[inline]
+    pub const fn with_min_distance(mut self, min: Scalar) -> Self {
+        self.limits.min = min;
+        if self.limits.max < min {
+            self.limits.max = min;
+        }
+        self
+    }
+
+    /// Sets the maximum distance between the anchor points of the bodies.
+    ///
+    /// If `max` is smaller than the current minimum distance, the minimum distance will be set to `max`.
+    #[inline]
+    pub const fn with_max_distance(mut self, max: Scalar) -> Self {
+        self.limits.max = max;
+        if self.limits.min > max {
+            self.limits.min = max;
+        }
         self
     }
 
