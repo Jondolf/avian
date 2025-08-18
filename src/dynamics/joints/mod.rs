@@ -258,18 +258,18 @@ impl Plugin for JointPlugin {
 
         app.configure_sets(
             PhysicsSchedule,
-            JointSet::PrepareAnchors
+            JointSet::PrepareLocalFrames
                 .after(SolverSet::PrepareSolverBodies)
                 .before(SolverSet::PrepareJoints),
         );
     }
 }
 
-/// System sets for joints.
+/// System sets for [joints](dynamics::joints).
 #[derive(SystemSet, Clone, Debug, Hash, PartialEq, Eq)]
 pub enum JointSet {
-    /// A system set for preparing joint anchors.
-    PrepareAnchors,
+    /// A system set for preparing local [`JointFrame`]s.
+    PrepareLocalFrames,
 }
 
 /// A trait for constraints between entities.

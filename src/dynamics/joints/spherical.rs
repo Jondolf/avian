@@ -330,7 +330,7 @@ pub(super) fn plugin(app: &mut App) {
     app.register_type::<SphericalJoint>();
     app.add_systems(
         PhysicsSchedule,
-        update_local_frames.in_set(JointSet::PrepareAnchors),
+        update_local_frames.in_set(JointSet::PrepareLocalFrames),
     );
 }
 
