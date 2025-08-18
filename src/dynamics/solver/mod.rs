@@ -63,7 +63,6 @@ impl PluginGroup for SolverPlugins {
             .add(SolverSchedulePlugin)
             .add(IntegratorPlugin::default())
             .add(SolverPlugin::new_with_length_unit(self.length_unit))
-            .add(XpbdSolverPlugin)
             .add(CcdPlugin)
             .add(SleepingPlugin)
             .add(JointGraphPlugin::<FixedJoint>::default())
@@ -73,6 +72,9 @@ impl PluginGroup for SolverPlugins {
 
         #[cfg(feature = "3d")]
         let builder = builder.add(JointGraphPlugin::<SphericalJoint>::default());
+
+        #[cfg(feature = "xpbd_joints")]
+        let builder = builder.add(XpbdSolverPlugin);
 
         builder
     }
