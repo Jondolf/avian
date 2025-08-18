@@ -36,8 +36,7 @@ fn setup(mut commands: Commands) {
     let object = commands
         .spawn((
             square_sprite,
-            Transform::from_xyz(50.0, -100.0, 0.0)
-                .with_rotation(Quaternion::from_rotation_z(PI / 8.0)),
+            Transform::from_xyz(100.0, 0.0, 0.0),
             RigidBody::Dynamic,
             MassPropertiesBundle::from_shape(&Rectangle::from_length(50.0), 1.0),
         ))
