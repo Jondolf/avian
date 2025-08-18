@@ -41,13 +41,16 @@ pub struct SphericalJoint {
     /// The reference frame of the second body, defining the joint anchor and basis
     /// relative to the body transform.
     pub frame2: JointFrame,
-    /// The local axis around which the bodies can twist relative to each other.
+    /// The local axis about which the bodies can twist relative to each other.
+    ///
+    /// This is also the axis passing through the [`swing_limit`](Self::swing_limit) cone,
+    /// defining which axes the bodies can swing around.
     ///
     /// By default, this is the y-axis.
     pub twist_axis: Vector,
-    /// The extents of the allowed relative rotation of the bodies around a swing axis perpendicular to the [`twist_axis`](SphericalJoint::twist_axis).
+    /// The extents of the allowed relative rotation of the bodies about a swing axis perpendicular to the [`twist_axis`](SphericalJoint::twist_axis).
     pub swing_limit: Option<AngleLimit>,
-    /// The extents of the allowed relative rotation of the bodies around the [`twist_axis`](SphericalJoint::twist_axis).
+    /// The extents of the allowed relative rotation of the bodies about the [`twist_axis`](SphericalJoint::twist_axis).
     pub twist_limit: Option<AngleLimit>,
     /// The compliance of the point-to-point constraint (inverse of stiffness, m / N).
     pub point_compliance: Scalar,
@@ -84,7 +87,10 @@ impl SphericalJoint {
         }
     }
 
-    /// Sets the [`twist_axis`](Self::twist_axis) of the joint.
+    /// Sets the [`twist_axis`](Self::twist_axis) about which the bodies can twist relative to each other.
+    ///
+    /// This is also the axis passing through the [`swing_limit`](Self::swing_limit) cone,
+    /// defining which axes the bodies can swing around.
     ///
     /// By default, this is the y-axis.
     #[inline]
@@ -264,14 +270,14 @@ impl SphericalJoint {
         }
     }
 
-    /// Sets the limits of the allowed relative rotation around a swing axis perpendicular to the [`twist_axis`](Self::twist_axis).
+    /// Sets the limits of the allowed relative rotation about a swing axis perpendicular to the [`twist_axis`](Self::twist_axis).
     #[inline]
     pub const fn with_swing_limits(mut self, min: Scalar, max: Scalar) -> Self {
         self.swing_limit = Some(AngleLimit::new(min, max));
         self
     }
 
-    /// Sets the limits of the allowed relative rotation around the [`twist_axis`](Self::twist_axis).
+    /// Sets the limits of the allowed relative rotation about the [`twist_axis`](Self::twist_axis).
     #[inline]
     pub const fn with_twist_limits(mut self, min: Scalar, max: Scalar) -> Self {
         self.twist_limit = Some(AngleLimit::new(min, max));

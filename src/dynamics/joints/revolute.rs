@@ -53,7 +53,7 @@ pub struct RevoluteJoint {
     /// The reference frame of the second body, defining the joint anchor and basis
     /// relative to the body transform.
     pub frame2: JointFrame,
-    /// The local axis around which the bodies can rotate relative to each other.
+    /// The local axis about which the bodies can rotate relative to each other.
     ///
     /// By default, this is the z-axis.
     #[cfg(feature = "3d")]
@@ -98,7 +98,7 @@ impl RevoluteJoint {
         }
     }
 
-    /// Sets the [`hinge_axis`](Self::hinge_axis) of the joint.
+    /// Sets the [`hinge_axis`](Self::hinge_axis) about which the bodies can rotate relative to each other.
     ///
     /// The axis should be a unit vector. By default, this is the z-axis.
     #[inline]
@@ -106,6 +106,18 @@ impl RevoluteJoint {
     pub const fn with_hinge_axis(mut self, axis: Vector) -> Self {
         self.hinge_axis = axis;
         self
+    }
+
+    /// Sets the [`hinge_axis`](Self::hinge_axis) about which the bodies can rotate relative to each other.
+    ///
+    /// The axis should be a unit vector. By default, this is the x-axis.
+    ///
+    /// This method is deprecated in favor of [`with_hinge_axis`](Self::with_hinge_axis).
+    #[inline]
+    #[deprecated(since = "0.4.0", note = "Use `with_hinge_axis` instead.")]
+    #[cfg(feature = "3d")]
+    pub const fn with_aligned_axis(self, axis: Vector) -> Self {
+        self.with_hinge_axis(axis)
     }
 
     /// Sets the local [`JointFrame`] of the first body, configuring both the [`JointAnchor`] and [`JointBasis`].

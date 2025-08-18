@@ -75,13 +75,24 @@ impl PrismaticJoint {
         }
     }
 
-    /// Sets the [`slider_axis`](Self::slider_axis) of the joint.
+    /// Sets the [`slider_axis`](Self::slider_axis) along which the bodies can translate relative to each other.
     ///
     /// The axis should be a unit vector. By default, this is the x-axis.
     #[inline]
     pub const fn with_slider_axis(mut self, axis: Vector) -> Self {
         self.slider_axis = axis;
         self
+    }
+
+    /// Sets the [`slider_axis`](Self::slider_axis) along which the bodies can translate relative to each other.
+    ///
+    /// The axis should be a unit vector. By default, this is the x-axis.
+    ///
+    /// This method is deprecated in favor of [`with_slider_axis`](Self::with_slider_axis).
+    #[inline]
+    #[deprecated(since = "0.4.0", note = "Use `with_slider_axis` instead.")]
+    pub const fn with_free_axis(self, axis: Vector) -> Self {
+        self.with_slider_axis(axis)
     }
 
     /// Sets the local [`JointFrame`] of the first body, configuring both the [`JointAnchor`] and [`JointBasis`].
