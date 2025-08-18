@@ -118,7 +118,7 @@ impl DistanceJoint {
         self
     }
 
-    /// Sets the minimum and maximum distances between the attached bodies.
+    /// Sets the minimum and maximum distance between the anchor points of the bodies.
     #[inline]
     pub const fn with_limits(mut self, min: Scalar, max: Scalar) -> Self {
         self.limits = DistanceLimit::new(min, max);

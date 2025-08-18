@@ -289,6 +289,30 @@ pub struct DistanceLimit {
     pub max: Scalar,
 }
 
+impl From<Scalar> for DistanceLimit {
+    /// Converts the given `limit` into a [`DistanceLimit`] where `min == max`.
+    fn from(limit: Scalar) -> DistanceLimit {
+        DistanceLimit {
+            min: limit,
+            max: limit,
+        }
+    }
+}
+
+impl From<[Scalar; 2]> for DistanceLimit {
+    /// Converts the given `[min, max]` array into a [`DistanceLimit`].
+    fn from([min, max]: [Scalar; 2]) -> DistanceLimit {
+        DistanceLimit { min, max }
+    }
+}
+
+impl From<(Scalar, Scalar)> for DistanceLimit {
+    /// Converts the given `(min, max)` pair into a [`DistanceLimit`].
+    fn from((min, max): (Scalar, Scalar)) -> DistanceLimit {
+        DistanceLimit { min, max }
+    }
+}
+
 impl DistanceLimit {
     /// A `DistanceLimit` with `min` and `max` set to zero.
     pub const ZERO: Self = Self { min: 0.0, max: 0.0 };
@@ -349,6 +373,30 @@ pub struct AngleLimit {
     pub min: Scalar,
     /// The maximum angle.
     pub max: Scalar,
+}
+
+impl From<Scalar> for AngleLimit {
+    /// Converts the given `limit` into a [`AngleLimit`] where `min == max`.
+    fn from(limit: Scalar) -> AngleLimit {
+        AngleLimit {
+            min: limit,
+            max: limit,
+        }
+    }
+}
+
+impl From<[Scalar; 2]> for AngleLimit {
+    /// Converts the given `[min, max]` array into a [`AngleLimit`].
+    fn from([min, max]: [Scalar; 2]) -> AngleLimit {
+        AngleLimit { min, max }
+    }
+}
+
+impl From<(Scalar, Scalar)> for AngleLimit {
+    /// Converts the given `(min, max)` pair into a [`AngleLimit`].
+    fn from((min, max): (Scalar, Scalar)) -> AngleLimit {
+        AngleLimit { min, max }
+    }
 }
 
 impl AngleLimit {
