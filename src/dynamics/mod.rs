@@ -19,7 +19,7 @@
 //! - Elasticity (soft bodies)
 //! - Plasticity (permanent deformation)
 //!
-//! ## Plugins
+//! # Plugins
 //!
 //! | Plugin               | Description                                                                                                                           |
 //! | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
@@ -28,7 +28,7 @@
 //! | [`CcdPlugin`]        | Performs sweep-based [Continuous Collision Detection](dynamics::ccd) for bodies with the [`SweptCcd`] component to prevent tunneling. |
 //! | [`SleepingPlugin`]   | Manages sleeping and waking for bodies, automatically deactivating them to save computational resources.                              |
 //!
-//! ## Accuracy
+//! # Accuracy
 //!
 //! The engine uses iterative algorithms to approximate the simulation.
 //! Thus, results may not be perfectly accurate:
@@ -69,12 +69,39 @@ pub mod solver;
 
 /// Re-exports common types related to the rigid body dynamics functionality.
 pub mod prelude {
+    #[cfg(feature = "3d")]
+    pub use super::rigid_body::forces::{ConstantLocalAngularAcceleration, ConstantLocalTorque};
+    pub(crate) use super::rigid_body::mass_properties::{ComputeMassProperties, MassProperties};
     pub use super::{
         ccd::{CcdPlugin, SpeculativeMargin, SweepMode, SweptCcd},
         integrator::{Gravity, IntegratorPlugin},
-        rigid_body::*,
-        sleeping::{DeactivationTime, SleepingPlugin, SleepingThreshold},
-        solver::{joints::*, PhysicsLengthUnit, SolverPlugin, SolverSet},
+        rigid_body::{
+            forces::{
+                ConstantAngularAcceleration, ConstantForce, ConstantLinearAcceleration,
+                ConstantLocalForce, ConstantLocalLinearAcceleration, ConstantTorque, ForcePlugin,
+                ForceSet, Forces, RigidBodyForces,
+            },
+            mass_properties::{
+                MassPropertiesExt, MassPropertyHelper, MassPropertyPlugin,
+                bevy_heavy::{
+                    AngularInertiaTensor, AngularInertiaTensorError, ComputeMassProperties2d,
+                    ComputeMassProperties3d, MassProperties2d, MassProperties3d,
+                },
+                components::{
+                    AngularInertia, CenterOfMass, ColliderDensity, ColliderMassProperties,
+                    ComputedAngularInertia, ComputedCenterOfMass, ComputedMass, Mass,
+                    MassPropertiesBundle, NoAutoAngularInertia, NoAutoCenterOfMass, NoAutoMass,
+                },
+            },
+            *,
+        },
+        sleeping::{DeactivationTime, SleepingPlugin, SleepingThreshold, WakeUpBody},
+        solver::{
+            PhysicsLengthUnit, SolverPlugin,
+            joints::*,
+            schedule::{SolverSchedulePlugin, SolverSet, SubstepCount, SubstepSchedule},
+            solver_body::SolverBodyPlugin,
+        },
     };
 }
 

@@ -1,5 +1,5 @@
 use avian2d::{math::*, prelude::*};
-use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
+use bevy::prelude::*;
 use examples_common_2d::ExampleCommonPlugin;
 
 fn main() {
@@ -46,54 +46,50 @@ fn setup(
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     commands.spawn((
-        MaterialMesh2dBundle {
-            mesh: meshes.add(Capsule2d::new(12.5, 20.0)).into(),
-            material: materials.add(Color::srgb(0.2, 0.7, 0.9)),
-            transform: Transform::from_xyz(0.0, -100.0, 1.0),
-            ..default()
-        },
+        Name::new("Character"),
+        Mesh2d(meshes.add(Capsule2d::new(12.5, 20.0))),
+        MeshMaterial2d(materials.add(Color::srgb(0.2, 0.7, 0.9))),
+        Transform::from_xyz(0.0, -100.0, 1.0),
         Character,
         RigidBody::Dynamic,
         Collider::capsule(12.5, 20.0),
-        Name::new("Character"),
     ));
 
     commands.spawn((
-        SpriteBundle {
-            transform: Transform::from_xyz(0.0, 150.0, 0.0),
-            sprite: Sprite {
-                color: Color::WHITE,
-                custom_size: Some(Vec2::new(100.0, 100.0)),
-                ..default()
-            },
+        Name::new("Pressure Plate"),
+        Sprite {
+            color: Color::WHITE,
+            custom_size: Some(Vec2::new(100.0, 100.0)),
             ..default()
         },
+        Transform::from_xyz(0.0, 150.0, 0.0),
         PressurePlate,
         Sensor,
         RigidBody::Static,
         Collider::rectangle(100.0, 100.0),
-        Name::new("Pressure Plate"),
+        // Enable collision events for this entity.
+        CollisionEventsEnabled,
+        // Read entities colliding with this entity.
+        CollidingEntities::default(),
     ));
 
     commands.spawn((
-        TextBundle::from_section(
-            "Velocity: ",
-            TextStyle {
-                font_size: 16.0,
-                ..default()
-            },
-        )
-        .with_style(Style {
+        Name::new("Character Velocity Text"),
+        Text::new("Velocity: "),
+        TextFont {
+            font_size: 16.0,
+            ..default()
+        },
+        Node {
             position_type: PositionType::Absolute,
             bottom: Val::Px(5.0),
             left: Val::Px(5.0),
             ..default()
-        }),
+        },
         CharacterVelocityText,
-        Name::new("Character Velocity Text"),
     ));
 
-    commands.spawn(Camera2dBundle::default());
+    commands.spawn(Camera2d);
 }
 
 #[derive(Event, Debug, Reflect)]
@@ -114,7 +110,7 @@ fn keyboard_input1(
     }
     let space = keyboard_input.pressed(KeyCode::Space);
     if space {
-        movement_event_writer.send(MovementAction::Stop);
+        movement_event_writer.write(MovementAction::Stop);
         return;
     }
 
@@ -126,7 +122,7 @@ fn keyboard_input1(
     let vertical = up as i8 - down as i8;
     let direction = Vector::new(horizontal as Scalar, vertical as Scalar);
     if direction != Vector::ZERO {
-        movement_event_writer.send(MovementAction::Velocity(direction));
+        movement_event_writer.write(MovementAction::Velocity(direction));
     }
 }
 // use position offset
@@ -146,7 +142,7 @@ fn keyboard_input2(
     let vertical = up as i8 - down as i8;
     let direction = Vector::new(horizontal as Scalar, vertical as Scalar);
     if direction != Vector::ZERO {
-        movement_event_writer.send(MovementAction::Offset(direction));
+        movement_event_writer.write(MovementAction::Offset(direction));
     }
 }
 
@@ -158,7 +154,7 @@ fn movement(
     mut movement_event_reader: EventReader<MovementAction>,
     mut controllers: Query<(&mut LinearVelocity, &mut Position), With<Character>>,
 ) {
-    let delta_time = time.delta_seconds_f64().adjust_precision();
+    let delta_time = time.delta_secs_f64().adjust_precision();
     for event in movement_event_reader.read() {
         for (mut linear_velocity, mut position) in &mut controllers {
             match event {
@@ -225,24 +221,24 @@ fn update_velocity_text(
     character_query: Query<(&LinearVelocity, Has<Sleeping>), With<Character>>,
     pressure_plate_query: Query<Has<Sleeping>, With<PressurePlate>>,
     mut text_query: Query<&mut Text, With<CharacterVelocityText>>,
-) {
-    if let (Ok((velocity, character_sleeping)), Ok(pressure_plate_sleeping)) = (
-        character_query.get_single(),
-        pressure_plate_query.get_single(),
-    ) {
-        text_query.single_mut().sections[0].value = format!(
+) -> Result {
+    if let (Ok((velocity, character_sleeping)), Ok(pressure_plate_sleeping)) =
+        (character_query.single(), pressure_plate_query.single())
+    {
+        text_query.single_mut()?.0 = format!(
             "Velocity: {:.4}, {:.4}\nCharacter sleeping:{}\nPressure plate sleeping: {}",
             velocity.x, velocity.y, character_sleeping, pressure_plate_sleeping
         );
     }
+    Ok(())
 }
 
 fn log_events(mut started: EventReader<CollisionStarted>, mut ended: EventReader<CollisionEnded>) {
     // print out the started and ended events
     for event in started.read() {
-        println!("CollisionStarted: {:?}", event);
+        println!("CollisionStarted: {event:?}");
     }
     for event in ended.read() {
-        println!("CollisionEnded: {:?}", event);
+        println!("CollisionEnded: {event:?}");
     }
 }

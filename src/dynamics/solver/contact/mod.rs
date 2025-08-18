@@ -6,16 +6,29 @@ mod tangent_part;
 pub use normal_part::ContactNormalPart;
 pub use tangent_part::ContactTangentPart;
 
-use crate::{dynamics::solver::softness_parameters::SoftnessCoefficients, prelude::*};
+use core::cmp::Ordering;
+
+use crate::{
+    collision::contact_types::ContactId,
+    dynamics::solver::{BodyQueryItem, ContactSoftnessCoefficients},
+    prelude::*,
+};
+#[cfg(feature = "serialize")]
+use bevy::reflect::{ReflectDeserialize, ReflectSerialize};
 use bevy::{
     ecs::entity::{Entity, EntityMapper, MapEntities},
     reflect::Reflect,
     utils::default,
 };
 
+use super::solver_body::{SolverBody, SolverBodyInertia};
+
 // TODO: One-body constraint version
 /// Data and logic for solving a single contact point for a [`ContactConstraint`].
 #[derive(Clone, Debug, PartialEq, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, PartialEq)]
 pub struct ContactConstraintPoint {
     /// The normal part of the contact constraint.
     pub normal_part: ContactNormalPart,
@@ -25,26 +38,13 @@ pub struct ContactConstraintPoint {
     /// `None` if the coefficient of friction is zero.
     pub tangent_part: Option<ContactTangentPart>,
 
-    // TODO: This could probably just be a boolean?
-    /// The largest incremental contact impulse magnitude along the contact normal during this frame.
-    ///
-    /// This is used for determining whether restitution should be applied.
-    pub max_normal_impulse: Scalar,
-
-    // TODO: If a rotation delta was used for bodies, these local anchors could be removed.
-    /// The local contact point relative to the center of mass of the first body.
-    pub local_anchor1: Vector,
-
-    /// The local contact point relative to the center of mass of the second body.
-    pub local_anchor2: Vector,
-
     /// The world-space contact point relative to the center of mass of the first body.
     pub anchor1: Vector,
 
     /// The world-space contact point relative to the center of mass of the second body.
     pub anchor2: Vector,
 
-    /// The relative velocity of the bodies along the normal at the contact point.
+    /// The pre-solve relative velocity of the bodies along the normal at the contact point.
     pub normal_speed: Scalar,
 
     /// The pre-solve separation distance between the bodies.
@@ -58,167 +58,182 @@ pub struct ContactConstraintPoint {
 /// Each constraint corresponds to a [`ContactManifold`] indicated by the `manifold_index`.
 /// The contact points are stored in `points`, and they all share the same `normal`.
 #[derive(Clone, Debug, PartialEq, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, PartialEq)]
 pub struct ContactConstraint {
-    /// The first entity in the contact.
-    pub entity1: Entity,
-    /// The second entity in the contact.
-    pub entity2: Entity,
-    /// The entity of the first collider in the contact.
-    pub collider_entity1: Entity,
-    /// The entity of the first collider in the contact.
-    pub collider_entity2: Entity,
-    /// The combined [`Friction`] of the bodies.
-    pub friction: Friction,
-    /// The combined [`Restitution`] of the bodies.
-    pub restitution: Restitution,
+    /// The first rigid body entity in the contact.
+    pub body1: Entity,
+    /// The second rigid body entity in the contact.
+    pub body2: Entity,
+    /// The relative dominance of the bodies.
+    ///
+    /// If the relative dominance is positive, the first body is dominant
+    /// and is considered to have infinite mass.
+    pub relative_dominance: i16,
+    /// The combined coefficient of dynamic [friction](Friction) of the bodies.
+    pub friction: Scalar,
+    /// The combined coefficient of [restitution](Restitution) of the bodies.
+    pub restitution: Scalar,
+    /// The desired relative linear speed of the bodies along the surface,
+    /// expressed in world space as `tangent_speed2 - tangent_speed1`.
+    ///
+    /// Defaults to zero. If set to a non-zero value, this can be used to simulate effects
+    /// such as conveyor belts.
+    #[cfg(feature = "2d")]
+    pub tangent_speed: Scalar,
+    /// The desired relative linear velocity of the bodies along the surface,
+    /// expressed in world space as `tangent_velocity2 - tangent_velocity1`.
+    ///
+    /// Defaults to zero. If set to a non-zero value, this can be used to simulate effects
+    /// such as conveyor belts.
+    #[cfg(feature = "3d")]
+    pub tangent_velocity: Vector,
     /// The world-space contact normal shared by all points in the contact manifold.
     pub normal: Vector,
+    /// The first world-space tangent direction shared by all points in the contact manifold.
+    #[cfg(feature = "3d")]
+    pub tangent1: Vector,
     /// The contact points in the manifold. Each point shares the same `normal`.
+    // TODO: Use a `SmallVec`
     pub points: Vec<ContactConstraintPoint>,
-    /// The index of the [`ContactManifold`] in the [`Contacts`] stored for the two bodies.
+    /// The stable identifier of the [`ContactEdge`] in the [`ContactGraph`].
+    ///
+    /// [`ContactEdge`]: crate::collision::contact_types::ContactEdge
+    pub contact_id: ContactId,
+    /// The index of the contact manifold in the [`ContactPair`].
     pub manifold_index: usize,
 }
 
 impl ContactConstraint {
-    /// Generates a new [`ContactConstraint`] for the given bodies based on a [`ContactManifold`].
-    #[allow(clippy::too_many_arguments)]
-    pub fn generate(
-        manifold_id: usize,
+    /// Generates a new [`ContactConstraint`] from the given bodies and contact manifold.
+    pub(super) fn generate(
+        body1_entity: Entity,
+        body2_entity: Entity,
+        body1: BodyQueryItem,
+        body2: BodyQueryItem,
+        contact_id: ContactId,
         manifold: &ContactManifold,
-        body1: &RigidBodyQueryReadOnlyItem,
-        body2: &RigidBodyQueryReadOnlyItem,
-        collider_entity1: Entity,
-        collider_entity2: Entity,
-        collider_transform1: Option<ColliderTransform>,
-        collider_transform2: Option<ColliderTransform>,
-        collision_margin: impl Into<CollisionMargin>,
-        speculative_margin: impl Into<SpeculativeMargin>,
-        friction: Friction,
-        restitution: Restitution,
-        softness: SoftnessCoefficients,
-        warm_start: bool,
-        delta_secs: Scalar,
+        manifold_index: usize,
+        warm_start_enabled: bool,
+        softness: &ContactSoftnessCoefficients,
     ) -> Self {
-        let collision_margin: Scalar = collision_margin.into().0;
-        let speculative_margin: Scalar = speculative_margin.into().0;
+        // Get the solver body inertia if it exists, or use a dummy inertia for static bodies.
+        let inertia1 = body1.inertia.unwrap_or(&SolverBodyInertia::DUMMY);
+        let inertia2 = body2.inertia.unwrap_or(&SolverBodyInertia::DUMMY);
 
-        // Local-space outward contact normal on the first body.
-        // The normal is transformed from collider-space to body-space.
-        let local_normal1 = collider_transform1.map_or(manifold.normal1, |transform| {
-            transform.rotation * manifold.normal1
-        });
+        // Compute the relative dominance of the bodies.
+        let relative_dominance = body1.dominance() - body2.dominance();
 
-        // The world-space normal used for the contact solve.
-        let normal = *body1.rotation * local_normal1;
-
-        // TODO: Cache these?
-        // TODO: How should we properly take the locked axes into account for the mass here?
-        let inverse_mass_sum = body1.inv_mass() + body2.inv_mass();
-        let i1 = body1.effective_world_inv_inertia();
-        let i2 = body2.effective_world_inv_inertia();
-
-        let mut constraint = Self {
-            entity1: body1.entity,
-            entity2: body2.entity,
-            collider_entity1,
-            collider_entity2,
-            friction,
-            restitution,
-            normal,
-            points: Vec::with_capacity(manifold.contacts.len()),
-            manifold_index: manifold_id,
+        // Compute the inverse mass and angular inertia, taking into account the relative dominance.
+        let (inv_mass1, i1, inv_mass2, i2) = match relative_dominance.cmp(&0) {
+            Ordering::Equal => (
+                inertia1.effective_inv_mass(),
+                inertia1.effective_inv_angular_inertia(),
+                inertia2.effective_inv_mass(),
+                inertia2.effective_inv_angular_inertia(),
+            ),
+            Ordering::Greater => (
+                Vector::ZERO,
+                SymmetricTensor::ZERO,
+                inertia2.effective_inv_mass(),
+                inertia2.effective_inv_angular_inertia(),
+            ),
+            Ordering::Less => (
+                inertia1.effective_inv_mass(),
+                inertia1.effective_inv_angular_inertia(),
+                Vector::ZERO,
+                SymmetricTensor::ZERO,
+            ),
         };
 
-        let tangents =
-            constraint.tangent_directions(body1.linear_velocity.0, body2.linear_velocity.0);
+        let softness = if relative_dominance != 0 {
+            softness.non_dynamic
+        } else {
+            softness.dynamic
+        };
 
-        for mut contact in manifold.contacts.iter().copied() {
-            // Transform contact points from collider-space to body-space.
-            if let Some(transform) = collider_transform1 {
-                contact.point1 = transform.rotation * contact.point1 + transform.translation;
-            }
-            if let Some(transform) = collider_transform2 {
-                contact.point2 = transform.rotation * contact.point2 + transform.translation;
-            }
+        let effective_inverse_mass_sum = inv_mass1 + inv_mass2;
 
-            contact.penetration += collision_margin;
+        let tangents = compute_tangent_directions(
+            manifold.normal,
+            body1.linear_velocity.0,
+            body2.linear_velocity.0,
+        );
 
-            let effective_distance = -contact.penetration;
+        let mut points = Vec::with_capacity(manifold.points.len());
 
-            let local_anchor1 = contact.point1 - body1.center_of_mass.0;
-            let local_anchor2 = contact.point2 - body2.center_of_mass.0;
-
-            // Store fixed world-space anchors.
+        for point in manifold.points.iter() {
+            // Use fixed world-space anchors.
             // This improves rolling behavior for shapes like balls and capsules.
-            let r1 = *body1.rotation * local_anchor1;
-            let r2 = *body2.rotation * local_anchor2;
-
-            // Relative velocity at the contact point.
-            let relative_velocity = body2.velocity_at_point(r2) - body1.velocity_at_point(r1);
-
-            // Keep the contact if (1) the separation distance is below the required threshold,
-            // or if (2) the bodies are expected to come into contact within the next frame.
-            let keep_contact = effective_distance < speculative_margin || {
-                let delta_distance = relative_velocity.dot(normal) * delta_secs;
-                effective_distance + delta_distance < speculative_margin
-            };
-
-            if !keep_contact {
-                continue;
-            }
+            let anchor1 = point.anchor1;
+            let anchor2 = point.anchor2;
 
             let point = ContactConstraintPoint {
                 // TODO: Apply warm starting scale here instead of in `warm_start`?
                 normal_part: ContactNormalPart::generate(
-                    inverse_mass_sum,
-                    i1,
-                    i2,
-                    r1,
-                    r2,
-                    normal,
-                    warm_start.then_some(contact.normal_impulse),
+                    effective_inverse_mass_sum,
+                    &i1,
+                    &i2,
+                    anchor1,
+                    anchor2,
+                    manifold.normal,
+                    warm_start_enabled.then_some(point.warm_start_normal_impulse),
                     softness,
                 ),
                 // There should only be a friction part if the coefficient of friction is non-negative.
-                tangent_part: (friction.dynamic_coefficient > 0.0).then_some(
-                    ContactTangentPart::generate(
-                        inverse_mass_sum,
-                        i1,
-                        i2,
-                        r1,
-                        r2,
-                        tangents,
-                        warm_start.then_some(contact.tangent_impulse),
-                    ),
-                ),
-                max_normal_impulse: 0.0,
-                local_anchor1,
-                local_anchor2,
-                anchor1: r1,
-                anchor2: r2,
-                normal_speed: normal.dot(relative_velocity),
-                initial_separation: -contact.penetration - (r2 - r1).dot(normal),
+                tangent_part: (manifold.friction > 0.0).then_some(ContactTangentPart::generate(
+                    effective_inverse_mass_sum,
+                    &i1,
+                    &i2,
+                    anchor1,
+                    anchor2,
+                    tangents,
+                    warm_start_enabled.then_some(point.warm_start_tangent_impulse),
+                )),
+                anchor1,
+                anchor2,
+                normal_speed: point.normal_speed,
+                initial_separation: -point.penetration - (anchor2 - anchor1).dot(manifold.normal),
             };
 
-            constraint.points.push(point);
+            points.push(point);
         }
 
-        constraint
+        ContactConstraint {
+            body1: body1_entity,
+            body2: body2_entity,
+            relative_dominance,
+            friction: manifold.friction,
+            restitution: manifold.restitution,
+            #[cfg(feature = "2d")]
+            tangent_speed: manifold.tangent_speed,
+            #[cfg(feature = "3d")]
+            tangent_velocity: manifold.tangent_velocity,
+            normal: manifold.normal,
+            #[cfg(feature = "3d")]
+            tangent1: tangents[0],
+            points,
+            contact_id,
+            manifold_index,
+        }
     }
 
     /// Warm starts the contact constraint by applying the impulses from the previous frame or substep.
     pub fn warm_start(
         &self,
-        body1: &mut RigidBodyQueryItem,
-        body2: &mut RigidBodyQueryItem,
-        normal: Vector,
-        tangent_directions: [Vector; DIM - 1],
+        body1: &mut SolverBody,
+        body2: &mut SolverBody,
+        inertia1: &SolverBodyInertia,
+        inertia2: &SolverBodyInertia,
         warm_start_coefficient: Scalar,
     ) {
-        let inv_mass1 = body1.effective_inv_mass();
-        let inv_mass2 = body2.effective_inv_mass();
-        let inv_inertia1 = body1.effective_world_inv_inertia();
-        let inv_inertia2 = body2.effective_world_inv_inertia();
+        let inv_mass1 = inertia1.effective_inv_mass();
+        let inv_mass2 = inertia2.effective_inv_mass();
+        let inv_angular_inertia1 = inertia1.effective_inv_angular_inertia();
+        let inv_angular_inertia2 = inertia2.effective_inv_angular_inertia();
+
+        let tangent_directions = self.tangent_directions();
 
         for point in self.points.iter() {
             // Fixed anchors
@@ -232,46 +247,46 @@ impl ContactConstraint {
 
             #[cfg(feature = "2d")]
             let p = warm_start_coefficient
-                * (point.normal_part.impulse * normal + tangent_impulse * tangent_directions[0]);
+                * (point.normal_part.impulse * self.normal
+                    + tangent_impulse * tangent_directions[0]);
             #[cfg(feature = "3d")]
             let p = warm_start_coefficient
-                * (point.normal_part.impulse * normal
+                * (point.normal_part.impulse * self.normal
                     + tangent_impulse.x * tangent_directions[0]
                     + tangent_impulse.y * tangent_directions[1]);
 
-            if body1.rb.is_dynamic() && body1.dominance() <= body2.dominance() {
-                body1.linear_velocity.0 -= p * inv_mass1;
-                body1.angular_velocity.0 -= inv_inertia1 * cross(r1, p);
-            }
-            if body2.rb.is_dynamic() && body2.dominance() <= body1.dominance() {
-                body2.linear_velocity.0 += p * inv_mass2;
-                body2.angular_velocity.0 += inv_inertia2 * cross(r2, p);
-            }
+            body1.linear_velocity -= p * inv_mass1;
+            body1.angular_velocity -= inv_angular_inertia1 * cross(r1, p);
+
+            body2.linear_velocity += p * inv_mass2;
+            body2.angular_velocity += inv_angular_inertia2 * cross(r2, p);
         }
     }
 
     /// Solves the [`ContactConstraint`], applying an impulse to the given bodies.
     pub fn solve(
         &mut self,
-        body1: &mut RigidBodyQueryItem,
-        body2: &mut RigidBodyQueryItem,
+        body1: &mut SolverBody,
+        body2: &mut SolverBody,
+        inertia1: &SolverBodyInertia,
+        inertia2: &SolverBodyInertia,
         delta_secs: Scalar,
         use_bias: bool,
         max_overlap_solve_speed: Scalar,
     ) {
-        let inv_mass1 = body1.effective_inv_mass();
-        let inv_mass2 = body2.effective_inv_mass();
-        let inv_inertia1 = body1.effective_world_inv_inertia();
-        let inv_inertia2 = body2.effective_world_inv_inertia();
+        let inv_mass1 = inertia1.effective_inv_mass();
+        let inv_mass2 = inertia2.effective_inv_mass();
+        let inv_angular_inertia1 = inertia1.effective_inv_angular_inertia();
+        let inv_angular_inertia2 = inertia2.effective_inv_angular_inertia();
 
-        let delta_translation = body2.accumulated_translation.0 - body1.accumulated_translation.0;
+        let delta_translation = body2.delta_position - body1.delta_position;
 
         // Normal impulses
         for point in self.points.iter_mut() {
-            let r1 = *body1.rotation * point.local_anchor1;
-            let r2 = *body2.rotation * point.local_anchor2;
+            let r1 = body1.delta_rotation * point.anchor1;
+            let r2 = body2.delta_rotation * point.anchor2;
 
-            // TODO: Consider rotation delta for anchors
+            // Compute current saparation.
             let delta_separation = delta_translation + (r2 - r1);
             let separation = delta_separation.dot(self.normal) + point.initial_separation;
 
@@ -279,7 +294,7 @@ impl ContactConstraint {
             let r1 = point.anchor1;
             let r2 = point.anchor2;
 
-            // Relative velocity at contact point
+            // Relative velocity at contact
             let relative_velocity = body2.velocity_at_point(r2) - body1.velocity_at_point(r1);
 
             // Compute the incremental impulse. The clamping and impulse accumulation is handled by the method.
@@ -292,29 +307,17 @@ impl ContactConstraint {
                 delta_secs,
             );
 
-            // Store the maximum impulse for restitution.
-            point.max_normal_impulse = impulse_magnitude.max(point.max_normal_impulse);
-
-            if impulse_magnitude == 0.0 {
-                continue;
-            }
-
             let impulse = impulse_magnitude * self.normal;
 
             // Apply the impulse.
-            if body1.rb.is_dynamic() && body1.dominance() <= body2.dominance() {
-                body1.linear_velocity.0 -= impulse * inv_mass1;
-                body1.angular_velocity.0 -= inv_inertia1 * cross(r1, impulse);
-            }
-            if body2.rb.is_dynamic() && body2.dominance() <= body1.dominance() {
-                body2.linear_velocity.0 += impulse * inv_mass2;
-                body2.angular_velocity.0 += inv_inertia2 * cross(r2, impulse);
-            }
+            body1.linear_velocity -= impulse * inv_mass1;
+            body1.angular_velocity -= inv_angular_inertia1 * cross(r1, impulse);
+
+            body2.linear_velocity += impulse * inv_mass2;
+            body2.angular_velocity += inv_angular_inertia2 * cross(r2, impulse);
         }
 
-        let friction = self.friction;
-        let tangent_directions =
-            self.tangent_directions(body1.linear_velocity.0, body2.linear_velocity.0);
+        let tangent_directions = self.tangent_directions();
 
         // Friction
         for point in self.points.iter_mut() {
@@ -333,19 +336,20 @@ impl ContactConstraint {
             let impulse = friction_part.solve_impulse(
                 tangent_directions,
                 relative_velocity,
-                friction,
+                #[cfg(feature = "2d")]
+                self.tangent_speed,
+                #[cfg(feature = "3d")]
+                self.tangent_velocity,
+                self.friction,
                 point.normal_part.impulse,
             );
 
             // Apply the impulse.
-            if body1.rb.is_dynamic() && body1.dominance() <= body2.dominance() {
-                body1.linear_velocity.0 -= impulse * inv_mass1;
-                body1.angular_velocity.0 -= inv_inertia1 * cross(r1, impulse);
-            }
-            if body2.rb.is_dynamic() && body2.dominance() <= body1.dominance() {
-                body2.linear_velocity.0 += impulse * inv_mass2;
-                body2.angular_velocity.0 += inv_inertia2 * cross(r2, impulse);
-            }
+            body1.linear_velocity -= impulse * inv_mass1;
+            body1.angular_velocity -= inv_angular_inertia1 * cross(r1, impulse);
+
+            body2.linear_velocity += impulse * inv_mass2;
+            body2.angular_velocity += inv_angular_inertia2 * cross(r2, impulse);
         }
     }
 
@@ -353,14 +357,21 @@ impl ContactConstraint {
     /// along the contact normal exceeds the given `threshold`.
     pub fn apply_restitution(
         &mut self,
-        body1: &mut RigidBodyQueryItem,
-        body2: &mut RigidBodyQueryItem,
+        body1: &mut SolverBody,
+        body2: &mut SolverBody,
+        inertia1: &SolverBodyInertia,
+        inertia2: &SolverBodyInertia,
         threshold: Scalar,
     ) {
+        let inv_mass1 = inertia1.effective_inv_mass();
+        let inv_mass2 = inertia2.effective_inv_mass();
+        let inv_angular_inertia1 = inertia1.effective_inv_angular_inertia();
+        let inv_angular_inertia2 = inertia2.effective_inv_angular_inertia();
+
         for point in self.points.iter_mut() {
             // Skip restitution for speeds below the threshold.
             // We also skip contacts that don't apply an impulse to account for speculative contacts.
-            if point.normal_speed > -threshold || point.max_normal_impulse == 0.0 {
+            if point.normal_speed > -threshold || point.normal_part.total_impulse == 0.0 {
                 continue;
             }
 
@@ -368,65 +379,78 @@ impl ContactConstraint {
             let r1 = point.anchor1;
             let r2 = point.anchor2;
 
-            let inv_mass1 = body1.effective_inv_mass();
-            let inv_mass2 = body2.effective_inv_mass();
-            let inv_inertia1 = body1.effective_world_inv_inertia();
-            let inv_inertia2 = body2.effective_world_inv_inertia();
-
             // Relative velocity at contact point
             let relative_velocity = body2.velocity_at_point(r2) - body1.velocity_at_point(r1);
             let normal_speed = relative_velocity.dot(self.normal);
 
             // Compute the incremental normal impulse to account for restitution.
             let mut impulse = -point.normal_part.effective_mass
-                * (normal_speed + self.restitution.coefficient * point.normal_speed);
+                * (normal_speed + self.restitution * point.normal_speed);
 
             // Clamp the accumulated impulse.
             let new_impulse = (point.normal_part.impulse + impulse).max(0.0);
             impulse = new_impulse - point.normal_part.impulse;
             point.normal_part.impulse = new_impulse;
-            point.max_normal_impulse = impulse.max(point.max_normal_impulse);
+
+            // Add the incremental impulse instead of the full impulse because this is not a substep.
+            point.normal_part.total_impulse += impulse;
 
             // Apply the impulse.
             let impulse = impulse * self.normal;
 
-            if body1.rb.is_dynamic() && body1.dominance() <= body2.dominance() {
-                body1.linear_velocity.0 -= impulse * inv_mass1;
-                body1.angular_velocity.0 -= inv_inertia1 * cross(r1, impulse);
-            }
-            if body2.rb.is_dynamic() && body2.dominance() <= body1.dominance() {
-                body2.linear_velocity.0 += impulse * inv_mass2;
-                body2.angular_velocity.0 += inv_inertia2 * cross(r2, impulse);
-            }
+            body1.linear_velocity -= impulse * inv_mass1;
+            body1.angular_velocity -= inv_angular_inertia1 * cross(r1, impulse);
+
+            body2.linear_velocity += impulse * inv_mass2;
+            body2.angular_velocity += inv_angular_inertia2 * cross(r2, impulse);
         }
     }
 
-    /// Computes `DIM - 1` tangent directions.
-    #[allow(unused_variables)]
-    pub fn tangent_directions(&self, velocity1: Vector, velocity2: Vector) -> [Vector; DIM - 1] {
+    /// Returns the tangent directions for the contact constraint.
+    #[inline(always)]
+    pub fn tangent_directions(&self) -> [Vector; DIM - 1] {
         #[cfg(feature = "2d")]
         {
             [Vector::new(self.normal.y, -self.normal.x)]
         }
         #[cfg(feature = "3d")]
         {
-            let force_direction = -self.normal;
-            let relative_velocity = velocity1 - velocity2;
-            let tangent_velocity =
-                relative_velocity + force_direction * force_direction.dot(relative_velocity);
-
-            let tangent = tangent_velocity
-                .try_normalize()
-                .unwrap_or(force_direction.any_orthonormal_vector());
-            let bitangent = force_direction.cross(tangent);
-            [tangent, bitangent]
+            // Note: The order is flipped here so that we use `-normal`.
+            [self.tangent1, self.tangent1.cross(self.normal)]
         }
+    }
+}
+
+/// Computes `DIM - 1` tangent directions.
+#[allow(unused_variables)]
+#[inline(always)]
+fn compute_tangent_directions(
+    normal: Vector,
+    velocity1: Vector,
+    velocity2: Vector,
+) -> [Vector; DIM - 1] {
+    #[cfg(feature = "2d")]
+    {
+        [Vector::new(normal.y, -normal.x)]
+    }
+    #[cfg(feature = "3d")]
+    {
+        let force_direction = -normal;
+        let relative_velocity = velocity1 - velocity2;
+        let tangent_velocity =
+            relative_velocity - force_direction * force_direction.dot(relative_velocity);
+
+        let tangent = tangent_velocity
+            .try_normalize()
+            .unwrap_or(force_direction.any_orthonormal_vector());
+        let bitangent = force_direction.cross(tangent);
+        [tangent, bitangent]
     }
 }
 
 impl MapEntities for ContactConstraint {
     fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
-        self.entity1 = entity_mapper.map_entity(self.entity1);
-        self.entity2 = entity_mapper.map_entity(self.entity2);
+        self.body1 = entity_mapper.get_mapped(self.body1);
+        self.body2 = entity_mapper.get_mapped(self.body2);
     }
 }

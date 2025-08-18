@@ -1,8 +1,9 @@
 use crate::prelude::*;
 use bevy::{
     ecs::{
-        component::{ComponentHooks, StorageType},
+        component::HookContext,
         entity::{EntityMapper, MapEntities},
+        world::DeferredWorld,
     },
     prelude::*,
 };
@@ -20,16 +21,16 @@ use parry::query::{
 /// between a ray and a set of colliders.
 ///
 /// Each ray is defined by a local `origin` and a `direction`. The [`RayCaster`] will find each hit
-/// and add them to the [`RayHits`] component. Each hit has a `time_of_impact` property
-/// which refers to how long the ray travelled, i.e. the distance between the `origin` and the point of intersection.
+/// and add them to the [`RayHits`] component. Each hit has a `distance` property which refers to
+/// how far the ray travelled, along with a `normal` for the point of intersection.
 ///
 /// The [`RayCaster`] is the easiest way to handle simple raycasts. If you want more control and don't want to
 /// perform raycasts every frame, consider using the [`SpatialQuery`] system parameter.
 ///
-/// ## Hit count and order
+/// # Hit Count and Order
 ///
 /// The results of a raycast are in an arbitrary order by default. You can iterate over them in the order of
-/// time of impact with the [`RayHits::iter_sorted`] method.
+/// distance with the [`RayHits::iter_sorted`] method.
 ///
 /// You can configure the maximum amount of hits for a ray using `max_hits`. By default this is unbounded,
 /// so you will get all hits. When the number or complexity of colliders is large, this can be very
@@ -39,7 +40,7 @@ use parry::query::{
 /// To guarantee that the closest hit is included, you should set `max_hits` to one or a value that
 /// is enough to contain all hits.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// # #[cfg(feature = "2d")]
@@ -61,52 +62,65 @@ use parry::query::{
 ///         // For the faster iterator that isn't sorted, use `.iter()`
 ///         for hit in hits.iter_sorted() {
 ///             println!(
-///                 "Hit entity {:?} at {} with normal {}",
+///                 "Hit entity {} at {} with normal {}",
 ///                 hit.entity,
-///                 ray.origin + *ray.direction * hit.time_of_impact,
+///                 ray.origin + *ray.direction * hit.distance,
 ///                 hit.normal,
 ///             );
 ///         }
 ///     }
 /// }
 /// ```
-#[derive(Clone, Debug, PartialEq, Reflect)]
+#[derive(Component, Clone, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, PartialEq)]
+#[component(on_add = on_add_ray_caster)]
+#[require(RayHits)]
 pub struct RayCaster {
     /// Controls if the ray caster is enabled.
     pub enabled: bool,
+
     /// The local origin of the ray relative to the [`Position`] and [`Rotation`] of the ray entity or its parent.
     ///
     /// To get the global origin, use the `global_origin` method.
     pub origin: Vector,
+
     /// The global origin of the ray.
     global_origin: Vector,
+
     /// The local direction of the ray relative to the [`Rotation`] of the ray entity or its parent.
     ///
     /// To get the global direction, use the `global_direction` method.
     pub direction: Dir,
+
     /// The global direction of the ray.
     global_direction: Dir,
-    /// The maximum distance the ray can travel. By default this is infinite, so the ray will travel
-    /// until all hits up to `max_hits` have been checked.
-    pub max_time_of_impact: Scalar,
+
     /// The maximum number of hits allowed.
     ///
     /// When there are more hits than `max_hits`, **some hits will be missed**.
     /// To guarantee that the closest hit is included, you should set `max_hits` to one or a value that
     /// is enough to contain all hits.
     pub max_hits: u32,
+
+    /// The maximum distance the ray can travel.
+    ///
+    /// By default this is infinite, so the ray will travel until all hits up to `max_hits` have been checked.
+    #[doc(alias = "max_time_of_impact")]
+    pub max_distance: Scalar,
+
     /// Controls how the ray behaves when the ray origin is inside of a [collider](Collider).
     ///
-    /// If `solid` is true, the point of intersection will be the ray origin itself.\
-    /// If `solid` is false, the collider will be considered to have no interior, and the point of intersection
-    /// will be at the collider shape's boundary.
+    /// If `true`, shapes will be treated as solid, and the ray cast will return with a distance of `0.0`
+    /// if the ray origin is inside of the shape. Otherwise, shapes will be treated as hollow, and the ray
+    /// will always return a hit at the shape's boundary.
     pub solid: bool,
+
     /// If true, the ray caster ignores hits against its own [`Collider`]. This is the default.
     pub ignore_self: bool,
-    /// Rules that determine which colliders are taken into account in the query.
+
+    /// Rules that determine which colliders are taken into account in the ray cast.
     pub query_filter: SpatialQueryFilter,
 }
 
@@ -118,7 +132,7 @@ impl Default for RayCaster {
             global_origin: Vector::ZERO,
             direction: Dir::X,
             global_direction: Dir::X,
-            max_time_of_impact: Scalar::MAX,
+            max_distance: Scalar::MAX,
             max_hits: u32::MAX,
             solid: true,
             ignore_self: true,
@@ -164,26 +178,27 @@ impl RayCaster {
         self
     }
 
-    /// Sets if the ray treats [colliders](Collider) as solid.
+    /// Controls how the ray behaves when the ray origin is inside of a [collider](Collider).
     ///
-    /// If `solid` is true, the point of intersection will be the ray origin itself.\
-    /// If `solid` is false, the collider will be considered to have no interior, and the point of intersection
-    /// will be at the collider shape's boundary.
+    /// If `true`, shapes will be treated as solid, and the ray cast will return with a distance of `0.0`
+    /// if the ray origin is inside of the shape. Otherwise, shapes will be treated as hollow, and the ray
+    /// will always return a hit at the shape's boundary.
     pub fn with_solidness(mut self, solid: bool) -> Self {
         self.solid = solid;
         self
     }
 
     /// Sets if the ray caster should ignore hits against its own [`Collider`].
-    /// The default is true.
+    ///
+    /// The default is `true`.
     pub fn with_ignore_self(mut self, ignore: bool) -> Self {
         self.ignore_self = ignore;
         self
     }
 
-    /// Sets the maximum time of impact, i.e. the maximum distance that the ray is allowed to travel.
-    pub fn with_max_time_of_impact(mut self, max_time_of_impact: Scalar) -> Self {
-        self.max_time_of_impact = max_time_of_impact;
+    /// Sets the maximum distance the ray can travel.
+    pub fn with_max_distance(mut self, max_distance: Scalar) -> Self {
+        self.max_distance = max_distance;
         self
     }
 
@@ -257,17 +272,20 @@ impl RayCaster {
             let mut visitor = RayCompositeShapeToiAndNormalBestFirstVisitor::new(
                 &pipeline_shape,
                 &ray,
-                self.max_time_of_impact,
+                self.max_distance,
                 self.solid,
             );
 
-            if let Some(hit) = query_pipeline.qbvh.traverse_best_first(&mut visitor).map(
-                |(_, (entity_index, hit))| RayHitData {
-                    entity: query_pipeline.entity_from_index(entity_index),
-                    time_of_impact: hit.time_of_impact,
-                    normal: hit.normal.into(),
-                },
-            ) {
+            if let Some(hit) =
+                query_pipeline
+                    .qbvh
+                    .traverse_best_first(&mut visitor)
+                    .map(|(_, (index, hit))| RayHitData {
+                        entity: query_pipeline.proxies[index as usize].entity,
+                        distance: hit.time_of_impact,
+                        normal: hit.normal.into(),
+                    })
+            {
                 if (hits.vector.len() as u32) < hits.count + 1 {
                     hits.vector.push(hit);
                 } else {
@@ -281,81 +299,71 @@ impl RayCaster {
                 self.global_direction().adjust_precision().into(),
             );
 
-            let mut leaf_callback = &mut |entity_index: &u32| {
-                let entity = query_pipeline.entity_from_index(*entity_index);
-                if let Some((iso, shape, layers)) = query_pipeline.colliders.get(&entity) {
-                    if self.query_filter.test(entity, *layers) {
-                        if let Some(hit) = shape.shape_scaled().cast_ray_and_get_normal(
-                            iso,
-                            &ray,
-                            self.max_time_of_impact,
-                            self.solid,
-                        ) {
-                            if (hits.vector.len() as u32) < hits.count + 1 {
-                                hits.vector.push(RayHitData {
-                                    entity,
-                                    time_of_impact: hit.time_of_impact,
-                                    normal: hit.normal.into(),
-                                });
-                            } else {
-                                hits.vector[hits.count as usize] = RayHitData {
-                                    entity,
-                                    time_of_impact: hit.time_of_impact,
-                                    normal: hit.normal.into(),
-                                };
-                            }
-
-                            hits.count += 1;
-
-                            return hits.count < self.max_hits;
-                        }
+            let mut leaf_callback = &mut |index: &u32| {
+                if let Some(proxy) = query_pipeline.proxies.get(*index as usize)
+                    && self.query_filter.test(proxy.entity, proxy.layers)
+                    && let Some(hit) = proxy.collider.shape_scaled().cast_ray_and_get_normal(
+                        &proxy.isometry,
+                        &ray,
+                        self.max_distance,
+                        self.solid,
+                    )
+                {
+                    if (hits.vector.len() as u32) < hits.count + 1 {
+                        hits.vector.push(RayHitData {
+                            entity: proxy.entity,
+                            distance: hit.time_of_impact,
+                            normal: hit.normal.into(),
+                        });
+                    } else {
+                        hits.vector[hits.count as usize] = RayHitData {
+                            entity: proxy.entity,
+                            distance: hit.time_of_impact,
+                            normal: hit.normal.into(),
+                        };
                     }
+
+                    hits.count += 1;
+
+                    return hits.count < self.max_hits;
                 }
                 true
             };
 
             let mut visitor =
-                RayIntersectionsVisitor::new(&ray, self.max_time_of_impact, &mut leaf_callback);
+                RayIntersectionsVisitor::new(&ray, self.max_distance, &mut leaf_callback);
             query_pipeline.qbvh.traverse_depth_first(&mut visitor);
         }
     }
 }
 
-impl Component for RayCaster {
-    const STORAGE_TYPE: StorageType = StorageType::Table;
+fn on_add_ray_caster(mut world: DeferredWorld, ctx: HookContext) {
+    let ray_caster = world.get::<RayCaster>(ctx.entity).unwrap();
+    let max_hits = if ray_caster.max_hits == u32::MAX {
+        10
+    } else {
+        ray_caster.max_hits as usize
+    };
 
-    fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_add(|mut world, entity, _| {
-            let ray_caster = world.get::<RayCaster>(entity).unwrap();
-            let max_hits = if ray_caster.max_hits == u32::MAX {
-                10
-            } else {
-                ray_caster.max_hits as usize
-            };
-
-            world.commands().entity(entity).try_insert(RayHits {
-                vector: Vec::with_capacity(max_hits),
-                count: 0,
-            });
-        });
-    }
+    // Initialize capacity for hits
+    world.get_mut::<RayHits>(ctx.entity).unwrap().vector = Vec::with_capacity(max_hits);
 }
 
 /// Contains the hits of a ray cast by a [`RayCaster`].
 ///
 /// The maximum number of hits depends on the value of `max_hits` in [`RayCaster`].
 ///
-/// ## Order
+/// # Order
 ///
 /// By default, the order of the hits is not guaranteed.
 ///
-/// You can iterate the hits in the order of time of impact with `iter_sorted`.
+/// You can iterate the hits in the order of distance with `iter_sorted`.
 /// Note that this will create and sort a new vector instead of the original one.
 ///
 /// **Note**: When there are more hits than `max_hits`, **some hits
 /// will be missed**. If you want to guarantee that the closest hit is included, set `max_hits` to one.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// # #[cfg(feature = "2d")]
@@ -368,11 +376,7 @@ impl Component for RayCaster {
 ///     for hits in &query {
 ///         // For the faster iterator that isn't sorted, use `.iter()`
 ///         for hit in hits.iter_sorted() {
-///             println!(
-///                 "Hit entity {:?} with time of impact {}",
-///                 hit.entity,
-///                 hit.time_of_impact,
-///             );
+///             println!("Hit entity {} with distance {}", hit.entity, hit.distance);
 ///         }
 ///     }
 /// }
@@ -412,17 +416,17 @@ impl RayHits {
 
     /// Returns an iterator over the hits in arbitrary order.
     ///
-    /// If you want to get them sorted by time of impact, use `iter_sorted`.
-    pub fn iter(&self) -> std::slice::Iter<RayHitData> {
+    /// If you want to get them sorted by distance, use `iter_sorted`.
+    pub fn iter(&self) -> core::slice::Iter<'_, RayHitData> {
         self.as_slice().iter()
     }
 
-    /// Returns an iterator over the hits, sorted in ascending order according to the time of impact.
+    /// Returns an iterator over the hits, sorted in ascending order according to the distance.
     ///
     /// Note that this creates and sorts a new vector. If you don't need the hits in order, use `iter`.
-    pub fn iter_sorted(&self) -> std::vec::IntoIter<RayHitData> {
+    pub fn iter_sorted(&self) -> alloc::vec::IntoIter<RayHitData> {
         let mut vector = self.as_slice().to_vec();
-        vector.sort_by(|a, b| a.time_of_impact.partial_cmp(&b.time_of_impact).unwrap());
+        vector.sort_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap());
         vector.into_iter()
     }
 }
@@ -443,14 +447,16 @@ impl MapEntities for RayHits {
 pub struct RayHitData {
     /// The entity of the collider that was hit by the ray.
     pub entity: Entity,
-    /// How long the ray travelled, i.e. the distance between the ray origin and the point of intersection.
-    pub time_of_impact: Scalar,
-    /// The normal at the point of intersection.
+
+    /// How far the ray travelled. This is the distance between the ray origin and the point of intersection.
+    pub distance: Scalar,
+
+    /// The normal at the point of intersection, expressed in world space.
     pub normal: Vector,
 }
 
 impl MapEntities for RayHitData {
     fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
-        self.entity = entity_mapper.map_entity(self.entity);
+        self.entity = entity_mapper.get_mapped(self.entity);
     }
 }

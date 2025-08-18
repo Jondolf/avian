@@ -1,7 +1,7 @@
 [package]
 name = "avian3d"
-version = "0.1.2"
-edition = "2021"
+version = "0.3.0"
+edition = "2024"
 license = "MIT OR Apache-2.0"
 authors = ["Joona Aalto <jondolf.dev@gmail.com>"]
 description = "An ECS-driven physics engine for the Bevy game engine"
@@ -18,6 +18,7 @@ default = [
     "parry-f32",
     "collider-from-mesh",
     "bevy_scene",
+    "bevy_picking",
     "debug-plugin",
     "parallel",
 ]
@@ -27,12 +28,18 @@ f64 = []
 
 debug-plugin = ["bevy/bevy_gizmos", "bevy/bevy_render"]
 simd = ["parry3d?/simd-stable", "parry3d-f64?/simd-stable"]
-parallel = ["parry3d?/parallel", "parry3d-f64?/parallel"]
+parallel = [
+    "dep:thread_local",
+    "bevy/multi_threaded",
+    "parry3d?/parallel",
+    "parry3d-f64?/parallel",
+]
 enhanced-determinism = [
     "dep:libm",
+    "bevy_math/libm",
+    "bevy_heavy/libm",
     "parry3d?/enhanced-determinism",
     "parry3d-f64?/enhanced-determinism",
-    "bevy_math/libm",
 ]
 
 default-collider = ["dep:nalgebra"]
@@ -43,13 +50,24 @@ parry-f64 = ["f64", "dep:parry3d-f64", "default-collider"]
 
 collider-from-mesh = ["bevy/bevy_render", "3d"]
 bevy_scene = ["bevy/bevy_scene"]
+bevy_picking = ["bevy/bevy_picking"]
 serialize = [
     "dep:serde",
     "bevy/serialize",
+    "glam_matrix_extensions/serde",
+    "bevy_heavy/serialize",
+    "bevy_transform_interpolation/serialize",
     "parry3d?/serde-serialize",
     "parry3d-f64?/serde-serialize",
+    "smallvec/serde",
     "bitflags/serde",
 ]
+
+# Enables writing timer and counter information to the `DiagnosticsStore` in `bevy_diagnostic`.
+bevy_diagnostic = []
+
+# Enables the `PhysicsDiagnosticsUiPlugin` for visualizing physics diagnostics data with a debug UI.
+diagnostic_ui = ["bevy_diagnostic", "bevy/bevy_ui"]
 
 [lib]
 name = "avian3d"
@@ -58,31 +76,49 @@ required-features = ["3d"]
 bench = false
 
 [dependencies]
-avian_derive = { path = "../avian_derive", version = "0.1" }
-bevy = { version = "0.14", default-features = false }
-bevy_math = { version = "0.14" }
+avian_derive = { path = "../avian_derive", version = "0.2" }
+bevy = { version = "0.16", default-features = false, features = [
+    "std",
+    "bevy_log",
+] }
+bevy_math = { version = "0.16", features = ["approx"] }
+glam_matrix_extensions = { git = "https://github.com/Jondolf/glam_matrix_extensions", features = [
+    "bevy_reflect",
+] }
+bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy.git" }
+bevy_transform_interpolation = { version = "0.2" }
 libm = { version = "0.2", optional = true }
-parry3d = { version = "0.15", optional = true }
-parry3d-f64 = { version = "0.15", optional = true }
-nalgebra = { version = "0.32.6", features = [
-    "convert-glam027",
-], optional = true }
+approx = "0.5"
+parry3d = { version = "0.21", optional = true }
+parry3d-f64 = { version = "0.21", optional = true }
+nalgebra = { version = "0.33", features = ["convert-glam029"], optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
-derive_more = "0.99"
-indexmap = "2.0.0"
-fxhash = "0.2.1"
+derive_more = "1"
+thiserror = "2"
+smallvec = "1.15"
 itertools = "0.13"
 bitflags = "2.5.0"
+thread_local = { version = "1.1", optional = true }
+disqualified = { version = "1.0" }
 
 [dev-dependencies]
-bevy = { version = "0.14", default-features = false, features = ["bevy_gltf"] }
 examples_common_3d = { path = "../examples_common_3d" }
-benches_common_3d = { path = "../benches_common_3d" }
-bevy_math = { version = "0.14", features = ["approx"] }
-approx = "0.5"
+bevy = { version = "0.16", default-features = false, features = [
+    "bevy_gltf",
+    "animation",
+] }
+bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy.git", features = [
+    "approx",
+] }
 criterion = { version = "0.5", features = ["html_reports"] }
-insta = "1.0"
-bevy_mod_debugdump = "0.11"
+bevy_mod_debugdump = { version = "0.13" }
+
+[lints]
+workspace = true
+
+[package.metadata.docs.rs]
+# Enable features when building the docs on docs.rs
+features = ["diagnostic_ui"]
 
 [[example]]
 name = "dynamic_character_3d"
@@ -98,6 +134,14 @@ required-features = ["3d", "default-collider"]
 
 [[example]]
 name = "chain_3d"
+required-features = ["3d", "default-collider"]
+
+[[example]]
+name = "collider_constructors"
+required-features = ["3d", "default-collider", "bevy_scene"]
+
+[[example]]
+name = "conveyor_belt"
 required-features = ["3d", "default-collider"]
 
 [[example]]
@@ -129,18 +173,21 @@ name = "revolute_joint_3d"
 required-features = ["3d", "default-collider"]
 
 [[example]]
+name = "gyroscopic_motion"
+required-features = ["3d", "default-collider"]
+
+[[example]]
+name = "picking"
+required-features = ["3d", "default-collider", "bevy_picking"]
+
+[[example]]
 name = "trimesh_shapes_3d"
 required-features = ["3d", "default-collider", "bevy_scene"]
 
 [[example]]
-name = "collider_constructors"
-required-features = ["3d", "default-collider", "bevy_scene"]
+name = "diagnostics"
+required-features = ["3d", "default-collider", "diagnostic_ui"]
 
 [[example]]
 name = "debugdump_3d"
-required-features = ["3d"]
-
-[[bench]]
-name = "cubes"
-required-features = ["3d", "default-collider"]
-harness = false
+required-features = ["3d", "debug-plugin"]

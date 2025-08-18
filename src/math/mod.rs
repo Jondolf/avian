@@ -2,8 +2,12 @@
 //!
 //! Most of the math types are feature-dependent, so they will be different for `2d`/`3d` and `f32`/`f64`.
 
+#![allow(unused_imports)]
+
 #[cfg(feature = "f32")]
 mod single;
+use approx::abs_diff_ne;
+use glam_matrix_extensions::{SymmetricDMat2, SymmetricDMat3, SymmetricMat2, SymmetricMat3};
 #[cfg(feature = "f32")]
 pub use single::*;
 
@@ -21,9 +25,26 @@ pub const DIM: usize = 2;
 #[cfg(feature = "3d")]
 pub const DIM: usize = 3;
 
+/// The `f32` vector type chosen based on the dimension.
+#[cfg(feature = "2d")]
+pub(crate) use bevy_math::Vec2 as VectorF32;
+
+/// The `f32` vector type chosen based on the dimension.
+#[cfg(feature = "3d")]
+pub(crate) use bevy_math::Vec3 as VectorF32;
+
+/// The `i32` vector type chosen based on the dimension.
+#[cfg(feature = "2d")]
+pub(crate) use bevy_math::IVec2 as IVector;
+
+/// The `i32` vector type chosen based on the dimension.
+#[cfg(feature = "3d")]
+pub(crate) use bevy_math::IVec3 as IVector;
+
 /// The ray type chosen based on the dimension.
 #[cfg(feature = "2d")]
 pub(crate) type Ray = Ray2d;
+
 /// The ray type chosen based on the dimension.
 #[cfg(feature = "3d")]
 pub(crate) type Ray = Ray3d;
@@ -32,9 +53,32 @@ pub(crate) type Ray = Ray3d;
 /// The direction type chosen based on the dimension.
 #[cfg(feature = "2d")]
 pub(crate) type Dir = Dir2;
+
 /// The direction type chosen based on the dimension.
 #[cfg(feature = "3d")]
 pub(crate) type Dir = Dir3;
+
+/// The vector type for angular values chosen based on the dimension.
+#[cfg(feature = "2d")]
+pub(crate) type AngularVector = Scalar;
+
+/// The vector type for angular values chosen based on the dimension.
+#[cfg(feature = "3d")]
+pub(crate) type AngularVector = Vector;
+
+/// The symmetric tensor type chosen based on the dimension.
+/// Often used for angular inertia.
+///
+/// In 2D, this is a scalar, while in 3D, it is a 3x3 matrix.
+#[cfg(feature = "2d")]
+pub(crate) type SymmetricTensor = Scalar;
+
+/// The symmetric tensor type chosen based on the dimension.
+/// Often used for angular inertia.
+///
+/// In 2D, this is a scalar, while in 3D, it is a 3x3 matrix.
+#[cfg(feature = "3d")]
+pub(crate) type SymmetricTensor = SymmetricMatrix;
 
 /// Adjust the precision of the math construct to the precision chosen for compilation.
 pub trait AdjustPrecision {
@@ -101,6 +145,73 @@ impl AsF32 for Quat {
     }
 }
 
+impl AsF32 for DMat2 {
+    type F32 = Mat2;
+    fn f32(&self) -> Self::F32 {
+        self.as_mat2()
+    }
+}
+
+impl AsF32 for Mat2 {
+    type F32 = Self;
+    fn f32(&self) -> Self::F32 {
+        *self
+    }
+}
+
+impl AsF32 for SymmetricDMat2 {
+    type F32 = SymmetricMat2;
+    fn f32(&self) -> Self::F32 {
+        SymmetricMat2 {
+            m00: self.m00 as f32,
+            m01: self.m01 as f32,
+            m11: self.m11 as f32,
+        }
+    }
+}
+
+impl AsF32 for SymmetricMat2 {
+    type F32 = Self;
+    fn f32(&self) -> Self::F32 {
+        *self
+    }
+}
+
+impl AsF32 for DMat3 {
+    type F32 = Mat3;
+    fn f32(&self) -> Self::F32 {
+        self.as_mat3()
+    }
+}
+
+impl AsF32 for Mat3 {
+    type F32 = Self;
+    fn f32(&self) -> Self::F32 {
+        *self
+    }
+}
+
+impl AsF32 for SymmetricDMat3 {
+    type F32 = SymmetricMat3;
+    fn f32(&self) -> Self::F32 {
+        SymmetricMat3 {
+            m00: self.m00 as f32,
+            m01: self.m01 as f32,
+            m02: self.m02 as f32,
+            m11: self.m11 as f32,
+            m12: self.m12 as f32,
+            m22: self.m22 as f32,
+        }
+    }
+}
+
+impl AsF32 for SymmetricMat3 {
+    type F32 = Self;
+    fn f32(&self) -> Self::F32 {
+        *self
+    }
+}
+
 #[cfg(feature = "2d")]
 pub(crate) fn cross(a: Vector, b: Vector) -> Scalar {
     a.perp_dot(b)
@@ -119,8 +230,9 @@ pub trait RecipOrZero {
 }
 
 impl RecipOrZero for f32 {
+    #[inline]
     fn recip_or_zero(self) -> Self {
-        if self != 0.0 {
+        if self != 0.0 && self.is_finite() {
             self.recip()
         } else {
             0.0
@@ -129,8 +241,9 @@ impl RecipOrZero for f32 {
 }
 
 impl RecipOrZero for f64 {
+    #[inline]
     fn recip_or_zero(self) -> Self {
-        if self != 0.0 {
+        if self != 0.0 && self.is_finite() {
             self.recip()
         } else {
             0.0
@@ -139,12 +252,14 @@ impl RecipOrZero for f64 {
 }
 
 impl RecipOrZero for Vec2 {
+    #[inline]
     fn recip_or_zero(self) -> Self {
         Self::new(self.x.recip_or_zero(), self.y.recip_or_zero())
     }
 }
 
 impl RecipOrZero for Vec3 {
+    #[inline]
     fn recip_or_zero(self) -> Self {
         Self::new(
             self.x.recip_or_zero(),
@@ -155,12 +270,14 @@ impl RecipOrZero for Vec3 {
 }
 
 impl RecipOrZero for DVec2 {
+    #[inline]
     fn recip_or_zero(self) -> Self {
         Self::new(self.x.recip_or_zero(), self.y.recip_or_zero())
     }
 }
 
 impl RecipOrZero for DVec3 {
+    #[inline]
     fn recip_or_zero(self) -> Self {
         Self::new(
             self.x.recip_or_zero(),
@@ -168,6 +285,288 @@ impl RecipOrZero for DVec3 {
             self.z.recip_or_zero(),
         )
     }
+}
+
+/// An extension trait for matrix types.
+pub trait MatExt {
+    /// The scalar type of the matrix.
+    type Scalar;
+
+    /// Computes the inverse of `self` if `self` is not zero,
+    /// and returns zero otherwise to avoid division by zero.
+    fn inverse_or_zero(self) -> Self;
+
+    /// Checks if the matrix is isotropic, meaning that it is invariant
+    /// under all rotations of the coordinate system.
+    ///
+    /// For second-order tensors, this means that the diagonal elements
+    /// are equal and the off-diagonal elements are zero.
+    fn is_isotropic(&self, epsilon: Self::Scalar) -> bool;
+}
+
+impl MatExt for Mat2 {
+    type Scalar = f32;
+
+    #[inline]
+    fn inverse_or_zero(self) -> Self {
+        if self.determinant() == 0.0 {
+            Self::ZERO
+        } else {
+            self.inverse()
+        }
+    }
+
+    #[inline]
+    fn is_isotropic(&self, epsilon: f32) -> bool {
+        // Extract diagonal elements.
+        let diag = Vec2::new(self.x_axis.x, self.y_axis.y);
+
+        // All diagonal elements must be approximately equal.
+        if abs_diff_ne!(diag.x, diag.y, epsilon = epsilon) {
+            return false;
+        }
+
+        // Extract off-diagonal elements.
+        let off_diag = [self.x_axis.y, self.y_axis.x];
+
+        // All off-diagonal elements must be approximately zero.
+        off_diag.iter().all(|&x| x.abs() < epsilon)
+    }
+}
+
+impl MatExt for DMat2 {
+    type Scalar = f64;
+
+    #[inline]
+    fn inverse_or_zero(self) -> Self {
+        if self.determinant() == 0.0 {
+            Self::ZERO
+        } else {
+            self.inverse()
+        }
+    }
+
+    #[inline]
+    fn is_isotropic(&self, epsilon: f64) -> bool {
+        // Extract diagonal elements.
+        let diag = DVec2::new(self.x_axis.x, self.y_axis.y);
+
+        // All diagonal elements must be approximately equal.
+        if abs_diff_ne!(diag.x, diag.y, epsilon = epsilon) {
+            return false;
+        }
+
+        // Extract off-diagonal elements.
+        let off_diag = [self.x_axis.y, self.y_axis.x];
+
+        // All off-diagonal elements must be approximately zero.
+        off_diag.iter().all(|&x| x.abs() < epsilon)
+    }
+}
+
+impl MatExt for SymmetricMat2 {
+    type Scalar = f32;
+
+    #[inline]
+    fn inverse_or_zero(self) -> Self {
+        if self.determinant() == 0.0 {
+            Self::ZERO
+        } else {
+            self.inverse()
+        }
+    }
+
+    #[inline]
+    fn is_isotropic(&self, epsilon: f32) -> bool {
+        // Extract diagonal elements.
+        let diag = Vec2::new(self.m00, self.m11);
+
+        // All diagonal elements must be approximately equal.
+        if abs_diff_ne!(diag.x, diag.y, epsilon = epsilon) {
+            return false;
+        }
+
+        // All off-diagonal elements must be approximately zero.
+        self.m01.abs() < epsilon
+    }
+}
+
+impl MatExt for SymmetricDMat2 {
+    type Scalar = f64;
+
+    #[inline]
+    fn inverse_or_zero(self) -> Self {
+        if self.determinant() == 0.0 {
+            Self::ZERO
+        } else {
+            self.inverse()
+        }
+    }
+
+    #[inline]
+    fn is_isotropic(&self, epsilon: f64) -> bool {
+        // Extract diagonal elements.
+        let diag = DVec2::new(self.m00, self.m11);
+
+        // All diagonal elements must be approximately equal.
+        if abs_diff_ne!(diag.x, diag.y, epsilon = epsilon) {
+            return false;
+        }
+
+        // All off-diagonal elements must be approximately zero.
+        self.m01.abs() < epsilon
+    }
+}
+
+impl MatExt for Mat3 {
+    type Scalar = f32;
+
+    #[inline]
+    fn inverse_or_zero(self) -> Self {
+        if self.determinant() == 0.0 {
+            Self::ZERO
+        } else {
+            self.inverse()
+        }
+    }
+
+    #[inline]
+    fn is_isotropic(&self, epsilon: f32) -> bool {
+        // Extract diagonal elements.
+        let diag = Vec3::new(self.x_axis.x, self.y_axis.y, self.z_axis.z);
+
+        // All diagonal elements must be approximately equal.
+        if abs_diff_ne!(diag.x, diag.y, epsilon = epsilon)
+            || abs_diff_ne!(diag.y, diag.z, epsilon = epsilon)
+        {
+            return false;
+        }
+
+        // Extract off-diagonal elements.
+        let off_diag = [
+            self.x_axis.y,
+            self.x_axis.z,
+            self.y_axis.x,
+            self.y_axis.z,
+            self.z_axis.x,
+            self.z_axis.y,
+        ];
+
+        // All off-diagonal elements must be approximately zero.
+        off_diag.iter().all(|&x| x.abs() < epsilon)
+    }
+}
+
+impl MatExt for DMat3 {
+    type Scalar = f64;
+
+    #[inline]
+    fn inverse_or_zero(self) -> Self {
+        if self.determinant() == 0.0 {
+            Self::ZERO
+        } else {
+            self.inverse()
+        }
+    }
+
+    #[inline]
+    fn is_isotropic(&self, epsilon: f64) -> bool {
+        // Extract diagonal elements.
+        let diag = DVec3::new(self.x_axis.x, self.y_axis.y, self.z_axis.z);
+
+        // All diagonal elements must be approximately equal.
+        if abs_diff_ne!(diag.x, diag.y, epsilon = epsilon)
+            || abs_diff_ne!(diag.y, diag.z, epsilon = epsilon)
+        {
+            return false;
+        }
+
+        // Extract off-diagonal elements.
+        let off_diag = [
+            self.x_axis.y,
+            self.x_axis.z,
+            self.y_axis.x,
+            self.y_axis.z,
+            self.z_axis.x,
+            self.z_axis.y,
+        ];
+
+        // All off-diagonal elements must be approximately zero.
+        off_diag.iter().all(|&x| x.abs() < epsilon)
+    }
+}
+
+impl MatExt for SymmetricMat3 {
+    type Scalar = f32;
+
+    #[inline]
+    fn inverse_or_zero(self) -> Self {
+        if self.determinant() == 0.0 {
+            Self::ZERO
+        } else {
+            self.inverse()
+        }
+    }
+
+    #[inline]
+    fn is_isotropic(&self, epsilon: f32) -> bool {
+        // Extract diagonal elements.
+        let diag = Vec3::new(self.m00, self.m11, self.m22);
+
+        // All diagonal elements must be approximately equal.
+        if abs_diff_ne!(diag.x, diag.y, epsilon = epsilon)
+            || abs_diff_ne!(diag.y, diag.z, epsilon = epsilon)
+        {
+            return false;
+        }
+
+        // Extract off-diagonal elements.
+        let off_diag = [self.m01, self.m02, self.m12];
+
+        // All off-diagonal elements must be approximately zero.
+        off_diag.iter().all(|&x| x.abs() < epsilon)
+    }
+}
+
+impl MatExt for SymmetricDMat3 {
+    type Scalar = f64;
+
+    #[inline]
+    fn inverse_or_zero(self) -> Self {
+        if self.determinant() == 0.0 {
+            Self::ZERO
+        } else {
+            self.inverse()
+        }
+    }
+
+    #[inline]
+    fn is_isotropic(&self, epsilon: f64) -> bool {
+        // Extract diagonal elements.
+        let diag = DVec3::new(self.m00, self.m11, self.m22);
+
+        // All diagonal elements must be approximately equal.
+        if abs_diff_ne!(diag.x, diag.y, epsilon = epsilon)
+            || abs_diff_ne!(diag.y, diag.z, epsilon = epsilon)
+        {
+            return false;
+        }
+
+        // Extract off-diagonal elements.
+        let off_diag = [self.m01, self.m02, self.m12];
+
+        // All off-diagonal elements must be approximately zero.
+        off_diag.iter().all(|&x| x.abs() < epsilon)
+    }
+}
+
+#[expect(clippy::unnecessary_cast)]
+#[cfg(all(feature = "2d", any(feature = "parry-f32", feature = "parry-f64")))]
+pub(crate) fn na_iso_to_iso(isometry: &parry::math::Isometry<Scalar>) -> Isometry2d {
+    Isometry2d::new(
+        Vector::from(isometry.translation).f32(),
+        Rot2::from_sin_cos(isometry.rotation.im as f32, isometry.rotation.re as f32),
+    )
 }
 
 #[cfg(all(

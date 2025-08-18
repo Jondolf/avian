@@ -1,4 +1,7 @@
-use avian3d::{math::*, prelude::*};
+use avian3d::{
+    math::*,
+    prelude::{NarrowPhaseSet, *},
+};
 use bevy::{ecs::query::Has, prelude::*};
 
 pub struct CharacterControllerPlugin;
@@ -23,8 +26,8 @@ impl Plugin for CharacterControllerPlugin {
                 //
                 // NOTE: The collision implementation here is very basic and a bit buggy.
                 //       A collide-and-slide algorithm would likely work better.
-                PostProcessCollisions,
-                kinematic_controller_collisions,
+                PhysicsSchedule,
+                kinematic_controller_collisions.in_set(NarrowPhaseSet::Last),
             );
     }
 }
@@ -44,6 +47,7 @@ pub struct CharacterController;
 #[derive(Component)]
 #[component(storage = "SparseSet")]
 pub struct Grounded;
+
 /// The acceleration used for character movement.
 #[derive(Component)]
 pub struct MovementAcceleration(Scalar);
@@ -71,7 +75,7 @@ pub struct MaxSlopeAngle(Scalar);
 #[derive(Bundle)]
 pub struct CharacterControllerBundle {
     character_controller: CharacterController,
-    rigid_body: RigidBody,
+    body: RigidBody,
     collider: Collider,
     ground_caster: ShapeCaster,
     gravity: ControllerGravity,
@@ -117,7 +121,7 @@ impl CharacterControllerBundle {
 
         Self {
             character_controller: CharacterController,
-            rigid_body: RigidBody::Kinematic,
+            body: RigidBody::Kinematic,
             collider,
             ground_caster: ShapeCaster::new(
                 caster_shape,
@@ -125,7 +129,7 @@ impl CharacterControllerBundle {
                 Quaternion::default(),
                 Dir3::NEG_Y,
             )
-            .with_max_time_of_impact(0.2),
+            .with_max_distance(0.2),
             gravity: ControllerGravity(gravity),
             movement: MovementBundle::default(),
         }
@@ -158,44 +162,31 @@ fn keyboard_input(
     let direction = Vector2::new(horizontal as Scalar, vertical as Scalar).clamp_length_max(1.0);
 
     if direction != Vector2::ZERO {
-        movement_event_writer.send(MovementAction::Move(direction));
+        movement_event_writer.write(MovementAction::Move(direction));
     }
 
     if keyboard_input.just_pressed(KeyCode::Space) {
-        movement_event_writer.send(MovementAction::Jump);
+        movement_event_writer.write(MovementAction::Jump);
     }
 }
 
 /// Sends [`MovementAction`] events based on gamepad input.
 fn gamepad_input(
     mut movement_event_writer: EventWriter<MovementAction>,
-    gamepads: Res<Gamepads>,
-    axes: Res<Axis<GamepadAxis>>,
-    buttons: Res<ButtonInput<GamepadButton>>,
+    gamepads: Query<&Gamepad>,
 ) {
     for gamepad in gamepads.iter() {
-        let axis_lx = GamepadAxis {
-            gamepad,
-            axis_type: GamepadAxisType::LeftStickX,
-        };
-        let axis_ly = GamepadAxis {
-            gamepad,
-            axis_type: GamepadAxisType::LeftStickY,
-        };
-
-        if let (Some(x), Some(y)) = (axes.get(axis_lx), axes.get(axis_ly)) {
-            movement_event_writer.send(MovementAction::Move(
+        if let (Some(x), Some(y)) = (
+            gamepad.get(GamepadAxis::LeftStickX),
+            gamepad.get(GamepadAxis::LeftStickY),
+        ) {
+            movement_event_writer.write(MovementAction::Move(
                 Vector2::new(x as Scalar, y as Scalar).clamp_length_max(1.0),
             ));
         }
 
-        let jump_button = GamepadButton {
-            gamepad,
-            button_type: GamepadButtonType::South,
-        };
-
-        if buttons.just_pressed(jump_button) {
-            movement_event_writer.send(MovementAction::Jump);
+        if gamepad.just_pressed(GamepadButton::South) {
+            movement_event_writer.write(MovementAction::Jump);
         }
     }
 }
@@ -240,7 +231,7 @@ fn movement(
 ) {
     // Precision is adjusted so that the example works with
     // both the `f32` and `f64` features. Otherwise you don't need this.
-    let delta_time = time.delta_seconds_f64().adjust_precision();
+    let delta_time = time.delta_secs_f64().adjust_precision();
 
     for event in movement_event_reader.read() {
         for (movement_acceleration, jump_impulse, mut linear_velocity, is_grounded) in
@@ -268,7 +259,7 @@ fn apply_gravity(
 ) {
     // Precision is adjusted so that the example works with
     // both the `f32` and `f64` features. Otherwise you don't need this.
-    let delta_time = time.delta_seconds_f64().adjust_precision();
+    let delta_time = time.delta_secs_f64().adjust_precision();
 
     for (gravity, mut linear_velocity) in &mut controllers {
         linear_velocity.0 += gravity.0 * delta_time;
@@ -293,16 +284,11 @@ fn apply_movement_damping(mut query: Query<(&MovementDampingFactor, &mut LinearV
 /// and predict collisions using speculative contacts.
 #[allow(clippy::type_complexity)]
 fn kinematic_controller_collisions(
-    collisions: Res<Collisions>,
+    collisions: Collisions,
     bodies: Query<&RigidBody>,
-    collider_parents: Query<&ColliderParent, Without<Sensor>>,
+    collider_rbs: Query<&ColliderOf, Without<Sensor>>,
     mut character_controllers: Query<
-        (
-            &mut Position,
-            &Rotation,
-            &mut LinearVelocity,
-            Option<&MaxSlopeAngle>,
-        ),
+        (&mut Position, &mut LinearVelocity, Option<&MaxSlopeAngle>),
         (With<RigidBody>, With<CharacterController>),
     >,
     time: Res<Time>,
@@ -310,8 +296,8 @@ fn kinematic_controller_collisions(
     // Iterate through collisions and move the kinematic body to resolve penetration
     for contacts in collisions.iter() {
         // Get the rigid body entities of the colliders (colliders could be children)
-        let Ok([collider_parent1, collider_parent2]) =
-            collider_parents.get_many([contacts.entity1, contacts.entity2])
+        let Ok([&ColliderOf { body: rb1 }, &ColliderOf { body: rb2 }]) =
+            collider_rbs.get_many([contacts.collider1, contacts.collider2])
         else {
             continue;
         };
@@ -323,20 +309,16 @@ fn kinematic_controller_collisions(
         let character_rb: RigidBody;
         let is_other_dynamic: bool;
 
-        let (mut position, rotation, mut linear_velocity, max_slope_angle) =
-            if let Ok(character) = character_controllers.get_mut(collider_parent1.get()) {
+        let (mut position, mut linear_velocity, max_slope_angle) =
+            if let Ok(character) = character_controllers.get_mut(rb1) {
                 is_first = true;
-                character_rb = *bodies.get(collider_parent1.get()).unwrap();
-                is_other_dynamic = bodies
-                    .get(collider_parent2.get())
-                    .is_ok_and(|rb| rb.is_dynamic());
+                character_rb = *bodies.get(rb1).unwrap();
+                is_other_dynamic = bodies.get(rb2).is_ok_and(|rb| rb.is_dynamic());
                 character
-            } else if let Ok(character) = character_controllers.get_mut(collider_parent2.get()) {
+            } else if let Ok(character) = character_controllers.get_mut(rb2) {
                 is_first = false;
-                character_rb = *bodies.get(collider_parent2.get()).unwrap();
-                is_other_dynamic = bodies
-                    .get(collider_parent1.get())
-                    .is_ok_and(|rb| rb.is_dynamic());
+                character_rb = *bodies.get(rb2).unwrap();
+                is_other_dynamic = bodies.get(rb1).is_ok_and(|rb| rb.is_dynamic());
                 character
             } else {
                 continue;
@@ -351,15 +333,15 @@ fn kinematic_controller_collisions(
         // Each contact in a single manifold shares the same contact normal.
         for manifold in contacts.manifolds.iter() {
             let normal = if is_first {
-                -manifold.global_normal1(rotation)
+                -manifold.normal
             } else {
-                -manifold.global_normal2(rotation)
+                manifold.normal
             };
 
             let mut deepest_penetration: Scalar = Scalar::MIN;
 
             // Solve each penetrating contact in the manifold.
-            for contact in manifold.contacts.iter() {
+            for contact in manifold.points.iter() {
                 if contact.penetration > 0.0 {
                     position.0 += normal * contact.penetration;
                 }
@@ -431,8 +413,8 @@ fn kinematic_controller_collisions(
                 }
 
                 // Compute the impulse to apply.
-                let impulse_magnitude = normal_speed
-                    - (deepest_penetration / time.delta_seconds_f64().adjust_precision());
+                let impulse_magnitude =
+                    normal_speed - (deepest_penetration / time.delta_secs_f64().adjust_precision());
                 let mut impulse = impulse_magnitude * normal;
 
                 // Apply the impulse differently depending on the slope angle.

@@ -55,7 +55,7 @@ pub trait PhysicsGizmoExt {
         &mut self,
         origin: Vector,
         direction: Dir,
-        max_time_of_impact: Scalar,
+        max_distance: Scalar,
         hits: &[RayHitData],
         ray_color: Color,
         point_color: Color,
@@ -75,7 +75,7 @@ pub trait PhysicsGizmoExt {
         origin: Vector,
         shape_rotation: impl Into<Rotation>,
         direction: Dir,
-        max_time_of_impact: Scalar,
+        max_distance: Scalar,
         hits: &[ShapeHitData],
         ray_color: Color,
         shape_color: Color,
@@ -85,7 +85,7 @@ pub trait PhysicsGizmoExt {
     );
 }
 
-impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
+impl PhysicsGizmoExt for Gizmos<'_, '_, PhysicsGizmos> {
     /// Draws a line from `a` to `b`.
     fn draw_line(&mut self, a: Vector, b: Vector, color: Color) {
         #[cfg(feature = "2d")]
@@ -174,11 +174,15 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
         match collider.shape_scaled().as_typed_shape() {
             #[cfg(feature = "2d")]
             TypedShape::Ball(s) => {
-                self.circle(position.extend(0.0).f32(), Dir3::Z, s.radius as f32, color);
+                self.circle_2d(position.f32(), s.radius as f32, color);
             }
             #[cfg(feature = "3d")]
             TypedShape::Ball(s) => {
-                self.sphere(position.f32(), rotation.f32(), s.radius as f32, color);
+                self.sphere(
+                    Isometry3d::new(position.f32(), rotation.f32()),
+                    s.radius as f32,
+                    color,
+                );
             }
             #[cfg(feature = "2d")]
             TypedShape::Cuboid(s) => {
@@ -270,6 +274,19 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
                 let c = basis2 * 10_000.0;
                 let d = basis2 * -10_000.0;
                 self.draw_polyline(&[a, b, c, d], &[[0, 1], [2, 3]], position, rotation, color);
+            }
+            TypedShape::Voxels(v) => {
+                #[cfg(feature = "2d")]
+                let (vertices, indices) = v.to_polyline();
+                #[cfg(feature = "3d")]
+                let (vertices, indices) = v.to_outline();
+                self.draw_polyline(
+                    &nalgebra_to_glam(&vertices),
+                    &indices,
+                    position,
+                    rotation,
+                    color,
+                );
             }
             TypedShape::HeightField(s) => {
                 #[cfg(feature = "2d")]
@@ -425,28 +442,30 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
                     color,
                 );
             }
-            TypedShape::Custom(_id) =>
-            {
+            TypedShape::Custom(_id) => {
                 #[cfg(feature = "2d")]
-                if _id == 1 {
-                    if let Some(ellipse) = collider.shape_scaled().as_shape::<EllipseWrapper>() {
-                        self.primitive_2d(
-                            &ellipse.0,
-                            position.f32(),
-                            rotation.as_radians() as f32,
-                            color,
-                        );
-                    }
-                } else if _id == 2 {
-                    if let Some(polygon) =
-                        collider.shape_scaled().as_shape::<RegularPolygonWrapper>()
+                {
+                    use crate::collision::collider::{
+                        EllipseColliderShape, RegularPolygonColliderShape,
+                    };
+
+                    if let Some(ellipse) =
+                        collider.shape_scaled().as_shape::<EllipseColliderShape>()
                     {
-                        self.primitive_2d(
-                            &polygon.0,
+                        let isometry = Isometry2d::new(
                             position.f32(),
-                            rotation.as_radians() as f32,
-                            color,
+                            Rot2::from_sin_cos(rotation.sin as f32, rotation.cos as f32),
                         );
+                        self.primitive_2d(&ellipse.0, isometry, color);
+                    } else if let Some(polygon) = collider
+                        .shape_scaled()
+                        .as_shape::<RegularPolygonColliderShape>()
+                    {
+                        let isometry = Isometry2d::new(
+                            position.f32(),
+                            Rot2::from_sin_cos(rotation.sin as f32, rotation.cos as f32),
+                        );
+                        self.primitive_2d(&polygon.0, isometry, color);
                     }
                 }
             }
@@ -459,40 +478,35 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
         &mut self,
         origin: Vector,
         direction: Dir,
-        max_time_of_impact: Scalar,
+        max_distance: Scalar,
         hits: &[RayHitData],
         ray_color: Color,
         point_color: Color,
         normal_color: Color,
         length_unit: Scalar,
     ) {
-        let max_toi = hits
+        let max_distance = hits
             .iter()
-            .max_by(|a, b| a.time_of_impact.total_cmp(&b.time_of_impact))
-            .map_or(max_time_of_impact, |hit| hit.time_of_impact);
+            .max_by(|a, b| a.distance.total_cmp(&b.distance))
+            .map_or(max_distance, |hit| hit.distance);
 
         // Draw ray as arrow
         self.draw_arrow(
             origin,
-            origin + direction.adjust_precision() * max_toi,
+            origin + direction.adjust_precision() * max_distance,
             0.1 * length_unit,
             ray_color,
         );
 
         // Draw all hit points and normals
         for hit in hits {
-            let point = origin + direction.adjust_precision() * hit.time_of_impact;
+            let point = origin + direction.adjust_precision() * hit.distance;
 
             // Draw hit point
             #[cfg(feature = "2d")]
             self.circle_2d(point.f32(), 0.1 * length_unit as f32, point_color);
             #[cfg(feature = "3d")]
-            self.sphere(
-                point.f32(),
-                default(),
-                0.1 * length_unit as f32,
-                point_color,
-            );
+            self.sphere(point.f32(), 0.1 * length_unit as f32, point_color);
 
             // Draw hit normal as arrow
             self.draw_arrow(
@@ -516,7 +530,7 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
         origin: Vector,
         shape_rotation: impl Into<Rotation>,
         direction: Dir,
-        max_time_of_impact: Scalar,
+        max_distance: Scalar,
         hits: &[ShapeHitData],
         ray_color: Color,
         shape_color: Color,
@@ -528,10 +542,10 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
         #[cfg(feature = "3d")]
         let shape_rotation = Rotation(shape_rotation.normalize());
 
-        let max_toi = hits
+        let max_distance = hits
             .iter()
-            .max_by(|a, b| a.time_of_impact.total_cmp(&b.time_of_impact))
-            .map_or(max_time_of_impact, |hit| hit.time_of_impact);
+            .max_by(|a, b| a.distance.total_cmp(&b.distance))
+            .map_or(max_distance, |hit| hit.distance);
 
         // Draw collider at origin
         self.draw_collider(shape, origin, shape_rotation, shape_color);
@@ -540,7 +554,7 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
         // TODO: We could render the swept collider outline instead
         self.draw_arrow(
             origin,
-            origin + max_toi * direction.adjust_precision(),
+            origin + max_distance * direction.adjust_precision(),
             0.1 * length_unit,
             ray_color,
         );
@@ -551,12 +565,7 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
             #[cfg(feature = "2d")]
             self.circle_2d(hit.point1.f32(), 0.1 * length_unit as f32, point_color);
             #[cfg(feature = "3d")]
-            self.sphere(
-                hit.point1.f32(),
-                default(),
-                0.1 * length_unit as f32,
-                point_color,
-            );
+            self.sphere(hit.point1.f32(), 0.1 * length_unit as f32, point_color);
 
             // Draw hit normal as arrow
             self.draw_arrow(
@@ -569,7 +578,7 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
             // Draw collider at hit point
             self.draw_collider(
                 shape,
-                origin + hit.time_of_impact * direction.adjust_precision(),
+                origin + hit.distance * direction.adjust_precision(),
                 shape_rotation,
                 shape_color.with_alpha(0.3),
             );

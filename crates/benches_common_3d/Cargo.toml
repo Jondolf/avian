@@ -1,9 +1,0 @@
-[package]
-name = "benches_common_3d"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-bevy = { version = "0.14", default-features = false }
-avian3d = { path = "../avian3d", default-features = false }
-criterion = "0.5"

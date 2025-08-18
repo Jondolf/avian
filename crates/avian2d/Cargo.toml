@@ -1,7 +1,7 @@
 [package]
 name = "avian2d"
-version = "0.1.2"
-edition = "2021"
+version = "0.3.0"
+edition = "2024"
 license = "MIT OR Apache-2.0"
 authors = ["Joona Aalto <jondolf.dev@gmail.com>"]
 description = "An ECS-driven physics engine for the Bevy game engine"
@@ -12,19 +12,33 @@ keywords = ["gamedev", "physics", "simulation", "bevy"]
 categories = ["game-development", "science", "simulation"]
 
 [features]
-default = ["2d", "f32", "parry-f32", "debug-plugin", "parallel", "bevy_scene"]
+default = [
+    "2d",
+    "f32",
+    "parry-f32",
+    "debug-plugin",
+    "parallel",
+    "bevy_scene",
+    "bevy_picking",
+]
 2d = []
 f32 = []
 f64 = []
 
 debug-plugin = ["bevy/bevy_gizmos", "bevy/bevy_render"]
 simd = ["parry2d?/simd-stable", "parry2d-f64?/simd-stable"]
-parallel = ["parry2d?/parallel", "parry2d-f64?/parallel"]
+parallel = [
+    "dep:thread_local",
+    "bevy/multi_threaded",
+    "parry2d?/parallel",
+    "parry2d-f64?/parallel",
+]
 enhanced-determinism = [
     "dep:libm",
+    "bevy_math/libm",
+    "bevy_heavy/libm",
     "parry2d?/enhanced-determinism",
     "parry2d-f64?/enhanced-determinism",
-    "bevy_math/libm",
 ]
 
 default-collider = ["dep:nalgebra"]
@@ -34,13 +48,24 @@ parry-f32 = ["f32", "dep:parry2d", "default-collider"]
 parry-f64 = ["f64", "dep:parry2d-f64", "default-collider"]
 
 bevy_scene = ["bevy/bevy_scene"]
+bevy_picking = ["bevy/bevy_picking"]
 serialize = [
     "dep:serde",
     "bevy/serialize",
+    "glam_matrix_extensions/serde",
+    "bevy_heavy/serialize",
+    "bevy_transform_interpolation/serialize",
     "parry2d?/serde-serialize",
     "parry2d-f64?/serde-serialize",
+    "smallvec/serde",
     "bitflags/serde",
 ]
+
+# Enables writing timer and counter information to the `DiagnosticsStore` in `bevy_diagnostic`.
+bevy_diagnostic = []
+
+# Enables the `PhysicsDiagnosticsUiPlugin` for visualizing physics diagnostics data with a debug UI.
+diagnostic_ui = ["bevy_diagnostic", "bevy/bevy_ui"]
 
 [lib]
 name = "avian2d"
@@ -49,30 +74,48 @@ required-features = ["2d"]
 bench = false
 
 [dependencies]
-avian_derive = { path = "../avian_derive", version = "0.1" }
-bevy = { version = "0.14", default-features = false }
-bevy_math = { version = "0.14" }
+avian_derive = { path = "../avian_derive", version = "0.2" }
+bevy = { version = "0.16", default-features = false, features = [
+    "std",
+    "bevy_log",
+] }
+bevy_math = { version = "0.16", features = ["approx"] }
+glam_matrix_extensions = { git = "https://github.com/Jondolf/glam_matrix_extensions", features = [
+    "bevy_reflect",
+] }
+bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy.git" }
+bevy_transform_interpolation = { version = "0.2" }
 libm = { version = "0.2", optional = true }
-parry2d = { version = "0.15", optional = true }
-parry2d-f64 = { version = "0.15", optional = true }
-nalgebra = { version = "0.32.6", features = [
-    "convert-glam027",
-], optional = true }
+approx = "0.5"
+parry2d = { version = "0.21", optional = true }
+parry2d-f64 = { version = "0.21", optional = true }
+nalgebra = { version = "0.33", features = ["convert-glam029"], optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
-derive_more = "0.99"
-indexmap = "2.0.0"
-fxhash = "0.2.1"
+derive_more = "1"
+thiserror = "2"
+arrayvec = "0.7"
+smallvec = "1.15"
 itertools = "0.13"
 bitflags = "2.5.0"
+thread_local = { version = "1.1", optional = true }
+disqualified = { version = "1.0" }
 
 [dev-dependencies]
 examples_common_2d = { path = "../examples_common_2d" }
-benches_common_2d = { path = "../benches_common_2d" }
-bevy_math = { version = "0.14", features = ["approx"] }
-approx = "0.5"
+bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy.git", features = [
+    "approx",
+] }
+glam = { version = "0.29", features = ["bytemuck"] }
+bytemuck = "1.19"
 criterion = { version = "0.5", features = ["html_reports"] }
-insta = "1.0"
-bevy_mod_debugdump = "0.11"
+bevy_mod_debugdump = { version = "0.13" }
+
+[lints]
+workspace = true
+
+[package.metadata.docs.rs]
+# Enable features when building the docs on docs.rs
+features = ["diagnostic_ui"]
 
 [[example]]
 name = "dynamic_character_2d"
@@ -99,7 +142,27 @@ name = "custom_collider"
 required-features = ["2d"]
 
 [[example]]
+name = "determinism_2d"
+required-features = ["2d", "default-collider", "enhanced-determinism"]
+
+[[example]]
 name = "fixed_joint_2d"
+required-features = ["2d", "default-collider"]
+
+[[example]]
+name = "interpolation"
+required-features = ["2d", "default-collider"]
+
+[[example]]
+name = "many_pyramids_2d"
+required-features = ["2d", "default-collider"]
+
+[[example]]
+name = "many_shapes"
+required-features = ["2d", "default-collider"]
+
+[[example]]
+name = "one_way_platform_2d"
 required-features = ["2d", "default-collider"]
 
 [[example]]
@@ -111,6 +174,10 @@ name = "prismatic_joint_2d"
 required-features = ["2d", "default-collider"]
 
 [[example]]
+name = "pyramid_2d"
+required-features = ["2d", "default-collider"]
+
+[[example]]
 name = "ray_caster"
 required-features = ["2d", "default-collider"]
 
@@ -119,10 +186,13 @@ name = "revolute_joint_2d"
 required-features = ["2d", "default-collider"]
 
 [[example]]
-name = "debugdump_2d"
-required-features = ["2d"]
-
-[[bench]]
-name = "pyramid"
+name = "sensor"
 required-features = ["2d", "default-collider"]
-harness = false
+
+[[example]]
+name = "tumbler"
+required-features = ["2d", "default-collider"]
+
+[[example]]
+name = "debugdump_2d"
+required-features = ["2d", "debug-plugin"]

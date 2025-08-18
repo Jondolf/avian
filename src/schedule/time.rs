@@ -11,7 +11,9 @@ use bevy::prelude::*;
 /// [`Time<Physics>`](Physics) is automatically set as the generic [`Time`] resource for
 /// the [`PhysicsSchedule`].
 ///
-/// ### Physics speed
+/// # Usage
+///
+/// ## Physics Speed
 ///
 /// The relative speed of [`Time<Physics>`](Physics) can be configured at startup
 /// using [`with_relative_speed`], or when the app is running using [`set_relative_speed`]:
@@ -19,7 +21,7 @@ use bevy::prelude::*;
 /// ```no_run
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
-/// use bevy::{prelude::*, utils::Duration};
+/// use bevy::prelude::*;
 ///
 /// fn main() {
 ///     App::new()
@@ -33,7 +35,7 @@ use bevy::prelude::*;
 /// [`with_relative_speed`]: PhysicsTime::with_relative_speed
 /// [`set_relative_speed`]: PhysicsTime::set_relative_speed
 ///
-/// ### Pausing, resuming, and stepping physics
+/// ## Pausing, Resuming, and Stepping Physics
 ///
 /// [`Time<Physics>`](Physics) can be used to pause and resume the simulation:
 ///
@@ -57,7 +59,8 @@ use bevy::prelude::*;
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
-/// use bevy::{prelude::*, utils::Duration};
+/// use bevy::prelude::*;
+/// use core::time::Duration;
 ///
 /// fn run_physics(world: &mut World) {
 ///     // Advance the simulation by 10 steps at 120 Hz
@@ -70,7 +73,7 @@ use bevy::prelude::*;
 /// }
 /// ```
 ///
-/// ## When to multiply by delta time?
+/// ## When to Multiply by Delta Time?
 ///
 /// Schedules like `Update` use a variable timestep, which can often cause frame rate dependent
 /// behavior when moving bodies. One way to help address the issue is by multiplying by delta time.
@@ -279,11 +282,11 @@ impl TimePrecisionAdjusted for Time {
     fn delta_seconds_adjusted(&self) -> Scalar {
         #[cfg(feature = "f32")]
         {
-            self.delta_seconds()
+            self.delta_secs()
         }
         #[cfg(feature = "f64")]
         {
-            self.delta_seconds_f64()
+            self.delta_secs_f64()
         }
     }
 }

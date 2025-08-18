@@ -1,6 +1,8 @@
+use core::iter::once;
+
 use crate::prelude::*;
-use bevy::prelude::*;
-use bevy::utils::HashMap;
+use bevy::{platform::collections::HashMap, prelude::*};
+use itertools::Either;
 
 /// A component that will automatically generate [`Collider`]s on its descendants at runtime.
 /// The type of the generated collider can be specified using [`ColliderConstructor`].
@@ -9,7 +11,7 @@ use bevy::utils::HashMap;
 ///
 /// In contrast to [`ColliderConstructor`], this component will *not* generate a collider on its own entity.
 ///
-/// If this component is used on a scene, such as one spawned by a [`SceneBundle`], it will
+/// If this component is used on a scene, such as one spawned by a [`SceneRoot`], it will
 /// wait until the scene is loaded before generating colliders.
 ///
 /// The exact configuration for each descendant can be specified using the helper methods
@@ -18,15 +20,15 @@ use bevy::utils::HashMap;
 /// This component will only override a pre-existing [`Collider`] component on a descendant entity
 /// when it has been explicitly mentioned in the `config`.
 ///
-/// ## See also
+/// # See Also
 ///
 /// For inserting colliders on the same entity, use [`ColliderConstructor`].
 ///
-/// ## Caveats
+/// # Caveats
 ///
 /// When a component has multiple ancestors with [`ColliderConstructorHierarchy`], the insertion order is undefined.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -45,7 +47,7 @@ use bevy::utils::HashMap;
     doc = "    // Spawn the scene and automatically generate triangle mesh colliders"
 )]
 ///     commands.spawn((
-///         SceneBundle { scene: scene.clone(), ..default() },
+///         SceneRoot(scene.clone()),
 #[cfg_attr(
     feature = "2d",
     doc = "        ColliderConstructorHierarchy::new(ColliderConstructor::Circle { radius: 2.0 }),"
@@ -58,7 +60,7 @@ use bevy::utils::HashMap;
 ///
 ///     // Specify configuration for specific meshes by name
 ///     commands.spawn((
-///         SceneBundle { scene: scene.clone(), ..default() },
+///         SceneRoot(scene.clone()),
 #[cfg_attr(
     feature = "2d",
     doc = "        ColliderConstructorHierarchy::new(ColliderConstructor::Circle { radius: 2.0 })
@@ -75,7 +77,7 @@ use bevy::utils::HashMap;
 ///
 ///     // Only generate colliders for specific meshes by name
 ///     commands.spawn((
-///         SceneBundle { scene: scene.clone(), ..default() },
+///         SceneRoot(scene.clone()),
 ///         ColliderConstructorHierarchy::new(None)
 #[cfg_attr(
     feature = "2d",
@@ -89,7 +91,7 @@ use bevy::utils::HashMap;
 ///
 ///     // Generate colliders for everything except specific meshes by name
 ///     commands.spawn((
-///         SceneBundle { scene, ..default() },
+///         SceneRoot(scene),
 #[cfg_attr(
     feature = "2d",
     doc = "        ColliderConstructorHierarchy::new(ColliderConstructor::Circle { radius: 2.0 })
@@ -115,7 +117,7 @@ pub struct ColliderConstructorHierarchy {
     pub default_constructor: Option<ColliderConstructor>,
     /// The default [`CollisionLayers`] used for colliders in the hierarchy.
     ///
-    /// [`CollisionLayers::ALL`] by default.
+    /// [`CollisionLayers::default()`] by default, with the first layer and all filters.
     pub default_layers: CollisionLayers,
     /// The default [`ColliderDensity`] used for colliders in the hierarchy.
     ///
@@ -141,7 +143,7 @@ impl ColliderConstructorHierarchy {
     pub fn new(default_constructor: impl Into<Option<ColliderConstructor>>) -> Self {
         Self {
             default_constructor: default_constructor.into(),
-            default_layers: CollisionLayers::ALL,
+            default_layers: CollisionLayers::default(),
             default_density: ColliderDensity(1.0),
             config: default(),
         }
@@ -240,16 +242,16 @@ pub struct ColliderConstructorHierarchyConfig {
 ///
 /// This component will never override a pre-existing [`Collider`] component on the same entity.
 ///
-/// ## See also
+/// # See Also
 ///
 /// For inserting colliders on an entity's descendants, use [`ColliderConstructorHierarchy`].
 ///
-/// ## Panics
+/// # Panics
 ///
 /// The system handling the generation of colliders will panic if the specified [`ColliderConstructor`]
 /// requires a mesh, but the entity does not have a `Handle<Mesh>` component.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -271,10 +273,7 @@ pub struct ColliderConstructorHierarchyConfig {
     feature = "3d",
     doc = "        ColliderConstructor::ConvexHullFromMesh,"
 )]
-///         PbrBundle {
-///             mesh: meshes.add(Mesh::from(Cuboid::default())),
-///             ..default()
-///         },
+///         Mesh3d(meshes.add(Cuboid::default())),
 ///     ));
 /// }
 /// ```
@@ -284,6 +283,7 @@ pub struct ColliderConstructorHierarchyConfig {
 #[cfg_attr(feature = "collider-from-mesh", derive(Default))]
 #[cfg_attr(feature = "collider-from-mesh", reflect(Default))]
 #[reflect(Debug, Component, PartialEq)]
+#[reflect(no_field_bounds)]
 #[non_exhaustive]
 #[allow(missing_docs)]
 pub enum ColliderConstructor {
@@ -346,7 +346,7 @@ pub enum ColliderConstructor {
     Triangle { a: Vector, b: Vector, c: Vector },
     /// Constructs a collider with [`Collider::regular_polygon`].
     #[cfg(feature = "2d")]
-    RegularPolygon { circumradius: f32, sides: usize },
+    RegularPolygon { circumradius: f32, sides: u32 },
     /// Constructs a collider with [`Collider::polyline`].
     Polyline {
         vertices: Vec<Vector>,
@@ -395,6 +395,30 @@ pub enum ColliderConstructor {
     /// Constructs a collider with [`Collider::convex_hull`].
     #[cfg(feature = "3d")]
     ConvexHull { points: Vec<Vector> },
+    /// Constructs a collider with [`Collider::convex_polyline`].
+    #[cfg(feature = "2d")]
+    ConvexPolyline { points: Vec<Vector> },
+    /// Constructs a collider with [`Collider::voxels`].
+    Voxels {
+        voxel_size: Vector,
+        grid_coordinates: Vec<IVector>,
+    },
+    /// Constructs a collider with [`Collider::voxelized_polyline`].
+    #[cfg(feature = "2d")]
+    VoxelizedPolyline {
+        vertices: Vec<Vector>,
+        indices: Vec<[u32; 2]>,
+        voxel_size: Scalar,
+        fill_mode: FillMode,
+    },
+    /// Constructs a collider with [`Collider::voxelized_trimesh`].
+    #[cfg(feature = "3d")]
+    VoxelizedTrimesh {
+        vertices: Vec<Vector>,
+        indices: Vec<[u32; 3]>,
+        voxel_size: Scalar,
+        fill_mode: FillMode,
+    },
     /// Constructs a collider with [`Collider::heightfield`].
     #[cfg(feature = "2d")]
     Heightfield { heights: Vec<Scalar>, scale: Vector },
@@ -428,6 +452,14 @@ pub enum ColliderConstructor {
     /// Constructs a collider with [`Collider::convex_hull_from_mesh`].
     #[cfg(feature = "collider-from-mesh")]
     ConvexHullFromMesh,
+    /// Constructs a collider with [`Collider::voxelized_trimesh_from_mesh`].
+    #[cfg(feature = "collider-from-mesh")]
+    VoxelizedTrimeshFromMesh {
+        voxel_size: Scalar,
+        fill_mode: FillMode,
+    },
+    /// Constructs a collider with [`Collider::compound`].
+    Compound(Vec<(Position, Rotation, ColliderConstructor)>),
 }
 
 impl ColliderConstructor {
@@ -441,16 +473,53 @@ impl ColliderConstructor {
                 | Self::ConvexDecompositionFromMesh
                 | Self::ConvexDecompositionFromMeshWithConfig(_)
                 | Self::ConvexHullFromMesh
+                | Self::VoxelizedTrimeshFromMesh { .. }
         )
+    }
+
+    /// Construct a [`ColliderConstructor::Compound`] from arbitrary [`Position`] and [`Rotation`] representations.
+    pub fn compound<P, R>(shapes: Vec<(P, R, ColliderConstructor)>) -> Self
+    where
+        P: Into<Position>,
+        R: Into<Rotation>,
+    {
+        Self::Compound(
+            shapes
+                .into_iter()
+                .map(|(pos, rot, constructor)| (pos.into(), rot.into(), constructor))
+                .collect(),
+        )
+    }
+
+    pub(crate) fn flatten_compound_constructors(
+        constructors: Vec<(Position, Rotation, ColliderConstructor)>,
+    ) -> Vec<(Position, Rotation, ColliderConstructor)> {
+        constructors
+            .into_iter()
+            .flat_map(|(pos, rot, constructor)| match constructor {
+                ColliderConstructor::Compound(nested) => {
+                    Either::Left(Self::flatten_compound_constructors(nested).into_iter().map(
+                        move |(nested_pos, nested_rot, nested_constructor)| {
+                            (
+                                Position(pos.0 + rot * nested_pos.0),
+                                rot * nested_rot,
+                                nested_constructor,
+                            )
+                        },
+                    ))
+                }
+                other => Either::Right(once((pos, rot, other))),
+            })
+            .collect()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bevy::ecs::query::QueryData;
     #[cfg(feature = "bevy_scene")]
     use bevy::scene::ScenePlugin;
+    use bevy::{ecs::query::QueryData, render::mesh::MeshPlugin};
 
     #[test]
     fn collider_constructor_requires_no_mesh_on_primitive() {
@@ -480,16 +549,16 @@ mod tests {
     fn collider_constructor_converts_mesh_on_computed() {
         let mut app = create_test_app();
 
-        let mesh_handle = app.add_mesh();
+        let mesh = app.add_mesh();
         let entity = app
             .world_mut()
-            .spawn((COMPUTED_COLLIDER.clone(), mesh_handle))
+            .spawn((COMPUTED_COLLIDER.clone(), Mesh3d(mesh)))
             .id();
 
         app.update();
 
         assert!(app.query_ok::<&Collider>(entity));
-        assert!(app.query_ok::<&Handle<Mesh>>(entity));
+        assert!(app.query_ok::<&Mesh3d>(entity));
         assert!(app.query_err::<&ColliderConstructor>(entity));
     }
 
@@ -515,18 +584,18 @@ mod tests {
     fn collider_constructor_hierarchy_does_nothing_on_self_with_computed() {
         let mut app = create_test_app();
 
-        let mesh_handle = app.add_mesh();
+        let mesh = app.add_mesh();
         let entity = app
             .world_mut()
             .spawn((
                 ColliderConstructorHierarchy::new(COMPUTED_COLLIDER.clone()),
-                mesh_handle,
+                Mesh3d(mesh),
             ))
             .id();
 
         app.update();
 
-        assert!(app.query_ok::<&Handle<Mesh>>(entity));
+        assert!(app.query_ok::<&Mesh3d>(entity));
         assert!(app.query_err::<&ColliderConstructorHierarchy>(entity));
         assert!(app.query_err::<&Collider>(entity));
     }
@@ -569,8 +638,8 @@ mod tests {
 
         app.world_mut()
             .entity_mut(parent)
-            .push_children(&[child1, child2]);
-        app.world_mut().entity_mut(child2).push_children(&[child3]);
+            .add_children(&[child1, child2]);
+        app.world_mut().entity_mut(child2).add_children(&[child3]);
 
         app.update();
 
@@ -590,7 +659,7 @@ mod tests {
     #[test]
     fn collider_constructor_hierarchy_inserts_computed_colliders_only_on_descendants_with_mesh() {
         let mut app = create_test_app();
-        let mesh_handle = app.add_mesh();
+        let mesh = Mesh3d(app.add_mesh());
 
         // Hierarchy:
         // - parent
@@ -609,19 +678,19 @@ mod tests {
             .id();
         let child1 = app.world_mut().spawn(()).id();
         let child2 = app.world_mut().spawn(()).id();
-        let child3 = app.world_mut().spawn(mesh_handle.clone()).id();
-        let child4 = app.world_mut().spawn(mesh_handle.clone()).id();
+        let child3 = app.world_mut().spawn(mesh.clone()).id();
+        let child4 = app.world_mut().spawn(mesh.clone()).id();
         let child5 = app.world_mut().spawn(()).id();
-        let child6 = app.world_mut().spawn(mesh_handle.clone()).id();
-        let child7 = app.world_mut().spawn(mesh_handle.clone()).id();
-        let child8 = app.world_mut().spawn(mesh_handle.clone()).id();
+        let child6 = app.world_mut().spawn(mesh.clone()).id();
+        let child7 = app.world_mut().spawn(mesh.clone()).id();
+        let child8 = app.world_mut().spawn(mesh.clone()).id();
 
         app.world_mut()
             .entity_mut(parent)
-            .push_children(&[child1, child2, child4, child6, child7]);
-        app.world_mut().entity_mut(child2).push_children(&[child3]);
-        app.world_mut().entity_mut(child4).push_children(&[child5]);
-        app.world_mut().entity_mut(child7).push_children(&[child8]);
+            .add_children(&[child1, child2, child4, child6, child7]);
+        app.world_mut().entity_mut(child2).add_child(child3);
+        app.world_mut().entity_mut(child4).add_child(child5);
+        app.world_mut().entity_mut(child7).add_child(child8);
 
         app.update();
 
@@ -649,10 +718,23 @@ mod tests {
 
     #[cfg(all(feature = "collider-from-mesh", feature = "bevy_scene"))]
     #[test]
+    #[cfg_attr(
+        target_os = "linux",
+        ignore = "The plugin setup requires access to the GPU, which is not available in the linux test environment"
+    )]
     fn collider_constructor_hierarchy_inserts_correct_configs_on_scene() {
         use parry::shape::ShapeType;
 
+        #[derive(Resource)]
+        struct SceneReady;
+
         let mut app = create_gltf_test_app();
+
+        app.add_observer(
+            |_trigger: Trigger<bevy::scene::SceneInstanceReady>, mut commands: Commands| {
+                commands.insert_resource(SceneReady);
+            },
+        );
 
         let scene_handle = app
             .world_mut()
@@ -662,10 +744,7 @@ mod tests {
         let hierarchy = app
             .world_mut()
             .spawn((
-                SceneBundle {
-                    scene: scene_handle,
-                    ..default()
-                },
+                SceneRoot(scene_handle),
                 ColliderConstructorHierarchy::new(ColliderConstructor::ConvexDecompositionFromMesh)
                     // Use a primitive collider for the left arm.
                     .with_constructor_for_name("armL_mesh", PRIMITIVE_COLLIDER)
@@ -676,12 +755,16 @@ mod tests {
             ))
             .id();
 
-        while app
-            .world()
-            .resource::<Events<bevy::scene::SceneInstanceReady>>()
-            .is_empty()
-        {
+        let mut counter = 0;
+        loop {
+            if app.world().contains_resource::<SceneReady>() {
+                break;
+            }
             app.update();
+            counter += 1;
+            if counter > 1000 {
+                panic!("SceneInstanceReady was never triggered");
+            }
         }
         app.update();
 
@@ -734,7 +817,7 @@ mod tests {
             AssetPlugin::default(),
             #[cfg(feature = "bevy_scene")]
             ScenePlugin,
-            HierarchyPlugin,
+            MeshPlugin,
             PhysicsPlugins::default(),
         ))
         .init_resource::<Assets<Mesh>>();
@@ -746,6 +829,9 @@ mod tests {
     fn create_gltf_test_app() -> App {
         use bevy::{diagnostic::DiagnosticsPlugin, winit::WinitPlugin};
 
+        // Todo: it would be best to disable all rendering-related plugins,
+        // but we have so far not succeeded in finding the right plugin combination
+        // that still results in `SceneInstanceReady` being triggered.
         let mut app = App::new();
         app.add_plugins((
             DefaultPlugins

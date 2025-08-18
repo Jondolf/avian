@@ -2,7 +2,7 @@
 //! They act as [constraints](dynamics::solver::xpbd#constraints) that restrict different *Degrees Of Freedom*
 //! depending on the joint type.
 //!
-//! ## Degrees Of Freedom (DOF)
+//! # Degrees of Freedom (DOF)
 //!
 //! In 3D, entities can normally translate and rotate along the `X`, `Y` and `Z` axes.
 //! Therefore, they have 3 translational DOF and 3 rotational DOF, which is a total of 6 DOF.
@@ -23,7 +23,7 @@
     doc = "| [`SphericalJoint`] | 1 Rotation                | 3 Rotations                 |"
 )]
 //!
-//! ## Using joints
+//! # Using Joints
 //!
 //! In Avian, joints are modeled as components. You can create a joint by simply spawning
 //! an entity and adding the joint component you want, giving the connected entities as arguments
@@ -33,7 +33,7 @@
 #![cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
 #![cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 //! use bevy::prelude::*;
-
+//!
 //! fn setup(mut commands: Commands) {
 //!     let entity1 = commands.spawn(RigidBody::Dynamic).id();
 //!     let entity2 = commands.spawn(RigidBody::Dynamic).id();
@@ -43,33 +43,36 @@
 //! }
 //! ```
 //!
-//! ### Stiffness
+//! By default, the attached bodies can still collide with each other.
+//! This behavior can be disabled with the [`JointCollisionDisabled`] component.
+//!
+//! ## Stiffness
 //!
 //! You can control the stiffness of a joint with the `with_compliance` method.
 //! *Compliance* refers to the inverse of stiffness, so using a compliance of 0 corresponds to
 //! infinite stiffness.
 //!
-//! ### Attachment positions
+//! ## Attachment Positions
 //!
 //! By default, joints are connected to the centers of entities, but attachment positions can be used to change this.
 //!
 //! You can use `with_local_anchor_1` and `with_local_anchor_2` to set the attachment positions on the first
 //! and second entity respectively.
 //!
-//! ### Damping
+//! ## Damping
 //!
 //! You can configure the linear and angular damping caused by joints using the `with_linear_velocity_damping` and
 //! `with_angular_velocity_damping` methods. Increasing the damping values will cause the velocities
 //! of the connected entities to decrease faster.
 //!
-//! ### Other configuration
+//! ## Other Configuration
 //!
 //! Different joints may have different configuration options. Many joints allow you to change the axis of allowed
 //! translation or rotation, and they may have distance or angle limits along these axes.
 //!
 //! Take a look at the documentation and methods of each joint to see all of the configuration options.
 //!
-//! ## Custom joints
+//! # Custom Joints
 //!
 //! Joints are [constraints](dynamics::solver::xpbd#constraints) that implement [`Joint`] and [`XpbdConstraint`].
 //!
@@ -83,12 +86,20 @@
 //! [See the code implementations](https://github.com/Jondolf/avian/tree/main/src/constraints/joints)
 //! of the implemented joints to get a better idea of how to create joints.
 
+mod fixed_angle_constraint;
+mod point_constraint;
+
 mod distance;
 mod fixed;
 mod prismatic;
 mod revolute;
 #[cfg(feature = "3d")]
 mod spherical;
+
+pub mod joint_graph;
+
+pub use fixed_angle_constraint::*;
+pub use point_constraint::*;
 
 pub use distance::*;
 pub use fixed::*;
@@ -97,28 +108,19 @@ pub use revolute::*;
 #[cfg(feature = "3d")]
 pub use spherical::*;
 
-use crate::{dynamics::solver::xpbd::*, prelude::*};
-use bevy::prelude::*;
+use crate::{
+    dynamics::solver::xpbd::*,
+    prelude::{joint_graph::JointGraph, *},
+};
+use bevy::{
+    ecs::{component::HookContext, world::DeferredWorld},
+    prelude::*,
+};
 
 /// A trait for [joints](self).
 pub trait Joint: Component + PositionConstraint + AngularConstraint {
     /// Creates a new joint between two entities.
     fn new(entity1: Entity, entity2: Entity) -> Self;
-
-    /// Sets the joint's compliance (inverse of stiffness, meters / Newton).
-    fn with_compliance(self, compliance: Scalar) -> Self;
-
-    /// Sets the attachment point on the first body.
-    fn with_local_anchor_1(self, anchor: Vector) -> Self;
-
-    /// Sets the attachment point on the second body.
-    fn with_local_anchor_2(self, anchor: Vector) -> Self;
-
-    /// Sets the linear velocity damping caused by the joint.
-    fn with_linear_velocity_damping(self, damping: Scalar) -> Self;
-
-    /// Sets the angular velocity damping caused by the joint.
-    fn with_angular_velocity_damping(self, damping: Scalar) -> Self;
 
     /// Returns the local attachment point on the first body.
     fn local_anchor_1(&self) -> Vector;
@@ -126,60 +128,17 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
     /// Returns the local attachment point on the second body.
     fn local_anchor_2(&self) -> Vector;
 
-    /// Returns the linear velocity damping of the joint.
+    /// Returns the linear velocity damping applied by the joint.
     fn damping_linear(&self) -> Scalar;
 
-    /// Returns the angular velocity damping of the joint.
+    /// Returns the angular velocity damping applied by the joint.
     fn damping_angular(&self) -> Scalar;
 
-    /// Applies a positional correction that aligns the positions of the local attachment points `r1` and `r2`.
+    /// Returns the relative dominance of the bodies.
     ///
-    /// Returns the force exerted by the alignment.
-    #[allow(clippy::too_many_arguments)]
-    fn align_position(
-        &self,
-        body1: &mut RigidBodyQueryItem,
-        body2: &mut RigidBodyQueryItem,
-        r1: Vector,
-        r2: Vector,
-        lagrange: &mut Scalar,
-        compliance: Scalar,
-        dt: Scalar,
-    ) -> Vector {
-        let world_r1 = *body1.rotation * r1;
-        let world_r2 = *body2.rotation * r2;
-
-        let (dir, magnitude) = DistanceLimit::new(0.0, 0.0).compute_correction(
-            body1.current_position() + world_r1,
-            body2.current_position() + world_r2,
-        );
-
-        if magnitude <= Scalar::EPSILON {
-            return Vector::ZERO;
-        }
-
-        // Compute generalized inverse masses
-        let w1 = PositionConstraint::compute_generalized_inverse_mass(self, body1, world_r1, dir);
-        let w2 = PositionConstraint::compute_generalized_inverse_mass(self, body2, world_r2, dir);
-
-        // Compute Lagrange multiplier update
-        let delta_lagrange =
-            self.compute_lagrange_update(*lagrange, magnitude, &[w1, w2], compliance, dt);
-        *lagrange += delta_lagrange;
-
-        // Apply positional correction to align the positions of the bodies
-        self.apply_positional_lagrange_update(
-            body1,
-            body2,
-            delta_lagrange,
-            dir,
-            world_r1,
-            world_r2,
-        );
-
-        // Return constraint force
-        self.compute_force(*lagrange, dir, dt)
-    }
+    /// If the relative dominance is positive, the first body is dominant
+    /// and is considered to have infinite mass.
+    fn relative_dominance(&self) -> i16;
 }
 
 /// A limit that indicates that the distance between two points should be between `min` and `max`.
@@ -221,32 +180,32 @@ impl DistanceLimit {
     }
 
     /// Returns the direction and magnitude of the positional correction required
-    /// to limit the distance between `p1` and `p2` to be within the distance limit.
-    pub fn compute_correction(&self, p1: Vector, p2: Vector) -> (Vector, Scalar) {
-        let pos_offset = p2 - p1;
-        let distance = pos_offset.length();
+    /// to limit the given `separation` to be within the distance limit.
+    pub fn compute_correction(&self, separation: Vector) -> (Vector, Scalar) {
+        let distance_squared = separation.length_squared();
 
-        if distance <= Scalar::EPSILON {
+        if distance_squared <= Scalar::EPSILON {
             return (Vector::ZERO, 0.0);
         }
+
+        let distance = distance_squared.sqrt();
 
         // Equation 25
         if distance < self.min {
             // Separation distance lower limit
-            (-pos_offset / distance, (distance - self.min))
+            (separation / distance, (self.min - distance))
         } else if distance > self.max {
             // Separation distance upper limit
-            (-pos_offset / distance, (distance - self.max))
+            (-separation / distance, (distance - self.max))
         } else {
             (Vector::ZERO, 0.0)
         }
     }
 
-    /// Returns the positional correction required to limit the distance between `p1` and `p2`
+    /// Returns the positional correction required to limit the given `separation`
     /// to be within the distance limit along a given `axis`.
-    pub fn compute_correction_along_axis(&self, p1: Vector, p2: Vector, axis: Vector) -> Vector {
-        let pos_offset = p2 - p1;
-        let a = pos_offset.dot(axis);
+    pub fn compute_correction_along_axis(&self, separation: Vector, axis: Vector) -> Vector {
+        let a = separation.dot(axis);
 
         // Equation 25
         if a < self.min {
@@ -282,21 +241,18 @@ impl AngleLimit {
         Self { min, max }
     }
 
-    /// Returns the angular correction required to limit the angle between two rotations
+    /// Returns the angular correction required to limit the `angle_difference`
     /// to be within the angle limits.
     #[cfg(feature = "2d")]
     pub fn compute_correction(
         &self,
-        rotation1: Rotation,
-        rotation2: Rotation,
+        angle_difference: Scalar,
         max_correction: Scalar,
     ) -> Option<Scalar> {
-        let angle = rotation1.angle_between(rotation2);
-
-        let correction = if angle < self.min {
-            angle - self.min
-        } else if angle > self.max {
-            angle - self.max
+        let correction = if angle_difference < self.min {
+            angle_difference - self.min
+        } else if angle_difference > self.max {
+            angle_difference - self.max
         } else {
             return None;
         };
@@ -353,5 +309,74 @@ impl AngleLimit {
         }
 
         None
+    }
+}
+
+/// A marker component that indicates that a [joint](self) is disabled
+/// and should not constrain the bodies it is attached to.
+/// Must be on the same entity as the joint.
+///
+/// This is useful for temporarily disabling a joint without removing it from the world.
+/// To re-enable the joint, simply remove this component.
+///
+/// Note that when re-enabling the joint, the bodies may snap back violently
+/// if they have moved significantly from the constrained positions while the joint was disabled.
+///
+/// # Related Components
+///
+/// - [`RigidBodyDisabled`]: Disables a rigid body.
+/// - [`ColliderDisabled`]: Disables a collider.
+#[derive(Reflect, Clone, Copy, Component, Debug, Default)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default)]
+pub struct JointDisabled;
+
+/// A marker component that disables collision for [rigid bodies](RigidBody)
+/// connected by a [joint](self). Must be on the same entity as the joint.
+///
+/// # Example
+///
+/// ```
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
+/// use bevy::prelude::*;
+///
+/// fn setup(mut commands: Commands) {
+///     let entity1 = commands.spawn(RigidBody::Dynamic).id();
+///     let entity2 = commands.spawn(RigidBody::Dynamic).id();
+///     
+///     // Connect the bodies with a fixed joint.
+///     // Disables collision between the two bodies.
+///     commands.spawn((
+///         FixedJoint::new(entity1, entity2),
+///         JointCollisionDisabled,
+///     ));
+/// }
+/// ```
+#[derive(Component)]
+#[component(on_add = JointCollisionDisabled::on_add, on_remove = JointCollisionDisabled::on_remove)]
+pub struct JointCollisionDisabled;
+
+impl JointCollisionDisabled {
+    fn on_add(mut world: DeferredWorld, ctx: HookContext) {
+        let entity = ctx.entity;
+
+        // Update the `contacts_enabled` property of the joint edge.
+        // Note: The `JointGraphPlugin` handles the removal of contacts between the bodies.
+        let mut joint_graph = world.resource_mut::<JointGraph>();
+        if let Some(joint_edge) = joint_graph.get_joint_mut(entity) {
+            joint_edge.collision_disabled = true;
+        }
+    }
+
+    fn on_remove(mut world: DeferredWorld, ctx: HookContext) {
+        let entity = ctx.entity;
+
+        // Update the `contacts_enabled` property of the joint edge.
+        let mut joint_graph = world.resource_mut::<JointGraph>();
+        if let Some(joint_edge) = joint_graph.get_joint_mut(entity) {
+            joint_edge.collision_disabled = false;
+        }
     }
 }

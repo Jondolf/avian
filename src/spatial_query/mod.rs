@@ -4,7 +4,7 @@
 //! and various types of intersections. Currently, four types of spatial queries are supported:
 //!
 //! - [Raycasts](#raycasting)
-//! - [Shapecasts](#shapecasting),
+//! - [Shapecasts](#shapecasting)
 //! - [Point projection](#point-projection)
 //! - [Intersection tests](#intersection-tests)
 //!
@@ -14,15 +14,14 @@
 //! [`ShapeCaster`] components. They enable performing casts every frame in a way that is often more convenient
 //! than the normal [`SpatialQuery`] methods. See their documentation for more information.
 //!
-//! ## Raycasting
+//! # Raycasting
 //!
 //! **Raycasting** is a spatial query that finds intersections between colliders and a half-line. This can be used for
 //! a variety of things like getting information about the environment for character controllers and AI,
 //! and even rendering using ray tracing.
 //!
-//! For each hit during raycasting, the hit entity, a *time of impact* and a normal will be stored in [`RayHitData`].
-//! The time of impact refers to how long the ray travelled, which is essentially the distance from the ray origin to
-//! the point of intersection.
+//! For each hit during raycasting, the hit entity, a distance, and a normal will be stored in [`RayHitData`].
+//! The distance is the distance from the ray origin to the point of intersection, indicating how far the ray travelled.
 //!
 //! There are two ways to perform raycasts.
 //!
@@ -57,9 +56,9 @@
 //!         // For the faster iterator that isn't sorted, use `.iter()`
 //!         for hit in hits.iter_sorted() {
 //!             println!(
-//!                 "Hit entity {:?} at {} with normal {}",
+//!                 "Hit entity {} at {} with normal {}",
 //!                 hit.entity,
-//!                 ray.origin + *ray.direction * hit.time_of_impact,
+//!                 ray.origin + *ray.direction * hit.distance,
 //!                 hit.normal,
 //!             );
 //!         }
@@ -69,16 +68,15 @@
 //!
 //! To specify which colliders should be considered in the query, use a [spatial query filter](`SpatialQueryFilter`).
 //!
-//! ## Shapecasting
+//! # Shapecasting
 //!
 //! **Shapecasting** or **sweep testing** is a spatial query that finds intersections between colliders and a shape
 //! that is travelling along a half-line. It is very similar to [raycasting](#raycasting), but instead of a "point"
 //! we have an entire shape travelling along a half-line. One use case is determining how far an object can move
 //! before it hits the environment.
 //!
-//! For each hit during shapecasting, the hit entity, the *time of impact*, two local points of intersection and two local
-//! normals will be stored in [`ShapeHitData`]. The time of impact refers to how long the shape travelled before the initial
-//! hit, which is essentially the distance from the shape origin to the global point of intersection.
+//! For each hit during shapecasting, the hit entity, a distance, two world-space points of intersection and two world-space
+//! normals will be stored in [`ShapeHitData`]. The distance refers to how far the shape travelled before the initial hit.
 //!
 //! There are two ways to perform shapecasts.
 //!
@@ -107,7 +105,7 @@
 //!         Collider::sphere(0.5), // Shape
 //!         Vec3::ZERO,            // Origin
 //!         Quat::default(),       // Shape rotation
-//!         Dir3::X         // Direction
+//!         Dir3::X                // Direction
 //!     ));
 //!     // ...spawn colliders and other things
 //! }
@@ -115,7 +113,7 @@
 //! fn print_hits(query: Query<(&ShapeCaster, &ShapeHits)>) {
 //!     for (shape_caster, hits) in &query {
 //!         for hit in hits.iter() {
-//!             println!("Hit entity {:?}", hit.entity);
+//!             println!("Hit entity {}", hit.entity);
 //!         }
 //!     }
 //! }
@@ -123,7 +121,7 @@
 //!
 //! To specify which colliders should be considered in the query, use a [spatial query filter](`SpatialQueryFilter`).
 //!
-//! ## Point projection
+//! # Point projection
 //!
 //! **Point projection** is a spatial query that projects a point on the closest collider. It returns the collider's
 //! entity, the projected point, and whether the point is inside of the collider.
@@ -133,7 +131,7 @@
 //!
 //! To specify which colliders should be considered in the query, use a [spatial query filter](`SpatialQueryFilter`).
 //!
-//! ## Intersection tests
+//! # Intersection tests
 //!
 //! **Intersection tests** are spatial queries that return the entities of colliders that are intersecting a given
 //! shape or area.
@@ -160,6 +158,9 @@ mod ray_caster;
 mod shape_caster;
 #[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
 mod system_param;
+
+mod diagnostics;
+pub use diagnostics::SpatialQueryDiagnostics;
 
 #[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
 pub use pipeline::*;
@@ -199,7 +200,7 @@ impl Plugin for SpatialQueryPlugin {
                 ))]
                 (
                     update_shape_caster_positions,
-                    |mut spatial_query: SpatialQuery| spatial_query.update_pipeline(),
+                    update_spatial_query_pipeline,
                     raycast,
                     shapecast,
                 )
@@ -209,13 +210,34 @@ impl Plugin for SpatialQueryPlugin {
                 .in_set(PhysicsStepSet::SpatialQuery),
         );
     }
+
+    fn finish(&self, app: &mut App) {
+        // Register timer diagnostics for spatial queries.
+        app.register_physics_diagnostics::<SpatialQueryDiagnostics>();
+    }
+}
+
+/// Updates the [`SpatialQueryPipeline`].
+#[cfg(all(
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
+pub fn update_spatial_query_pipeline(
+    mut spatial_query: SpatialQuery,
+    mut diagnostics: ResMut<SpatialQueryDiagnostics>,
+) {
+    let start = crate::utils::Instant::now();
+
+    spatial_query.update_pipeline();
+
+    diagnostics.update_pipeline = start.elapsed();
 }
 
 type RayCasterPositionQueryComponents = (
     &'static mut RayCaster,
     Option<&'static Position>,
     Option<&'static Rotation>,
-    Option<&'static Parent>,
+    Option<&'static ChildOf>,
     Option<&'static GlobalTransform>,
 );
 
@@ -252,7 +274,7 @@ fn update_ray_caster_positions(
         }
 
         if let Some(Ok((parent_position, parent_rotation, parent_transform))) =
-            parent.map(|p| parents.get(p.get()))
+            parent.map(|&ChildOf(parent)| parents.get(parent))
         {
             let parent_position = parent_position
                 .copied()
@@ -262,17 +284,17 @@ fn update_ray_caster_positions(
                 .or(parent_transform.map(Rotation::from));
 
             // Apply parent transformations
-            if global_position.is_none() {
-                if let Some(position) = parent_position {
-                    let rotation = global_rotation.unwrap_or(parent_rotation.unwrap_or_default());
-                    ray.set_global_origin(position.0 + rotation * origin);
-                }
+            if global_position.is_none()
+                && let Some(position) = parent_position
+            {
+                let rotation = global_rotation.unwrap_or(parent_rotation.unwrap_or_default());
+                ray.set_global_origin(position.0 + rotation * origin);
             }
-            if global_rotation.is_none() {
-                if let Some(rotation) = parent_rotation {
-                    let global_direction = rotation * ray.direction;
-                    ray.set_global_direction(global_direction);
-                }
+            if global_rotation.is_none()
+                && let Some(rotation) = parent_rotation
+            {
+                let global_direction = rotation * ray.direction;
+                ray.set_global_direction(global_direction);
             }
         }
     }
@@ -283,7 +305,7 @@ type ShapeCasterPositionQueryComponents = (
     &'static mut ShapeCaster,
     Option<&'static Position>,
     Option<&'static Rotation>,
-    Option<&'static Parent>,
+    Option<&'static ChildOf>,
     Option<&'static GlobalTransform>,
 );
 
@@ -340,7 +362,7 @@ fn update_shape_caster_positions(
         }
 
         if let Some(Ok((parent_position, parent_rotation, parent_transform))) =
-            parent.map(|p| parents.get(p.get()))
+            parent.map(|&ChildOf(parent)| parents.get(parent))
         {
             let parent_position = parent_position
                 .copied()
@@ -350,25 +372,24 @@ fn update_shape_caster_positions(
                 .or(parent_transform.map(Rotation::from));
 
             // Apply parent transformations
-            if global_position.is_none() {
-                if let Some(position) = parent_position {
-                    let rotation = global_rotation.unwrap_or(parent_rotation.unwrap_or_default());
-                    shape_caster.set_global_origin(position.0 + rotation * origin);
-                }
+            if global_position.is_none()
+                && let Some(position) = parent_position
+            {
+                let rotation = global_rotation.unwrap_or(parent_rotation.unwrap_or_default());
+                shape_caster.set_global_origin(position.0 + rotation * origin);
             }
-            if global_rotation.is_none() {
-                if let Some(rotation) = parent_rotation {
-                    let global_direction = rotation * shape_caster.direction;
-                    shape_caster.set_global_direction(global_direction);
-                    #[cfg(feature = "2d")]
-                    {
-                        shape_caster
-                            .set_global_shape_rotation(shape_rotation + rotation.as_radians());
-                    }
-                    #[cfg(feature = "3d")]
-                    {
-                        shape_caster.set_global_shape_rotation(shape_rotation * rotation.0);
-                    }
+            if global_rotation.is_none()
+                && let Some(rotation) = parent_rotation
+            {
+                let global_direction = rotation * shape_caster.direction;
+                shape_caster.set_global_direction(global_direction);
+                #[cfg(feature = "2d")]
+                {
+                    shape_caster.set_global_shape_rotation(shape_rotation + rotation.as_radians());
+                }
+                #[cfg(feature = "3d")]
+                {
+                    shape_caster.set_global_shape_rotation(shape_rotation * rotation.0);
                 }
             }
         }
@@ -376,7 +397,13 @@ fn update_shape_caster_positions(
 }
 
 #[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
-fn raycast(mut rays: Query<(Entity, &mut RayCaster, &mut RayHits)>, spatial_query: SpatialQuery) {
+fn raycast(
+    mut rays: Query<(Entity, &mut RayCaster, &mut RayHits)>,
+    spatial_query: SpatialQuery,
+    mut diagnostics: ResMut<SpatialQueryDiagnostics>,
+) {
+    let start = crate::utils::Instant::now();
+
     for (entity, mut ray, mut hits) in &mut rays {
         if ray.enabled {
             ray.cast(entity, &mut hits, &spatial_query.query_pipeline);
@@ -384,13 +411,18 @@ fn raycast(mut rays: Query<(Entity, &mut RayCaster, &mut RayHits)>, spatial_quer
             hits.clear();
         }
     }
+
+    diagnostics.update_ray_casters = start.elapsed();
 }
 
 #[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
 fn shapecast(
     mut shape_casters: Query<(Entity, &ShapeCaster, &mut ShapeHits)>,
     spatial_query: SpatialQuery,
+    mut diagnostics: ResMut<SpatialQueryDiagnostics>,
 ) {
+    let start = crate::utils::Instant::now();
+
     for (entity, shape_caster, mut hits) in &mut shape_casters {
         if shape_caster.enabled {
             shape_caster.cast(entity, &mut hits, &spatial_query.query_pipeline);
@@ -398,4 +430,6 @@ fn shapecast(
             hits.clear();
         }
     }
+
+    diagnostics.update_shape_casters = start.elapsed();
 }
