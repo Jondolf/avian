@@ -45,7 +45,7 @@ fn setup(
     commands.spawn(
         DistanceJoint::new(static_cube, dynamic_cube)
             .with_local_anchor_2(0.5 * Vector::ONE)
-            .with_rest_length(1.5)
+            .with_limits(1.5, 1.5)
             .with_compliance(1.0 / 400.0),
     );
 

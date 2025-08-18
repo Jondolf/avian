@@ -31,10 +31,8 @@ pub struct DistanceJoint {
     pub local_anchor1: Vector,
     /// Attachment point on the second body.
     pub local_anchor2: Vector,
-    /// The distance the attached bodies will be kept relative to each other.
-    pub rest_length: Scalar,
     /// The extents of the allowed relative translation between the attached bodies.
-    pub length_limits: Option<DistanceLimit>,
+    pub length_limits: DistanceLimit,
     /// Linear damping applied by the joint.
     pub damping_linear: Scalar,
     /// Angular damping applied by the joint.
@@ -110,15 +108,9 @@ impl XpbdConstraint<2> for DistanceJoint {
             + (world_r2 - world_r1)
             + self.pre_step.center_difference;
 
-        // If min and max limits aren't specified, use rest length
-        // TODO: Remove rest length, just use min/max limits.
-        let limits = self
-            .length_limits
-            .unwrap_or(DistanceLimit::new(self.rest_length, self.rest_length));
-
         // Compute the direction and magnitude of the positional correction required
         // to keep the bodies within a certain distance from each other.
-        let (dir, distance) = limits.compute_correction(separation);
+        let (dir, distance) = self.length_limits.compute_correction(separation);
 
         if distance <= Scalar::EPSILON {
             // No separation, no need to apply a correction.
@@ -172,8 +164,7 @@ impl Joint for DistanceJoint {
             entity2,
             local_anchor1: Vector::ZERO,
             local_anchor2: Vector::ZERO,
-            rest_length: 0.0,
-            length_limits: None,
+            length_limits: DistanceLimit::ZERO,
             damping_linear: 0.0,
             damping_angular: 0.0,
             relative_dominance: 0,
@@ -262,20 +253,11 @@ impl DistanceJoint {
         self.force
     }
 
-    /// Sets the minimum and maximum distances between the attached bodies.
-    pub fn with_limits(self, min: Scalar, max: Scalar) -> Self {
-        Self {
-            length_limits: Some(DistanceLimit::new(min, max)),
-            ..self
-        }
-    }
-
-    /// Sets the joint's rest length, or distance the bodies will be kept at.
-    pub fn with_rest_length(self, rest_length: Scalar) -> Self {
-        Self {
-            rest_length,
-            ..self
-        }
+    /// Sets the minimum and maximum distance between the anchor points of the bodies.
+    #[inline]
+    pub const fn with_limits(mut self, min: Scalar, max: Scalar) -> Self {
+        self.length_limits = DistanceLimit { min, max };
+        self
     }
 }
 

@@ -42,7 +42,7 @@ fn setup(mut commands: Commands) {
         DistanceJoint::new(anchor, object)
             .with_local_anchor_1(Vector::ZERO)
             .with_local_anchor_2(Vector::ZERO)
-            .with_rest_length(100.0)
+            .with_limits(100.0, 100.0)
             .with_linear_velocity_damping(0.1)
             .with_angular_velocity_damping(1.0)
             .with_compliance(0.00000001),
