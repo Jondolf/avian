@@ -55,14 +55,14 @@
 //! ```
 #![cfg_attr(
     feature = "2d",
-    doc = "use avian2d::{dynamics::solver::xpbd::{XpbdConstraint, XpbdConstraintSolverData}, math::{Scalar, Vector}, prelude::*};"
+    doc = "# use avian2d::{dynamics::{joints::EntityConstraint, solver::{solver_body::{SolverBody, SolverBodyInertia}, xpbd::{XpbdConstraint, XpbdConstraintSolverData}}, math::{Scalar, Vector}, prelude::*};"
 )]
 #![cfg_attr(
     feature = "3d",
-    doc = "use avian3d::{dynamics::solver::xpbd::{XpbdConstraint, XpbdConstraintSolverData}, math::{Scalar, Vector}, prelude::*};"
+    doc = "# use avian3d::{dynamics::{joints::EntityConstraint, solver::{solver_body::{SolverBody, SolverBodyInertia}, xpbd::{XpbdConstraint, XpbdConstraintSolverData}}, math::{Scalar, Vector}, prelude::*};"
 )]
-//! use bevy::{ecs::entity::{EntityMapper, MapEntities}, prelude::*};
-//!
+//! # use bevy::{ecs::entity::{EntityMapper, MapEntities}, prelude::*};
+//! #
 //! struct CustomConstraint {
 //!     entity1: Entity,
 //!     entity2: Entity,
