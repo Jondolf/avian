@@ -253,30 +253,11 @@ impl DistanceJoint {
         self.force
     }
 
-    /// Returns self with the minimum and maximum distances between the attached
-    /// bodies.
-    ///
-    /// ```
-    /// # #[cfg(feature = "2d")]
-    /// # use avian2d::prelude::*;
-    /// # #[cfg(feature = "3d")]
-    /// # use avian3d::prelude::*;
-    /// # use bevy::prelude::*;
-    /// # fn new_joint() -> DistanceJoint { DistanceJoint::new(Entity::PLACEHOLDER, Entity::PLACEHOLDER) }
-    /// let j: DistanceJoint = new_joint();
-    /// let a = j.with_length_limits(DistanceLimit { min: 0.0, max: 1.0 });
-    /// let b = j.with_length_limits((0.0, 1.0));
-    /// assert_eq!(a, b);
-    ///
-    /// let c = j.with_length_limits(DistanceLimit { min: 0.5, max: 0.5 });
-    /// let d = j.with_length_limits(0.5);
-    /// assert_eq!(c, d);
-    /// ```
-    pub fn with_length_limits(self, limit: impl Into<DistanceLimit>) -> Self {
-        Self {
-            length_limits: limit.into(),
-            ..self
-        }
+    /// Sets the minimum and maximum distance between the anchor points of the bodies.
+    #[inline]
+    pub const fn with_limits(mut self, min: Scalar, max: Scalar) -> Self {
+        self.length_limits = DistanceLimit { min, max };
+        self
     }
 }
 
