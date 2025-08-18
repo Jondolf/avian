@@ -51,8 +51,9 @@ jobs:
         timeout-minutes: 60
         steps:
             - uses: actions/checkout@v4
-            - uses: dtolnay/rust-toolchain@nightly-2025-08-07
+            - uses: dtolnay/rust-toolchain@nightly
               with:
+                toolchain: nightly-2025-08-07
                 components: llvm-tools-preview
             - uses: cargo-bins/cargo-binstall@main
             - name: Install nextest
