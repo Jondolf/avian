@@ -55,11 +55,11 @@
 //! ```
 #![cfg_attr(
     feature = "2d",
-    doc = "use avian2d::{prelude::*, dynamics::solver::xpbd::{XpbdConstraint, XpbdConstraintSolverData};"
+    doc = "use avian2d::{dynamics::solver::xpbd::{XpbdConstraint, XpbdConstraintSolverData}, prelude::*};"
 )]
 #![cfg_attr(
     feature = "3d",
-    doc = "use avian3d::{prelude::*, dynamics::solver::xpbd::{XpbdConstraint, XpbdConstraintSolverData};"
+    doc = "use avian3d::{dynamics::solver::xpbd::{XpbdConstraint, XpbdConstraintSolverData}, prelude::*};"
 )]
 //! use bevy::{ecs::entity::{EntityMapper, MapEntities}, prelude::*};
 //!

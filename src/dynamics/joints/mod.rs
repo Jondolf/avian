@@ -101,6 +101,7 @@ Therefore, they have 3 translational DOF and 3 rotational DOF, a total of 6 DOF.
     doc = "        .with_local_basis1(Quat::from_rotation_z(PI / 4.0)),"
 )]
 //! ));
+//! # }
 //! ```
 //!
 //! ## Damping
@@ -500,6 +501,7 @@ impl AngleLimit {
 /// #
 /// const BREAK_THRESHOLD: f32 = 500.0;
 ///
+/// # #[cfg(feature = "f32")]
 /// fn break_joints(
 ///     mut commands: Commands,
 ///     query: Query<(Entity, &JointForces), Without<JointDisabled>>,
@@ -750,6 +752,7 @@ impl JointForces {
     doc = "        .with_local_basis1(Quat::from_rotation_z(PI / 4.0)),"
 )]
 /// ));
+/// # }
 /// ```
 #[derive(Clone, Copy, Debug, Default, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
