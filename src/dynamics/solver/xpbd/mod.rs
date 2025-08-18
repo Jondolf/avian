@@ -55,11 +55,11 @@
 //! ```
 #![cfg_attr(
     feature = "2d",
-    doc = "use avian2d::{dynamics::solver::xpbd::{XpbdConstraint, XpbdConstraintSolverData}, prelude::*};"
+    doc = "use avian2d::{dynamics::solver::xpbd::{XpbdConstraint, XpbdConstraintSolverData}, math::Vector, prelude::*};"
 )]
 #![cfg_attr(
     feature = "3d",
-    doc = "use avian3d::{dynamics::solver::xpbd::{XpbdConstraint, XpbdConstraintSolverData}, prelude::*};"
+    doc = "use avian3d::{dynamics::solver::xpbd::{XpbdConstraint, XpbdConstraintSolverData}, math::Vector, prelude::*};"
 )]
 //! use bevy::{ecs::entity::{EntityMapper, MapEntities}, prelude::*};
 //!
@@ -98,7 +98,7 @@
 //!
 //!     fn prepare(
 //!         &mut self,
-//!         bodies: [&RigidBodyQueryReadOnlyItem; 2]
+//!         bodies: [&RigidBodyQueryReadOnlyItem; 2],
 //!         solver_data: &mut CustomConstraintSolverData,
 //!     ) {
 //!          // Prepare the constraint solver data for `solve` (compute current anchor positions, offsets, and so on).
