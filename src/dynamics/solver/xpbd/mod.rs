@@ -55,11 +55,11 @@
 //! ```
 #![cfg_attr(
     feature = "2d",
-    doc = "use avian2d::{dynamics::solver::xpbd::{XpbdConstraint, XpbdConstraintSolverData}, math::Vector, prelude::*};"
+    doc = "use avian2d::{dynamics::solver::xpbd::{XpbdConstraint, XpbdConstraintSolverData}, math::{Scalar, Vector}, prelude::*};"
 )]
 #![cfg_attr(
     feature = "3d",
-    doc = "use avian3d::{dynamics::solver::xpbd::{XpbdConstraint, XpbdConstraintSolverData}, math::Vector, prelude::*};"
+    doc = "use avian3d::{dynamics::solver::xpbd::{XpbdConstraint, XpbdConstraintSolverData}, math::{Scalar, Vector}, prelude::*};"
 )]
 //! use bevy::{ecs::entity::{EntityMapper, MapEntities}, prelude::*};
 //!
@@ -76,7 +76,7 @@
 //!
 //! impl XpbdConstraintSolverData for CustomConstraintSolverData {
 //!     fn clear_lagrange_multipliers(&mut self) {
-//!         self.total_lagrange = 0.0;
+//!         self.total_lagrange = Vector::ZERO;
 //!     }
 //!
 //!     fn total_position_lagrange(&self) -> Vector {
@@ -85,14 +85,12 @@
 //! }
 //!
 //! // This tells the solver how to get the entities from the constraint.
-//! # #[cfg(feature = "f32")]
 //! impl EntityConstraint<2> for CustomConstraint {
 //!     fn entities(&self) -> [Entity; 2] {
 //!         [self.entity1, self.entity2]
 //!     }
 //! }
 //!
-//! # #[cfg(feature = "f32")]
 //! impl XpbdConstraint<2> for CustomConstraint {
 //!     type SolverData = CustomConstraintSolverData;
 //!
@@ -110,7 +108,7 @@
 //!         bodies: [&mut SolverBody; 2],
 //!         inertias: [&SolverBodyInertia; 2],
 //!         solver_data: &mut CustomConstraintSolverData,
-//!         dt: f32,
+//!         dt: Scalar,
 //!     ) {
 //!         // Solve the constraint by applying corrections to the `delta_position`
 //!         // and `delta_rotation` of the participating bodies.
