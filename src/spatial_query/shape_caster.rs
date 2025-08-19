@@ -347,7 +347,7 @@ impl ShapeCaster {
             query_filter.excluded_entities.insert(caster_entity);
         }
 
-        hits.count = 0;
+        hits.clear();
 
         let shape_rotation: Rotation;
         #[cfg(feature = "2d")]
@@ -362,7 +362,7 @@ impl ShapeCaster {
         let shape_isometry = make_isometry(self.global_origin(), shape_rotation);
         let shape_direction = self.global_direction().adjust_precision().into();
 
-        while hits.count < self.max_hits {
+        while hits.len() < self.max_hits as usize {
             let pipeline_shape = query_pipeline.as_composite_shape(&query_filter);
             let mut visitor = TOICompositeShapeShapeBestFirstVisitor::new(
                 &*query_pipeline.dispatcher,
@@ -390,13 +390,7 @@ impl ShapeCaster {
                         normal2: hit.normal2.into(),
                     })
             {
-                if (hits.vector.len() as u32) < hits.count + 1 {
-                    hits.vector.push(hit);
-                } else {
-                    hits.vector[hits.count as usize] = hit;
-                }
-
-                hits.count += 1;
+                hits.push(hit);
                 query_filter.excluded_entities.insert(hit.entity);
             } else {
                 return;
@@ -414,7 +408,7 @@ fn on_add_shape_caster(mut world: DeferredWorld, ctx: HookContext) {
     };
 
     // Initialize capacity for hits
-    world.get_mut::<ShapeHits>(ctx.entity).unwrap().vector = Vec::with_capacity(max_hits);
+    world.get_mut::<ShapeHits>(ctx.entity).unwrap().0 = Vec::with_capacity(max_hits);
 }
 
 /// Configuration for a shape cast.
@@ -519,53 +513,48 @@ impl ShapeCastConfig {
 ///
 /// fn print_hits(query: Query<&ShapeHits, With<ShapeCaster>>) {
 ///     for hits in &query {
-///         for hit in hits.iter() {
+///         for hit in hits {
 ///             println!("Hit entity {} with distance {}", hit.entity, hit.distance);
 ///         }
 ///     }
 /// }
 /// ```
-#[derive(Component, Clone, Debug, Default, Reflect, PartialEq)]
+#[derive(Component, Clone, Debug, Default, Deref, DerefMut, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Debug, Component, PartialEq)]
-pub struct ShapeHits {
-    pub(crate) vector: Vec<ShapeHitData>,
-    pub(crate) count: u32,
+#[reflect(Component, Debug, Default, PartialEq)]
+pub struct ShapeHits(pub Vec<ShapeHitData>);
+
+impl IntoIterator for ShapeHits {
+    type Item = ShapeHitData;
+    type IntoIter = alloc::vec::IntoIter<ShapeHitData>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
 }
 
-impl ShapeHits {
-    /// Returns a slice over the shapecast hits.
-    pub fn as_slice(&self) -> &[ShapeHitData] {
-        &self.vector[0..self.count as usize]
-    }
+impl<'a> IntoIterator for &'a ShapeHits {
+    type Item = &'a ShapeHitData;
+    type IntoIter = core::slice::Iter<'a, ShapeHitData>;
 
-    /// Returns the number of hits.
-    #[doc(alias = "count")]
-    pub fn len(&self) -> usize {
-        self.count as usize
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
     }
+}
 
-    /// Returns true if the number of hits is 0.
-    pub fn is_empty(&self) -> bool {
-        self.count == 0
-    }
+impl<'a> IntoIterator for &'a mut ShapeHits {
+    type Item = &'a mut ShapeHitData;
+    type IntoIter = core::slice::IterMut<'a, ShapeHitData>;
 
-    /// Clears the hits.
-    pub fn clear(&mut self) {
-        self.vector.clear();
-        self.count = 0;
-    }
-
-    /// Returns an iterator over the hits in the order of distance.
-    pub fn iter(&self) -> core::slice::Iter<'_, ShapeHitData> {
-        self.as_slice().iter()
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter_mut()
     }
 }
 
 impl MapEntities for ShapeHits {
     fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
-        for hit in &mut self.vector {
+        for hit in self {
             hit.map_entities(entity_mapper);
         }
     }
