@@ -261,7 +261,7 @@ impl RayCaster {
             self.query_filter.excluded_entities.remove(&caster_entity);
         }
 
-        hits.count = 0;
+        hits.clear();
 
         if self.max_hits == 1 {
             let pipeline_shape = query_pipeline.as_composite_shape(&self.query_filter);
@@ -286,12 +286,7 @@ impl RayCaster {
                         normal: hit.normal.into(),
                     })
             {
-                if (hits.vector.len() as u32) < hits.count + 1 {
-                    hits.vector.push(hit);
-                } else {
-                    hits.vector[0] = hit;
-                }
-                hits.count = 1;
+                hits.push(hit);
             }
         } else {
             let ray = parry::query::Ray::new(
@@ -309,23 +304,13 @@ impl RayCaster {
                         self.solid,
                     )
                 {
-                    if (hits.vector.len() as u32) < hits.count + 1 {
-                        hits.vector.push(RayHitData {
-                            entity: proxy.entity,
-                            distance: hit.time_of_impact,
-                            normal: hit.normal.into(),
-                        });
-                    } else {
-                        hits.vector[hits.count as usize] = RayHitData {
-                            entity: proxy.entity,
-                            distance: hit.time_of_impact,
-                            normal: hit.normal.into(),
-                        };
-                    }
+                    hits.push(RayHitData {
+                        entity: proxy.entity,
+                        distance: hit.time_of_impact,
+                        normal: hit.normal.into(),
+                    });
 
-                    hits.count += 1;
-
-                    return hits.count < self.max_hits;
+                    return hits.len() < self.max_hits as usize;
                 }
                 true
             };
@@ -346,7 +331,7 @@ fn on_add_ray_caster(mut world: DeferredWorld, ctx: HookContext) {
     };
 
     // Initialize capacity for hits
-    world.get_mut::<RayHits>(ctx.entity).unwrap().vector = Vec::with_capacity(max_hits);
+    world.get_mut::<RayHits>(ctx.entity).unwrap().0 = Vec::with_capacity(max_hits);
 }
 
 /// Contains the hits of a ray cast by a [`RayCaster`].
@@ -358,72 +343,37 @@ fn on_add_ray_caster(mut world: DeferredWorld, ctx: HookContext) {
 /// By default, the order of the hits is not guaranteed.
 ///
 /// You can iterate the hits in the order of distance with `iter_sorted`.
-/// Note that this will create and sort a new vector instead of the original one.
+/// Note that this will create and sort a new vector instead of iterating over the existing one.
 ///
-/// **Note**: When there are more hits than `max_hits`, **some hits
-/// will be missed**. If you want to guarantee that the closest hit is included, set `max_hits` to one.
+/// **Note**: When there are more hits than `max_hits`, **some hits will be missed**.
+/// If you want to guarantee that the closest hit is included, set `max_hits` to one.
 ///
 /// # Example
 ///
 /// ```
-/// # #[cfg(feature = "2d")]
-/// # use avian2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// use avian3d::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
 ///
 /// fn print_hits(query: Query<&RayHits, With<RayCaster>>) {
 ///     for hits in &query {
-///         // For the faster iterator that isn't sorted, use `.iter()`
+///         // For the faster iterator that isn't sorted, use `.iter()`.
 ///         for hit in hits.iter_sorted() {
 ///             println!("Hit entity {} with distance {}", hit.entity, hit.distance);
 ///         }
 ///     }
 /// }
 /// ```
-#[derive(Debug, Component, Clone, Default, Reflect, PartialEq)]
+#[derive(Component, Clone, Debug, Default, Deref, DerefMut, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Debug, Component, Default, PartialEq)]
-pub struct RayHits {
-    pub(crate) vector: Vec<RayHitData>,
-    /// The number of hits.
-    pub(crate) count: u32,
-}
+#[reflect(Component, Debug, Default, PartialEq)]
+pub struct RayHits(pub Vec<RayHitData>);
 
 impl RayHits {
-    /// Returns a slice over the ray hits.
-    pub fn as_slice(&self) -> &[RayHitData] {
-        &self.vector[0..self.count as usize]
-    }
-
-    /// Returns the number of hits.
-    #[doc(alias = "count")]
-    pub fn len(&self) -> usize {
-        self.count as usize
-    }
-
-    /// Returns true if the number of hits is 0.
-    pub fn is_empty(&self) -> bool {
-        self.count == 0
-    }
-
-    /// Clears the hits.
-    pub fn clear(&mut self) {
-        self.vector.clear();
-        self.count = 0;
-    }
-
-    /// Returns an iterator over the hits in arbitrary order.
-    ///
-    /// If you want to get them sorted by distance, use `iter_sorted`.
-    pub fn iter(&self) -> core::slice::Iter<'_, RayHitData> {
-        self.as_slice().iter()
-    }
-
     /// Returns an iterator over the hits, sorted in ascending order according to the distance.
     ///
-    /// Note that this creates and sorts a new vector. If you don't need the hits in order, use `iter`.
+    /// Note that this allocates a new vector. If you don't need the hits in order, use `iter`.
     pub fn iter_sorted(&self) -> alloc::vec::IntoIter<RayHitData> {
         let mut vector = self.as_slice().to_vec();
         vector.sort_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap());
@@ -431,9 +381,36 @@ impl RayHits {
     }
 }
 
+impl IntoIterator for RayHits {
+    type Item = RayHitData;
+    type IntoIter = alloc::vec::IntoIter<RayHitData>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a RayHits {
+    type Item = &'a RayHitData;
+    type IntoIter = core::slice::Iter<'a, RayHitData>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a mut RayHits {
+    type Item = &'a mut RayHitData;
+    type IntoIter = core::slice::IterMut<'a, RayHitData>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter_mut()
+    }
+}
+
 impl MapEntities for RayHits {
     fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
-        for hit in &mut self.vector {
+        for hit in self {
             hit.map_entities(entity_mapper);
         }
     }
