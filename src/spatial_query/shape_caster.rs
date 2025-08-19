@@ -505,10 +505,8 @@ impl ShapeCastConfig {
 /// # Example
 ///
 /// ```
-/// # #[cfg(feature = "2d")]
-/// # use avian2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// use avian3d::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
 ///
 /// fn print_hits(query: Query<&ShapeHits, With<ShapeCaster>>) {
