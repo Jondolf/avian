@@ -1,50 +1,34 @@
-//! A stripped down version of petgraph's `StableUnGraph`.
+//! A stripped down and modified version of petgraph's `StableUnGraph`.
 //!
 //! - Index types always use `u32`.
+//! - Instead of free lists, [`IdPool`]s are used to allocate and free nodes and edges.
+//! - Vacant nodes and edges are occupied in the order of lowest index first.
 //! - Edge iteration order after serialization/deserialization is preserved.
 //! - Fewer iterators and helpers, and a few new ones.
 
 use super::graph::{Edge, EdgeDirection, EdgeIndex, Node, NodeIndex, Pair, UnGraph, index_twice};
+use super::id_pool::IdPool;
 
 /// A graph with undirected edges and stable indices.
 ///
 /// Unlike [`UnGraph`], this graph *does not* invalidate any unrelated
-/// node or edge indices when items are removed.  This stable order
-/// is achieved by using a free list for both nodes and edges.
+/// node or edge indices when items are removed. Removed nodes and edges
+/// are replaced with vacant slots, which can be reused later in order
+/// of lowest index first.
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct StableUnGraph<N, E> {
     graph: UnGraph<Option<N>, Option<E>>,
-    node_count: usize,
-    edge_count: usize,
-
-    // Node and edge free lists both work the same way.
-    //
-    // `free_node`, if not `NodeIndex::END`, points to a node index
-    // that is vacant (after a deletion).
-    //
-    // The free nodes form a doubly linked list using the field's `node.next[0]`
-    // for forward references and `node.next[1]` for backwards ones.
-    //
-    // The nodes are stored as `EdgeIndex`, and the `_into_edge()`/`_into_node()`
-    // methods convert.
-    //
-    // `free_edge`, if not `EdgeIndex::END`, points to a free edge.
-    //
-    // The edges only form a singly linked list using `edge.next[0]` to store
-    // the forward reference.
-    free_node: NodeIndex,
-    free_edge: EdgeIndex,
+    node_ids: IdPool,
+    edge_ids: IdPool,
 }
 
 impl<N, E> Default for StableUnGraph<N, E> {
     fn default() -> Self {
         StableUnGraph {
             graph: UnGraph::default(),
-            node_count: 0,
-            edge_count: 0,
-            free_node: NodeIndex::END,
-            free_edge: EdgeIndex::END,
+            node_ids: IdPool::new(),
+            edge_ids: IdPool::new(),
         }
     }
 }
@@ -54,10 +38,8 @@ impl<N, E> StableUnGraph<N, E> {
     pub fn with_capacity(nodes: usize, edges: usize) -> Self {
         StableUnGraph {
             graph: UnGraph::with_capacity(nodes, edges),
-            node_count: 0,
-            edge_count: 0,
-            free_node: NodeIndex::END,
-            free_edge: EdgeIndex::END,
+            node_ids: IdPool::with_capacity(nodes),
+            edge_ids: IdPool::with_capacity(edges),
         }
     }
 
@@ -65,14 +47,14 @@ impl<N, E> StableUnGraph<N, E> {
     ///
     /// Computes in **O(1)** time.
     pub fn node_count(&self) -> usize {
-        self.node_count
+        self.node_ids.len()
     }
 
     /// Returns the number of edges in the graph.
     ///
     /// Computes in **O(1)** time.
     pub fn edge_count(&self) -> usize {
-        self.edge_count
+        self.edge_ids.len()
     }
 
     /// Adds a node (also called vertex) with associated data `weight` to the graph.
@@ -85,21 +67,20 @@ impl<N, E> StableUnGraph<N, E> {
     ///
     /// Panics if the graph is at the maximum number of nodes.
     pub fn add_node(&mut self, weight: N) -> NodeIndex {
-        if self.free_node != NodeIndex::END {
+        // Allocate a node ID.
+        let node_idx = NodeIndex(self.node_ids.alloc());
+
+        if node_idx.index() != self.graph.nodes.len() {
             // Reuse a free node.
-            let node_idx = self.free_node;
             self.occupy_vacant_node(node_idx, weight);
             node_idx
         } else {
             // Create a new node.
-            let node = self.graph.add_node(Some(weight));
-            self.node_count += 1;
-            node
+            self.graph.add_node(Some(weight))
         }
     }
 
-    /// Creates a new node using a vacant position,
-    /// updating the doubly linked list of free nodes.
+    /// Creates a new node using a vacant position.
     fn occupy_vacant_node(&mut self, node_idx: NodeIndex, weight: N) {
         let node_slot = &mut self.graph.nodes[node_idx.index()];
 
@@ -116,11 +97,6 @@ impl<N, E> StableUnGraph<N, E> {
         if next_node != EdgeIndex::END {
             self.graph.nodes[next_node.index()].next[1] = previous_node;
         }
-        if self.free_node == node_idx {
-            self.free_node = NodeIndex(next_node.0);
-        }
-
-        self.node_count += 1;
     }
 
     /// Returns the node at index `a` if it is not vacant.
@@ -158,17 +134,19 @@ impl<N, E> StableUnGraph<N, E> {
         {
             let edge: &mut Edge<Option<E>>;
 
-            if self.free_edge != EdgeIndex::END {
-                edge_idx = self.free_edge;
+            // Allocate an edge ID.
+            edge_idx = EdgeIndex(self.edge_ids.alloc());
+
+            if edge_idx.index() != self.graph.edges.len() {
+                // Reuse a free edge.
                 edge = &mut self.graph.edges[edge_idx.index()];
 
                 let _old = edge.weight.replace(weight);
                 debug_assert!(_old.is_none());
 
-                self.free_edge = edge.next[0];
                 edge.node = [a, b];
             } else {
-                edge_idx = EdgeIndex(self.graph.edges.len() as u32);
+                // Create a new edge.
                 assert!(edge_idx != EdgeIndex::END);
                 new_edge = Some(Edge {
                     weight: Some(weight),
@@ -191,7 +169,7 @@ impl<N, E> StableUnGraph<N, E> {
                     }
                 }
                 Pair::Both(an, bn) => {
-                    // a and b are different indices
+                    // `a` and `b` are different indices.
                     if an.weight.is_none() {
                         Some(a.index())
                     } else if bn.weight.is_none() {
@@ -209,8 +187,6 @@ impl<N, E> StableUnGraph<N, E> {
                 wrong_index.is_none(),
                 "Tried adding an edge to a non-existent node."
             );
-
-            self.edge_count += 1;
         }
 
         if let Some(edge) = new_edge {
@@ -292,15 +268,11 @@ impl<N, E> StableUnGraph<N, E> {
             }
         }
 
+        // Clear the node and free its ID.
         let node_slot = &mut self.graph.nodes[a.index()];
-        node_slot.next = [EdgeIndex(self.free_node.0), EdgeIndex::END];
+        node_slot.next = [EdgeIndex::END; 2];
 
-        if self.free_node != NodeIndex::END {
-            self.graph.nodes[self.free_node.index()].next[1] = EdgeIndex(a.0);
-        }
-
-        self.free_node = a;
-        self.node_count -= 1;
+        self.node_ids.free(a.0);
 
         Some(node_weight)
     }
@@ -327,12 +299,13 @@ impl<N, E> StableUnGraph<N, E> {
         // a link to the next in the list.
         self.graph.change_edge_links(edge_node, e, edge_next);
 
-        // Clear the edge and put it in the free list.
+        // Clear the edge and free its ID.
         let edge_slot = &mut self.graph.edges[e.index()];
-        edge_slot.next = [self.free_edge, EdgeIndex::END];
+        edge_slot.next = [EdgeIndex::END; 2];
         edge_slot.node = [NodeIndex::END; 2];
-        self.free_edge = e;
-        self.edge_count -= 1;
+
+        self.edge_ids.free(e.0);
+
         edge_slot.weight.take()
     }
 
@@ -446,20 +419,17 @@ impl<N, E> StableUnGraph<N, E> {
 
     /// Removes all nodes and edges.
     pub fn clear(&mut self) {
-        self.node_count = 0;
-        self.edge_count = 0;
-        self.free_node = NodeIndex::END;
-        self.free_edge = EdgeIndex::END;
         self.graph.clear();
+        self.node_ids.clear();
+        self.edge_ids.clear();
     }
 
     /// Removes all edges.
     pub fn clear_edges(&mut self) {
-        self.edge_count = 0;
-        self.free_edge = EdgeIndex::END;
         self.graph.edges.clear();
+        self.edge_ids.clear();
 
-        // Clear edges without touching the free list.
+        // Clear edge links for all nodes.
         for node in &mut self.graph.nodes {
             if node.weight.is_some() {
                 node.next = [EdgeIndex::END, EdgeIndex::END];
