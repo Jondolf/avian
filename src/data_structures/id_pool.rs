@@ -7,6 +7,7 @@ use core::cmp::Reverse;
 ///
 /// Freed IDs are stored in a min-heap, and reused such that the lowest available IDs are allocated first.
 #[derive(Clone, Debug, Default)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct IdPool {
     /// A min-heap of free IDs. The lowest free IDs are allocated first.
     free_ids: BinaryHeap<Reverse<u32>>,
