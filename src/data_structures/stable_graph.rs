@@ -1,6 +1,8 @@
-//! A stripped down version of petgraph's `StableUnGraph`.
+//! A stripped down and modified version of petgraph's `StableUnGraph`.
 //!
 //! - Index types always use `u32`.
+//! - Instead of free lists, [`IdPool`]s are used to allocate and free nodes and edges.
+//! - Vacant nodes and edges are occupied in the order of lowest index first.
 //! - Edge iteration order after serialization/deserialization is preserved.
 //! - Fewer iterators and helpers, and a few new ones.
 
