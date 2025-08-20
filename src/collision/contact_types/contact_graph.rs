@@ -814,18 +814,16 @@ impl ContactGraph {
 
     /// Clears all contact pairs and the contact graph.
     ///
-    /// This can be useful to ensure that the world is in a clean state
-    /// when for example reloading a scene or resetting the physics world.
-    ///
     /// # Warning
     ///
-    /// This does *not* clear the [`ConstraintGraph`]! You should additionally
-    /// call [`ConstraintGraph::clear`], or alternatively use [`Collisions::clear`]
-    /// that clears both resources.
+    /// Clearing contact pairs with this method will *not* trigger any collision events
+    /// or wake up the entities involved. Only use this method if you know what you are doing.
+    ///
+    /// Additionally, this does *not* clear the [`ConstraintGraph`]! You should additionally
+    /// call [`ConstraintGraph::clear`].
     ///
     /// [`ConstraintGraph`]: crate::dynamics::solver::constraint_graph::ConstraintGraph
     /// [`ConstraintGraph::clear`]: crate::dynamics::solver::constraint_graph::ConstraintGraph::clear
-    /// [`Collisions::clear`]: crate::collision::contact_types::Collisions::clear
     #[inline]
     pub fn clear(&mut self) {
         self.edges.clear();

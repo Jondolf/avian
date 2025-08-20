@@ -1,6 +1,4 @@
-use crate::{
-    data_structures::pair_key::PairKey, dynamics::solver::constraint_graph::ConstraintGraph,
-};
+use crate::data_structures::pair_key::PairKey;
 use bevy::{ecs::system::SystemParam, prelude::*};
 
 use super::{ContactGraph, ContactPair};
@@ -55,8 +53,6 @@ use super::{ContactGraph, ContactPair};
 pub struct Collisions<'w> {
     /// The [`ContactGraph`] that stores all contact edges.
     contact_graph: ResMut<'w, ContactGraph>,
-    /// The [`ConstraintGraph`] that stores all contact constraints.
-    constraint_graph: ResMut<'w, ConstraintGraph>,
 }
 
 impl Collisions<'_> {
@@ -124,15 +120,5 @@ impl Collisions<'_> {
                 contacts.collider1
             }
         })
-    }
-
-    /// Clears the [`ContactGraph`] and [`ConstraintGraph`].
-    ///
-    /// This can be useful to ensure that the world is in a clean state
-    /// when for example reloading a scene or resetting the physics world.
-    #[inline]
-    pub fn clear(&mut self) {
-        self.contact_graph.clear();
-        self.constraint_graph.clear();
     }
 }
