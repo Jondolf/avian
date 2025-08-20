@@ -53,7 +53,7 @@ pub const COLOR_OVERFLOW_INDEX: usize = GRAPH_COLOR_COUNT - 1;
 /// would write to the same body from multiple threads. Even if these writes didn't actually modify
 /// the body, they would still cause horrible cache stalls.
 ///
-/// [`SolverBody`]: crate::dynamics::solver::SolverBody
+/// [`SolverBody`]: crate::dynamics::solver::solver_body::SolverBody
 #[derive(Clone, Debug, Default, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
@@ -65,7 +65,7 @@ pub struct GraphColor {
     /// However, these bits are never iterated over, and the bit count is not used,
     /// so it should not be a problem.
     ///
-    /// [`SolverBody`]: crate::dynamics::solver::SolverBody
+    /// [`SolverBody`]: crate::dynamics::solver::solver_body::SolverBody
     pub body_set: BitVec,
     /// The handles of the contact manifolds in this color.
     pub manifold_handles: Vec<ContactManifoldHandle>,

@@ -1,9 +1,9 @@
-use super::XpbdConstraint;
 use crate::dynamics::solver::solver_body::SolverBody;
+use crate::dynamics::solver::xpbd;
 use crate::prelude::*;
 
 /// An angular constraint applies an angular correction around a given axis.
-pub trait AngularConstraint: XpbdConstraint<2> {
+pub trait AngularConstraint {
     /// Applies an angular correction to two bodies.
     ///
     /// Returns the angular impulse that is applied proportional
@@ -107,7 +107,7 @@ pub trait AngularConstraint: XpbdConstraint<2> {
 
     /// Applies an angular correction that aligns the orientation of the bodies.
     ///
-    /// Returns the torque exerted by the alignment.
+    /// Returns the Lagrange multiplier update.
     #[cfg(feature = "2d")]
     fn align_orientation(
         &self,
@@ -116,7 +116,7 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         inv_angular_inertia1: SymmetricTensor,
         inv_angular_inertia2: SymmetricTensor,
         angle: Scalar,
-        lagrange: &mut Scalar,
+        lagrange: Scalar,
         compliance: Scalar,
         dt: Scalar,
     ) -> AngularVector {
@@ -127,8 +127,7 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         let w = [inv_angular_inertia1, inv_angular_inertia2];
 
         // Compute Lagrange multiplier update
-        let delta_lagrange = self.compute_lagrange_update(*lagrange, angle, &w, compliance, dt);
-        *lagrange += delta_lagrange;
+        let delta_lagrange = xpbd::compute_lagrange_update(lagrange, angle, &w, compliance, dt);
 
         // Apply angular correction to aling the bodies
         self.apply_angular_lagrange_update(
@@ -139,13 +138,13 @@ pub trait AngularConstraint: XpbdConstraint<2> {
             delta_lagrange,
         );
 
-        // Return constraint torque
-        self.compute_torque(delta_lagrange, dt)
+        // Return Lagrange multiplier update
+        delta_lagrange
     }
 
     /// Applies an angular correction that aligns the orientation of the bodies.
     ///
-    /// Returns the torque exerted by the alignment.
+    /// Returns the Lagrange multiplier update.
     #[cfg(feature = "3d")]
     fn align_orientation(
         &self,
@@ -154,7 +153,7 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         inv_angular_inertia1: SymmetricTensor,
         inv_angular_inertia2: SymmetricTensor,
         rotation_difference: Vector,
-        lagrange: &mut Scalar,
+        lagrange: Scalar,
         compliance: Scalar,
         dt: Scalar,
     ) -> AngularVector {
@@ -174,8 +173,7 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         let w = [w1, w2];
 
         // Compute Lagrange multiplier update
-        let delta_lagrange = self.compute_lagrange_update(*lagrange, angle, &w, compliance, dt);
-        *lagrange += delta_lagrange;
+        let delta_lagrange = xpbd::compute_lagrange_update(lagrange, angle, &w, compliance, dt);
 
         // Apply angular correction to aling the bodies
         self.apply_angular_lagrange_update(
@@ -187,8 +185,8 @@ pub trait AngularConstraint: XpbdConstraint<2> {
             axis,
         );
 
-        // Return constraint torque
-        self.compute_torque(delta_lagrange, axis, dt)
+        // Return Lagrange multiplier update
+        delta_lagrange * axis
     }
 
     /// Applies angular constraints for interactions between two bodies.
