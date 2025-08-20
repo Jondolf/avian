@@ -18,9 +18,13 @@ pub struct RevoluteJointSolverData {
     #[cfg(feature = "2d")]
     pub(super) rotation_difference: Scalar,
     #[cfg(feature = "3d")]
-    pub(super) axis1: Vector,
+    pub(super) a1: Vector,
     #[cfg(feature = "3d")]
-    pub(super) axis2: Vector,
+    pub(super) a2: Vector,
+    #[cfg(feature = "3d")]
+    pub(super) b1: Vector,
+    #[cfg(feature = "3d")]
+    pub(super) b2: Vector,
     pub(super) total_align_lagrange: AngularVector,
     pub(super) total_limit_lagrange: AngularVector,
 }
@@ -76,8 +80,12 @@ impl XpbdConstraint<2> for RevoluteJoint {
         #[cfg(feature = "3d")]
         {
             // Prepare the base axes.
-            solver_data.axis1 = *bodies[0].rotation * local_basis1 * self.hinge_axis;
-            solver_data.axis2 = *bodies[1].rotation * local_basis2 * self.hinge_axis;
+            solver_data.a1 = *bodies[0].rotation * local_basis1 * self.hinge_axis;
+            solver_data.a2 = *bodies[1].rotation * local_basis2 * self.hinge_axis;
+            solver_data.b1 =
+                *bodies[0].rotation * local_basis1 * self.hinge_axis.any_orthonormal_vector();
+            solver_data.b2 =
+                *bodies[1].rotation * local_basis2 * self.hinge_axis.any_orthonormal_vector();
         }
     }
 
@@ -98,8 +106,8 @@ impl XpbdConstraint<2> for RevoluteJoint {
         #[cfg(feature = "3d")]
         {
             // Constrain the relative rotation of the bodies, only allowing rotation around one free axis
-            let a1 = body1.delta_rotation * solver_data.axis1;
-            let a2 = body2.delta_rotation * solver_data.axis2;
+            let a1 = body1.delta_rotation * solver_data.a1;
+            let a2 = body2.delta_rotation * solver_data.a2;
             let difference = a1.cross(a2);
 
             solver_data.total_align_lagrange += self.align_orientation(
@@ -152,9 +160,9 @@ impl RevoluteJoint {
             #[cfg(feature = "3d")]
             {
                 // [n, n1, n2] = [a1, b1, b2], where [a, b, c] are perpendicular unit axes on the bodies.
-                let a1 = body1.delta_rotation * self.hinge_axis;
-                let b1 = a1.any_orthonormal_vector();
-                let b2 = body2.delta_rotation * self.hinge_axis.any_orthonormal_vector();
+                let a1 = body1.delta_rotation * solver_data.a1;
+                let b1 = body1.delta_rotation * solver_data.b1;
+                let b2 = body2.delta_rotation * solver_data.b2;
                 angle_limit.compute_correction(a1, b1, b2, PI)
             }
         }) else {
