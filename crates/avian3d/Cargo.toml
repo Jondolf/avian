@@ -158,7 +158,7 @@ required-features = ["3d", "default-collider"]
 
 [[example]]
 name = "custom_constraint"
-required-features = ["3d", "default-collider"]
+required-features = ["3d", "default-collider", "xpbd_joints"]
 
 [[example]]
 name = "distance_joint_3d"
