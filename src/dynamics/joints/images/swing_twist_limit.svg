@@ -26,20 +26,20 @@
     <path d="M1.00581 138.5C1.00581 137.783 1.32123 137 2.0898 136.146L1.19123 135.655C0.499414 136.526 0.186184 137.311 0.0650822 137.858C0.025702 138.071 0.00581423 138.285 0.00581423 138.5C0.00581423 146.784 29.555 153.5 66.0058 153.5V152.5C47.8323 152.5 31.4101 150.825 19.5585 148.132C13.6248 146.783 8.89144 145.191 5.66597 143.458C4.05252 142.591 2.86385 141.713 2.0898 140.854C1.32123 140 1.00581 139.217 1.00581 138.5Z" fill="#E19664" />
     <path d="M66.006 4.5L66.0059 138.5" stroke="#DA0B84" />
     <path d="M131.506 138L66.0059 4L0.505859 138" stroke="#E19664" />
-    <text fill="#64C850" xml:space="preserve" style="white-space: pre" font-family="Fira Code" font-size="6" font-weight="600" letter-spacing="0em">
+    <text fill="#64C850" xml:space="preserve" style="white-space: pre" font-family="'Fira Code', monospace" font-size="6" font-weight="600" letter-spacing="0em">
         <tspan x="107" y="142.51">min</tspan>
     </text>
-    <text fill="#FF4E00" xml:space="preserve" style="white-space: pre" font-family="Fira Code" font-size="6" font-weight="600" letter-spacing="0em">
+    <text fill="#FF4E00" xml:space="preserve" style="white-space: pre" font-family="'Fira Code', monospace" font-size="6" font-weight="600" letter-spacing="0em">
         <tspan x="90" y="132.51">max</tspan>
     </text>
-    <text fill="#DA0B84" xml:space="preserve" style="white-space: pre" font-family="Fira Code" font-size="6" font-weight="600" letter-spacing="0em">
+    <text fill="#DA0B84" xml:space="preserve" style="white-space: pre" font-family="'Fira Code', monospace" font-size="6" font-weight="600" letter-spacing="0em">
         <tspan x="68" y="103.51">twist_axis</tspan>
     </text>
-    <text fill="#0B95DA" xml:space="preserve" style="white-space: pre" font-family="Fira Code" font-size="6" font-weight="600" letter-spacing="0em">
+    <text fill="#0B95DA" xml:space="preserve" style="white-space: pre" font-family="'Fira Code', monospace" font-size="6" font-weight="600" letter-spacing="0em">
         <tspan x="46" y="92.51">swing</tspan>
     </text>
     <circle cx="66.2028" cy="4.95316" r="4" fill="#FFBB40" />
-    <text fill="#FFBB40" xml:space="preserve" style="white-space: pre" font-family="Fira Code" font-size="6" font-weight="600" letter-spacing="0em">
+    <text fill="#FFBB40" xml:space="preserve" style="white-space: pre" font-family="'Fira Code', monospace" font-size="6" font-weight="600" letter-spacing="0em">
         <tspan x="74.207" y="5.51">anchor</tspan>
     </text>
     <path d="M129 137.5C125 131.5 101 127.5 89.4999 126.9" stroke="#FF4E00" stroke-width="0.75" />

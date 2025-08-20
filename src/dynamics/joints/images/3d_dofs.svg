@@ -12,27 +12,27 @@
     <path d="M128.677 65.8581C121.866 76.6093 109.366 70.1099 110.365 63.6095C110.802 60.7678 112.672 58.6907 115.099 57.5868" stroke="#3A882B" />
     <path d="M131.042 64.0229C131.119 63.8146 130.906 63.6164 130.704 63.7081L125.672 65.9891C125.509 66.0627 125.474 66.278 125.605 66.3996L128.713 69.2979C128.844 69.4196 129.056 69.3694 129.118 69.2021L131.042 64.0229Z" fill="#3A882B" />
     <circle cx="120" cy="122" r="3" fill="#FFBB40" />
-    <text fill="#FF4E00" xml:space="preserve" style="white-space: pre" font-family="Fira Code" font-size="6" font-weight="600" letter-spacing="0em">
+    <text fill="#FF4E00" xml:space="preserve" style="white-space: pre" font-family="'Fira Code', monospace" font-size="6" font-weight="600" letter-spacing="0em">
         <tspan x="209.207" y="183.004">x-axis&#10;</tspan>
         <tspan x="200.213" y="191.004">translation</tspan>
     </text>
-    <text fill="#B33700" xml:space="preserve" style="white-space: pre" font-family="Fira Code" font-size="6" font-weight="600" letter-spacing="0em">
+    <text fill="#B33700" xml:space="preserve" style="white-space: pre" font-family="'Fira Code', monospace" font-size="6" font-weight="600" letter-spacing="0em">
         <tspan x="164.707" y="164.004">x-axis&#10;</tspan>
         <tspan x="161.109" y="172.004">rotation</tspan>
     </text>
-    <text fill="#086391" xml:space="preserve" style="white-space: pre" font-family="Fira Code" font-size="6" font-weight="600" letter-spacing="0em">
+    <text fill="#086391" xml:space="preserve" style="white-space: pre" font-family="'Fira Code', monospace" font-size="6" font-weight="600" letter-spacing="0em">
         <tspan x="54.707" y="164.004">z-axis&#10;</tspan>
         <tspan x="51.1094" y="172.004">rotation</tspan>
     </text>
-    <text fill="#3A882B" xml:space="preserve" style="white-space: pre" font-family="Fira Code" font-size="6" font-weight="600" letter-spacing="0em">
+    <text fill="#3A882B" xml:space="preserve" style="white-space: pre" font-family="'Fira Code', monospace" font-size="6" font-weight="600" letter-spacing="0em">
         <tspan x="81.707" y="63.004">y-axis&#10;</tspan>
         <tspan x="78.1094" y="71.004">rotation</tspan>
     </text>
-    <text fill="#0B95DA" xml:space="preserve" style="white-space: pre" font-family="Fira Code" font-size="6" font-weight="600" letter-spacing="0em">
+    <text fill="#0B95DA" xml:space="preserve" style="white-space: pre" font-family="'Fira Code', monospace" font-size="6" font-weight="600" letter-spacing="0em">
         <tspan x="9.20703" y="183.004">z-axis&#10;</tspan>
         <tspan x="0.212891" y="191.004">translation</tspan>
     </text>
-    <text fill="#64C850" xml:space="preserve" style="white-space: pre" font-family="Fira Code" font-size="6" font-weight="600" letter-spacing="0em">
+    <text fill="#64C850" xml:space="preserve" style="white-space: pre" font-family="'Fira Code', monospace" font-size="6" font-weight="600" letter-spacing="0em">
         <tspan x="81.207" y="6.004">y-axis&#10;</tspan>
         <tspan x="72.2129" y="14.004">translation</tspan>
     </text>
