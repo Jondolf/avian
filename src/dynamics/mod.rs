@@ -10,7 +10,7 @@
 //! - Acceleration caused by external forces and [`Gravity`].
 //! - Collision response, preventing objects from overlapping each other,
 //!   considering properties such as [`Friction`] and [`Restitution`].
-//! - [Joints](solver::joints) connecting rigid bodies to each other.
+//! - [Joints](joints) connecting rigid bodies to each other.
 //! - Everything else related to the physical behavior and properties of rigid bodies.
 //!
 //! Rigid body dynamics does *not* include:
@@ -63,18 +63,24 @@
 
 pub mod ccd;
 pub mod integrator;
+pub mod joints;
 pub mod rigid_body;
 pub mod sleeping;
 pub mod solver;
 
 /// Re-exports common types related to the rigid body dynamics functionality.
 pub mod prelude {
-    #[cfg(feature = "3d")]
-    pub use super::rigid_body::forces::{ConstantLocalAngularAcceleration, ConstantLocalTorque};
     pub(crate) use super::rigid_body::mass_properties::{ComputeMassProperties, MassProperties};
+    #[cfg(feature = "xpbd_joints")]
+    pub use super::solver::xpbd::XpbdSolverPlugin;
     pub use super::{
         ccd::{CcdPlugin, SpeculativeMargin, SweepMode, SweptCcd},
         integrator::{Gravity, IntegratorPlugin},
+        joints::{
+            AngleLimit, DistanceJoint, DistanceLimit, FixedJoint, JointAnchor, JointBasis,
+            JointCollisionDisabled, JointDamping, JointDisabled, JointForces, JointFrame,
+            JointPlugin, PrismaticJoint, RevoluteJoint,
+        },
         rigid_body::{
             forces::{
                 ConstantAngularAcceleration, ConstantForce, ConstantLinearAcceleration,
@@ -97,7 +103,7 @@ pub mod prelude {
         },
         sleeping::{DeactivationTime, SleepingPlugin, SleepingThreshold, WakeUpBody},
         solver::{
-            PhysicsLengthUnit, SolverPlugin,
+            PhysicsLengthUnit, SolverPlugin, SolverPlugins,
             islands::{
                 PhysicsIslandPlugin,
                 sleeping::{
@@ -105,10 +111,14 @@ pub mod prelude {
                     TimeToSleep, WakeIslands,
                 },
             },
-            joints::*,
             schedule::{SolverSchedulePlugin, SolverSet, SubstepCount, SubstepSchedule},
             solver_body::SolverBodyPlugin,
         },
+    };
+    #[cfg(feature = "3d")]
+    pub use super::{
+        joints::SphericalJoint,
+        rigid_body::forces::{ConstantLocalAngularAcceleration, ConstantLocalTorque},
     };
 }
 

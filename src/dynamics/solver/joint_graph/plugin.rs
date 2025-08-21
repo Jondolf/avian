@@ -3,15 +3,17 @@ use core::marker::PhantomData;
 use crate::{
     collision::contact_types::ContactId,
     data_structures::pair_key::PairKey,
-    dynamics::solver::{
-        constraint_graph::ConstraintGraph,
-        islands::{IslandBodyData, PhysicsIslands},
-        xpbd::EntityConstraint,
+    dynamics::{
+        joints::EntityConstraint,
+        solver::{
+            constraint_graph::ConstraintGraph,
+            islands::{IslandBodyData, PhysicsIslands},
+            joint_graph::{JointGraph, JointGraphEdge},
+        },
     },
     prelude::{
-        ContactGraph, Joint, JointCollisionDisabled, JointDisabled, PhysicsSchedule,
-        PhysicsStepSet, RigidBodyColliders, WakeIslands,
-        joint_graph::{JointGraph, JointGraphEdge},
+        ContactGraph, JointCollisionDisabled, JointDisabled, PhysicsSchedule, PhysicsStepSet,
+        RigidBodyColliders, WakeIslands,
     },
 };
 use bevy::{
@@ -26,10 +28,10 @@ use bevy::{
 
 /// A plugin that manages the [`JointGraph`] for a specific [joint] type.
 ///
-/// [joint]: crate::dynamics::solver::joints
-pub struct JointGraphPlugin<T: Joint + EntityConstraint<2>>(PhantomData<T>);
+/// [joint]: crate::dynamics::joints
+pub struct JointGraphPlugin<T: Component + EntityConstraint<2>>(PhantomData<T>);
 
-impl<T: Joint + EntityConstraint<2>> Default for JointGraphPlugin<T> {
+impl<T: Component + EntityConstraint<2>> Default for JointGraphPlugin<T> {
     fn default() -> Self {
         Self(PhantomData)
     }
@@ -37,7 +39,7 @@ impl<T: Joint + EntityConstraint<2>> Default for JointGraphPlugin<T> {
 
 /// A component that holds the [`ComponentId`] of the [joint] component on this entity, if any.
 ///
-/// [joint]: crate::dynamics::solver::joints
+/// [joint]: crate::dynamics::joints
 #[derive(Component, Clone, Debug, Default, PartialEq, Reflect)]
 pub struct JointComponentId(Option<ComponentId>);
 
@@ -56,7 +58,7 @@ impl JointComponentId {
 #[derive(Resource, Default)]
 struct JointGraphPluginInitialized;
 
-impl<T: Joint + EntityConstraint<2>> Plugin for JointGraphPlugin<T> {
+impl<T: Component + EntityConstraint<2>> Plugin for JointGraphPlugin<T> {
     fn build(&self, app: &mut App) {
         let already_initialized = app
             .world()
@@ -116,7 +118,7 @@ impl<T: Joint + EntityConstraint<2>> Plugin for JointGraphPlugin<T> {
     }
 }
 
-fn add_joint_to_graph<T: Joint + EntityConstraint<2>, E: Event, B: Bundle, F: QueryFilter>(
+fn add_joint_to_graph<T: Component + EntityConstraint<2>, E: Event, B: Bundle, F: QueryFilter>(
     trigger: Trigger<E, B>,
     query: Query<(&T, Has<JointCollisionDisabled>), F>,
     mut commands: Commands,
@@ -281,7 +283,7 @@ fn on_disable_joint_collision(
 }
 
 /// Update the joint graph when the entities of a joint change.
-fn on_change_joint_entities<T: Joint + EntityConstraint<2>>(
+fn on_change_joint_entities<T: Component + EntityConstraint<2>>(
     query: Query<(Entity, &T), Changed<T>>,
     mut commands: Commands,
     mut body_islands: Query<&mut IslandBodyData>,

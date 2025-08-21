@@ -16,11 +16,12 @@ default = [
     "3d",
     "f32",
     "parry-f32",
+    "debug-plugin",
+    "xpbd_joints",
+    "parallel",
     "collider-from-mesh",
     "bevy_scene",
     "bevy_picking",
-    "debug-plugin",
-    "parallel",
 ]
 3d = []
 f32 = []
@@ -48,6 +49,9 @@ default-collider = ["dep:nalgebra"]
 parry-f32 = ["f32", "dep:parry3d", "default-collider"]
 parry-f64 = ["f64", "dep:parry3d-f64", "default-collider"]
 
+# Enables the XPBD constraint solver for joints.
+xpbd_joints = []
+
 collider-from-mesh = ["bevy/bevy_render", "3d"]
 bevy_scene = ["bevy/bevy_scene"]
 bevy_picking = ["bevy/bevy_picking"]
@@ -59,6 +63,7 @@ serialize = [
     "bevy_transform_interpolation/serialize",
     "parry3d?/serde-serialize",
     "parry3d-f64?/serde-serialize",
+    "smallvec/serde",
     "bitflags/serde",
 ]
 
@@ -154,7 +159,7 @@ required-features = ["3d", "default-collider"]
 
 [[example]]
 name = "custom_constraint"
-required-features = ["3d", "default-collider"]
+required-features = ["3d", "default-collider", "xpbd_joints"]
 
 [[example]]
 name = "distance_joint_3d"
@@ -190,4 +195,4 @@ required-features = ["3d", "default-collider", "diagnostic_ui"]
 
 [[example]]
 name = "debugdump_3d"
-required-features = ["3d"]
+required-features = ["3d", "debug-plugin"]

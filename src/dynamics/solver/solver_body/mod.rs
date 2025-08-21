@@ -242,11 +242,21 @@ pub struct SolverBodyInertia {
     #[cfg(feature = "3d")]
     effective_inv_angular_inertia: SymmetricTensor,
 
-    // TODO: We could also store the `Dominance` of the body here if we wanted to.
+    /// The [dominance] of the body.
+    ///
+    /// If the [`Dominance`] component is not specified, the default of `0` is returned for dynamic bodies.
+    /// For static and kinematic bodies, `i8::MAX + 1` (`128`) is always returned instead.
+    ///
+    /// 2 bytes.
+    ///
+    /// [dominance]: crate::dynamics::rigid_body::Dominance
+    /// [`Dominance`]: crate::dynamics::rigid_body::Dominance
+    dominance: i16,
+
     /// Flags indicating the inertial properties of the body,
     /// like locked axes and whether the body is static.
     ///
-    /// 4 bytes.
+    /// 2 bytes.
     flags: InertiaFlags,
 }
 
@@ -261,6 +271,7 @@ impl SolverBodyInertia {
         effective_inv_angular_inertia: 0.0,
         #[cfg(feature = "3d")]
         effective_inv_angular_inertia: SymmetricTensor::ZERO,
+        dominance: i8::MAX as i16 + 1,
         flags: InertiaFlags::STATIC,
     };
 }
@@ -277,10 +288,10 @@ impl Default for SolverBodyInertia {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, PartialEq)]
-pub struct InertiaFlags(u32);
+pub struct InertiaFlags(u16);
 
 bitflags::bitflags! {
-    impl InertiaFlags: u32 {
+    impl InertiaFlags: u16 {
         /// Set if translation along the `X` axis is locked.
         const TRANSLATION_X_LOCKED = 0b100_000;
         /// Set if translation along the `Y` axis is locked.
@@ -320,10 +331,16 @@ impl SolverBodyInertia {
     /// and locked axes.
     #[inline]
     #[cfg(feature = "2d")]
-    pub fn new(inv_mass: Scalar, inv_inertia: SymmetricTensor, locked_axes: LockedAxes) -> Self {
+    pub fn new(
+        inv_mass: Scalar,
+        inv_inertia: SymmetricTensor,
+        locked_axes: LockedAxes,
+        dominance: i8,
+        is_dynamic: bool,
+    ) -> Self {
         let mut effective_inv_mass = Vector::splat(inv_mass);
         let mut effective_inv_angular_inertia = inv_inertia;
-        let mut flags = InertiaFlags(locked_axes.to_bits() as u32);
+        let mut flags = InertiaFlags(locked_axes.to_bits() as u16);
 
         if inv_mass == 0.0 {
             flags |= InertiaFlags::INFINITE_MASS;
@@ -345,6 +362,11 @@ impl SolverBodyInertia {
         Self {
             effective_inv_mass,
             effective_inv_angular_inertia,
+            dominance: if is_dynamic {
+                dominance as i16
+            } else {
+                i8::MAX as i16 + 1
+            },
             flags: InertiaFlags(flags.0),
         }
     }
@@ -353,9 +375,15 @@ impl SolverBodyInertia {
     /// and locked axes.
     #[inline]
     #[cfg(feature = "3d")]
-    pub fn new(inv_mass: Scalar, inv_inertia: SymmetricTensor, locked_axes: LockedAxes) -> Self {
+    pub fn new(
+        inv_mass: Scalar,
+        inv_inertia: SymmetricTensor,
+        locked_axes: LockedAxes,
+        dominance: i8,
+        is_dynamic: bool,
+    ) -> Self {
         let mut effective_inv_angular_inertia = inv_inertia;
-        let mut flags = InertiaFlags(locked_axes.to_bits() as u32);
+        let mut flags = InertiaFlags(locked_axes.to_bits() as u16);
 
         if inv_mass == 0.0 {
             flags |= InertiaFlags::INFINITE_MASS;
@@ -385,6 +413,11 @@ impl SolverBodyInertia {
         Self {
             inv_mass,
             effective_inv_angular_inertia,
+            dominance: if is_dynamic {
+                dominance as i16
+            } else {
+                i8::MAX as i16 + 1
+            },
             flags: InertiaFlags(flags.0),
         }
     }
@@ -465,6 +498,18 @@ impl SolverBodyInertia {
         }
 
         self.effective_inv_angular_inertia = effective_inv_angular_inertia;
+    }
+
+    /// Returns the [dominance] of the body.
+    ///
+    /// If the [`Dominance`] component is not specified, the default of `0` is returned for dynamic bodies.
+    /// For static and kinematic bodies, `i8::MAX + 1` (`128`) is always returned instead.
+    ///
+    /// [dominance]: crate::dynamics::rigid_body::Dominance
+    /// [`Dominance`]: crate::dynamics::rigid_body::Dominance
+    #[inline]
+    pub fn dominance(&self) -> i16 {
+        self.dominance
     }
 
     /// Returns the [`InertiaFlags`] of the body.

@@ -17,6 +17,7 @@ default = [
     "f32",
     "parry-f32",
     "debug-plugin",
+    "xpbd_joints",
     "parallel",
     "bevy_scene",
     "bevy_picking",
@@ -47,6 +48,9 @@ default-collider = ["dep:nalgebra"]
 parry-f32 = ["f32", "dep:parry2d", "default-collider"]
 parry-f64 = ["f64", "dep:parry2d-f64", "default-collider"]
 
+# Enables the XPBD constraint solver for joints.
+xpbd_joints = []
+
 bevy_scene = ["bevy/bevy_scene"]
 bevy_picking = ["bevy/bevy_picking"]
 serialize = [
@@ -57,6 +61,7 @@ serialize = [
     "bevy_transform_interpolation/serialize",
     "parry2d?/serde-serialize",
     "parry2d-f64?/serde-serialize",
+    "smallvec/serde",
     "bitflags/serde",
 ]
 
@@ -151,7 +156,19 @@ required-features = ["2d", "default-collider"]
 
 [[example]]
 name = "interpolation"
-required-features = ["2d"]
+required-features = ["2d", "default-collider"]
+
+[[example]]
+name = "many_pyramids_2d"
+required-features = ["2d", "default-collider"]
+
+[[example]]
+name = "many_shapes"
+required-features = ["2d", "default-collider"]
+
+[[example]]
+name = "one_way_platform_2d"
+required-features = ["2d", "default-collider"]
 
 [[example]]
 name = "move_marbles"
@@ -183,4 +200,4 @@ required-features = ["2d", "default-collider"]
 
 [[example]]
 name = "debugdump_2d"
-required-features = ["2d"]
+required-features = ["2d", "debug-plugin"]

@@ -7,8 +7,9 @@ use crate::{
     dynamics::solver::{
         constraint_graph::ConstraintGraph,
         islands::{IslandBodyData, PhysicsIslands, sleeping::WakeIslands},
+        joint_graph::JointGraph,
     },
-    prelude::{joint_graph::JointGraph, *},
+    prelude::*,
 };
 use bevy::{
     ecs::{

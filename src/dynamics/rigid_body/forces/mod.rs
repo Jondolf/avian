@@ -71,8 +71,8 @@
 //! It is common to apply many individual forces and impulses to dynamic rigid bodies,
 //! and to clear them afterwards. This can be done using the [`Forces`] helper [`QueryData`](bevy::ecs::query::QueryData).
 //!
-//! To use [`Forces`], add it to a [`Query`](bevy::prelude::Query) (without `&` or `&mut`),
-//! and use the associated methods to apply forces, impulses, and accelerations to the rigid bodies.
+//! To use [`Forces`], add it to a [`Query`] (without `&` or `&mut`), and use the associated methods
+//! to apply forces, impulses, and accelerations to the rigid bodies.
 //!
 //! ```
 #![cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]

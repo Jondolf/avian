@@ -85,13 +85,20 @@ pub mod prelude {
     #[cfg(all(feature = "collider-from-mesh", feature = "default-collider"))]
     pub use super::collider::ColliderCachePlugin;
     pub use super::collider::{
-        AabbContext, AnyCollider, Collider, ColliderAabb, ColliderBackendPlugin,
-        ColliderConstructor, ColliderConstructorHierarchy, ColliderDisabled, ColliderMarker,
-        CollidingEntities, CollisionLayers, CollisionMargin, ContactManifoldContext, FillMode,
-        IntoCollider, LayerMask, PhysicsLayer, ScalableCollider, Sensor, SimpleCollider,
-        TrimeshFlags, VhacdParameters,
+        AabbContext, AnyCollider, ColliderAabb, ColliderBackendPlugin, ColliderDisabled,
+        ColliderMarker, CollidingEntities, CollisionLayers, CollisionMargin,
+        ContactManifoldContext, IntoCollider, LayerMask, PhysicsLayer, ScalableCollider, Sensor,
+        SimpleCollider,
         collider_hierarchy::{ColliderHierarchyPlugin, ColliderOf, RigidBodyColliders},
         collider_transform::{ColliderTransform, ColliderTransformPlugin},
+    };
+    #[cfg(all(
+        feature = "default-collider",
+        any(feature = "parry-f32", feature = "parry-f64")
+    ))]
+    pub use super::collider::{
+        Collider, ColliderConstructor, ColliderConstructorHierarchy, FillMode, TrimeshFlags,
+        VhacdParameters,
     };
     pub use super::collision_events::{
         CollisionEnded, CollisionEventsEnabled, CollisionStarted, OnCollisionEnd, OnCollisionStart,

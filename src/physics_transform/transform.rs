@@ -132,10 +132,12 @@ pub struct PreSolveDeltaPosition(pub Vector);
 pub struct PreSolveDeltaRotation(pub Rotation);
 
 /// Radians
-#[cfg(all(feature = "2d", feature = "default-collider"))]
+#[cfg(feature = "2d")]
+#[allow(dead_code)]
 pub(crate) type RotationValue = Scalar;
 /// Quaternion
-#[cfg(all(feature = "3d", feature = "default-collider"))]
+#[cfg(feature = "3d")]
+#[allow(dead_code)]
 pub(crate) type RotationValue = Quaternion;
 
 /// The global counterclockwise physics rotation of a [rigid body](RigidBody)
@@ -555,7 +557,17 @@ impl From<Scalar> for Rotation {
 impl From<Rotation> for Matrix {
     /// Creates a [`Matrix`] rotation matrix from a [`Rotation`].
     fn from(rot: Rotation) -> Self {
-        Matrix::from_cols_array(&[rot.cos, -rot.sin, rot.sin, rot.cos])
+        Matrix::from_cols_array(&[rot.cos, rot.sin, -rot.sin, rot.cos])
+    }
+}
+
+#[cfg(feature = "2d")]
+impl From<Matrix> for Rotation {
+    /// Creates a [`Rotation`] from a [`Matrix`].
+    fn from(mat: Matrix) -> Self {
+        let cos = mat.x_axis.x;
+        let sin = mat.x_axis.y;
+        Self::from_sin_cos(sin, cos)
     }
 }
 
@@ -827,6 +839,60 @@ impl core::ops::Mul for Rotation {
 impl core::ops::MulAssign for Rotation {
     fn mul_assign(&mut self, rhs: Self) {
         self.0 *= rhs.0;
+    }
+}
+
+#[cfg(feature = "3d")]
+impl core::ops::Mul<Quaternion> for Rotation {
+    type Output = Quaternion;
+
+    fn mul(self, quaternion: Quaternion) -> Self::Output {
+        self.0 * quaternion
+    }
+}
+
+#[cfg(feature = "3d")]
+impl core::ops::Mul<Quaternion> for &Rotation {
+    type Output = Quaternion;
+
+    fn mul(self, quaternion: Quaternion) -> Self::Output {
+        self.0 * quaternion
+    }
+}
+
+#[cfg(feature = "3d")]
+impl core::ops::Mul<Quaternion> for &mut Rotation {
+    type Output = Quaternion;
+
+    fn mul(self, quaternion: Quaternion) -> Self::Output {
+        self.0 * quaternion
+    }
+}
+
+#[cfg(feature = "3d")]
+impl core::ops::Mul<Rotation> for Quaternion {
+    type Output = Rotation;
+
+    fn mul(self, rotation: Rotation) -> Self::Output {
+        Rotation(self * rotation.0)
+    }
+}
+
+#[cfg(feature = "3d")]
+impl core::ops::Mul<Rotation> for &Quaternion {
+    type Output = Rotation;
+
+    fn mul(self, rotation: Rotation) -> Self::Output {
+        Rotation(*self * rotation.0)
+    }
+}
+
+#[cfg(feature = "3d")]
+impl core::ops::Mul<Rotation> for &mut Quaternion {
+    type Output = Rotation;
+
+    fn mul(self, rotation: Rotation) -> Self::Output {
+        Rotation(*self * rotation.0)
     }
 }
 

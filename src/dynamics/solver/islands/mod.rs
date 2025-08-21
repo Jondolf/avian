@@ -50,11 +50,11 @@ use slab::Slab;
 
 use crate::{
     collision::contact_types::{ContactGraphInternal, ContactId},
-    dynamics::solver::solver_body::SolverBody,
-    prelude::{
-        ContactGraph, PhysicsSchedule, SolverSet,
+    dynamics::solver::{
         joint_graph::{JointGraph, JointId},
+        solver_body::SolverBody,
     },
+    prelude::{ContactGraph, PhysicsSchedule, SolverSet},
 };
 
 /// A plugin for managing [`PhysicsIsland`]s.

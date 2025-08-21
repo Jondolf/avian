@@ -123,8 +123,8 @@ fn setup_scene(
                     RevoluteJoint::new(prev_entity.unwrap(), entity)
                         .with_angle_limits(-0.1 * PI, 0.2 * PI)
                         .with_point_compliance(0.0001)
-                        .with_local_anchor_1(Vec2::splat(half_size).adjust_precision())
-                        .with_local_anchor_2(Vec2::new(offset, -half_size).adjust_precision()),
+                        .with_local_anchor1(Vec2::splat(half_size).adjust_precision())
+                        .with_local_anchor2(Vec2::new(offset, -half_size).adjust_precision()),
                     JointCollisionDisabled,
                 ));
                 prev_entity = None;
@@ -194,17 +194,12 @@ fn clear_scene(
             With<Camera>,
         )>,
     >,
-    mut collisions: Collisions,
     mut step: ResMut<Step>,
 ) {
     step.0 = 0;
     for entity in &query {
         commands.entity(entity).despawn();
     }
-
-    // We need to clear the contact graph and constraint graph to make sure
-    // that previous contacts and constraints do not affect the simulation.
-    collisions.clear();
 }
 
 #[derive(Pod, Zeroable, Clone, Copy)]
