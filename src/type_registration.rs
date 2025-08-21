@@ -12,8 +12,6 @@ impl Plugin for PhysicsTypeRegistrationPlugin {
         app.register_type::<Time<Physics>>()
             .register_type::<Time<Substeps>>()
             .register_type::<SubstepCount>()
-            .register_type::<SleepingThreshold>()
-            .register_type::<DeactivationTime>()
             .register_type::<Gravity>()
             .register_type::<RigidBody>()
             .register_type::<RigidBodyDisabled>()

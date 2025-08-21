@@ -229,6 +229,18 @@ struct CachedSleepingSystemState(
     )>,
 );
 
+/// A [`Command`] that makes the [`PhysicsIsland`](super::PhysicsIsland) of the given [`RigidBody`] entity sleep if it is not already sleeping.
+pub struct SleepBody(pub Entity);
+
+impl Command for SleepBody {
+    fn apply(self, world: &mut World) {
+        if let Some(body_island) = world.get::<IslandBodyData>(self.0) {
+            let island_id = body_island.island_id;
+            world.commands().queue(SleepIslands(vec![island_id]));
+        }
+    }
+}
+
 /// A [`Command`] that makes the [`PhysicsIsland`](super::PhysicsIsland)s with the given IDs sleep if they are not already sleeping.
 pub struct SleepIslands(pub Vec<u32>);
 
@@ -289,6 +301,29 @@ impl Command for SleepIslands {
             // Batch insert `Sleeping` to the bodies.
             world.insert_batch(bodies_to_sleep);
         });
+    }
+}
+
+/// A [`Command`] that wakes up the [`PhysicsIsland`](super::PhysicsIsland) of the given [`RigidBody`] entity if it is sleeping.
+pub struct WakeBody(pub Entity);
+
+impl Command for WakeBody {
+    fn apply(self, world: &mut World) {
+        if let Some(body_island) = world.get::<IslandBodyData>(self.0) {
+            let island_id = body_island.island_id;
+            world.commands().queue(WakeIslands(vec![island_id]));
+        }
+    }
+}
+
+/// A deprecated alias for [`WakeBody`].
+#[deprecated(since = "0.4.0", note = "Renamed to `WakeBody`.")]
+pub struct WakeUpBody(pub Entity);
+
+#[expect(deprecated)]
+impl Command for WakeUpBody {
+    fn apply(self, world: &mut World) {
+        WakeBody(self.0).apply(world);
     }
 }
 

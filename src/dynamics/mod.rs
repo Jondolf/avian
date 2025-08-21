@@ -65,7 +65,6 @@ pub mod ccd;
 pub mod integrator;
 pub mod joints;
 pub mod rigid_body;
-pub mod sleeping;
 pub mod solver;
 
 /// Re-exports common types related to the rigid body dynamics functionality.
@@ -73,6 +72,7 @@ pub mod prelude {
     pub(crate) use super::rigid_body::mass_properties::{ComputeMassProperties, MassProperties};
     #[cfg(feature = "xpbd_joints")]
     pub use super::solver::xpbd::XpbdSolverPlugin;
+    #[expect(deprecated)]
     pub use super::{
         ccd::{CcdPlugin, SpeculativeMargin, SweepMode, SweptCcd},
         integrator::{Gravity, IntegratorPlugin},
@@ -101,14 +101,13 @@ pub mod prelude {
             },
             *,
         },
-        sleeping::{DeactivationTime, SleepingPlugin, SleepingThreshold, WakeUpBody},
         solver::{
             PhysicsLengthUnit, SolverPlugin, SolverPlugins,
             islands::{
                 PhysicsIslandPlugin,
                 sleeping::{
-                    PhysicsIslandSleepingPlugin, SleepIslands, SleepThreshold, SleepTimer,
-                    TimeToSleep, WakeIslands,
+                    PhysicsIslandSleepingPlugin, SleepBody, SleepIslands, SleepThreshold,
+                    SleepTimer, TimeToSleep, WakeBody, WakeIslands, WakeUpBody,
                 },
             },
             schedule::{SolverSchedulePlugin, SolverSet, SubstepCount, SubstepSchedule},

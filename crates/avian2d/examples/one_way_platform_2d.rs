@@ -178,7 +178,7 @@ fn pass_through_one_way_platform(
 
             // Wake up the body when it's allowed to drop down.
             // Otherwise it won't fall because gravity isn't simulated.
-            commands.queue(WakeUpBody(entity));
+            commands.queue(WakeBody(entity));
         } else {
             *pass_through_one_way_platform = PassThroughOneWayPlatform::ByNormal;
         }
