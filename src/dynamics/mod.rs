@@ -21,12 +21,12 @@
 //!
 //! # Plugins
 //!
-//! | Plugin               | Description                                                                                                                           |
-//! | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-//! | [`IntegratorPlugin`] | Handles motion caused by velocity, and applies external forces and gravity.                                                           |
-//! | [`SolverPlugin`]     | Solves constraints (contacts and joints).                                                                                             |
-//! | [`CcdPlugin`]        | Performs sweep-based [Continuous Collision Detection](dynamics::ccd) for bodies with the [`SweptCcd`] component to prevent tunneling. |
-//! | [`SleepingPlugin`]   | Manages sleeping and waking for bodies, automatically deactivating them to save computational resources.                              |
+//! | Plugin                 | Description                                                                                                                                |
+//! | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+//! | [`SolverPlugins`]      | A plugin group for the physics solver's plugins. See the plugin group's documentation for more information.                                |
+//! | [`JointPlugin`]        | A plugin for managing and initializing [joints]. Does *not* include the actual joint solver.                                               |
+//! | [`MassPropertyPlugin`] | Manages mass properties of dynamic [rigid bodies](RigidBody).                                                                              |
+//! | [`ForcePlugin`]        | Manages and applies external forces, torques, and acceleration for rigid bodies. See the [module-level documentation](rigid_body::forces). |
 //!
 //! # Accuracy
 //!
