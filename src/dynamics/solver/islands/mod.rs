@@ -54,7 +54,7 @@ use crate::{
         joint_graph::{JointGraph, JointId},
         solver_body::SolverBody,
     },
-    prelude::{ContactGraph, PhysicsSchedule, SolverSet},
+    prelude::{ContactGraph, PhysicsSchedule, RigidBody, Sleeping, SolverSet},
 };
 
 /// A plugin for managing [`PhysicsIsland`]s.
@@ -67,15 +67,21 @@ impl Plugin for PhysicsIslandPlugin {
         // Insert `IslandBodyData` for each `SolverBody`.
         app.register_required_components::<SolverBody, IslandBodyData>();
 
-        // Remove `IslandBodyData` when `SolverBody` is removed.
-        // TODO: Rwmove `IslandBodyData` when the rigid body is no longer dynamic or kinematic.
-        /*app.add_observer(
-            |trigger: Trigger<OnRemove, SolverBody>, mut commands: Commands| {
-                commands
-                    .entity(trigger.target())
-                    .try_remove::<IslandBodyData>();
+        // Remove `IslandBodyData` when `SolverBody` is removed *not* by sleeping,
+        // but by being removed from the world or becoming a static body.
+        app.add_observer(
+            |trigger: Trigger<OnRemove, SolverBody>,
+             query: Query<(&RigidBody, Has<Sleeping>)>,
+             mut commands: Commands| {
+                if let Ok((rb, is_sleeping)) = query.get(trigger.target())
+                    && (rb.is_static() || !is_sleeping)
+                {
+                    commands
+                        .entity(trigger.target())
+                        .try_remove::<IslandBodyData>();
+                }
             },
-        );*/
+        );
 
         app.add_systems(PhysicsSchedule, split_island.in_set(SolverSet::Finalize));
     }

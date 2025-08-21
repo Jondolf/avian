@@ -1,3 +1,7 @@
+//! Sleeping and waking for [`PhysicsIsland`](super::PhysicsIsland)s.
+//!
+//! See [`PhysicsIslandSleepingPlugin`].
+
 use bevy::{
     app::{App, Plugin},
     ecs::{
@@ -6,7 +10,7 @@ use bevy::{
         query::{Changed, Or, With, Without},
         reflect::ReflectComponent,
         resource::Resource,
-        schedule::IntoScheduleConfigs,
+        schedule::{IntoScheduleConfigs, common_conditions::resource_changed},
         system::{
             Command, Commands, Local, ParamSet, Query, Res, ResMut, SystemChangeTick, SystemState,
             lifetimeless::{SQuery, SResMut},
@@ -29,7 +33,7 @@ use crate::{
     schedule::{LastPhysicsTick, is_changed_after_tick},
 };
 
-/// A plugin for managing sleeping and waking of [`PhysicsIsland`]s.
+/// A plugin for managing sleeping and waking of [`PhysicsIsland`](super::PhysicsIsland)s.
 pub struct PhysicsIslandSleepingPlugin;
 
 impl Plugin for PhysicsIslandSleepingPlugin {
@@ -47,7 +51,12 @@ impl Plugin for PhysicsIslandSleepingPlugin {
 
         app.add_systems(
             PhysicsSchedule,
-            (update_sleeping_states, wake_on_changed, sleep_islands)
+            (
+                update_sleeping_states,
+                wake_on_changed,
+                wake_all_islands.run_if(resource_changed::<Gravity>),
+                sleep_islands,
+            )
                 .chain()
                 .in_set(PhysicsStepSet::Sleeping),
         );
@@ -220,7 +229,7 @@ struct CachedSleepingSystemState(
     )>,
 );
 
-/// A [`Command`] that makes the [`PhysicsIsland`]s with the given IDs sleep if they are not already sleeping.
+/// A [`Command`] that makes the [`PhysicsIsland`](super::PhysicsIsland)s with the given IDs sleep if they are not already sleeping.
 pub struct SleepIslands(pub Vec<u32>);
 
 impl Command for SleepIslands {
@@ -283,7 +292,7 @@ impl Command for SleepIslands {
     }
 }
 
-/// A [`Command`] that wakes up the [`PhysicsIsland`]s with the given IDs if they are sleeping.
+/// A [`Command`] that wakes up the [`PhysicsIsland`](super::PhysicsIsland)s with the given IDs if they are sleeping.
 pub struct WakeIslands(pub Vec<u32>);
 
 impl Command for WakeIslands {
@@ -420,12 +429,16 @@ fn wake_on_changed(
     }
 }
 
-/*
 /// Removes the [`Sleeping`] component from all sleeping bodies.
 /// Triggered automatically when [`Gravity`] is changed.
-fn wake_all_sleeping_bodies(mut commands: Commands, bodies: Query<Entity, With<Sleeping>>) {
-    for entity in &bodies {
-        commands.queue(WakeUpBody(entity));
+fn wake_all_islands(mut commands: Commands, physics_islands: Res<PhysicsIslands>) {
+    let wake_buffer = physics_islands
+        .islands
+        .iter()
+        .filter_map(|(_, island)| island.is_sleeping.then_some(island.id))
+        .collect::<Vec<_>>();
+
+    if !wake_buffer.is_empty() {
+        commands.queue(WakeIslands(wake_buffer));
     }
 }
-*/
