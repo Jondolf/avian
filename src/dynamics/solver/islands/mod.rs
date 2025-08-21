@@ -644,6 +644,9 @@ impl PhysicsIslands {
 
     /// Merges the [`PhysicsIsland`]s associated with the given bodies. Returns the ID of the resulting island.
     ///
+    /// If an awake island is merged with a sleeping island, the resulting island will remain sleeping.
+    /// It is up to the caller to wake up the resulting island if needed.
+    ///
     /// The bodies and contacts of the smaller island are transferred to the larger island,
     /// and the smaller island is removed.
     pub fn merge_islands(
@@ -799,6 +802,13 @@ impl PhysicsIslands {
         // Track removed constraints.
         big.constraints_removed += small.constraints_removed;
 
+        // 3. Update the sleep state of the big island.
+        if small.is_sleeping {
+            // If the small island is sleeping, the big island will remain sleeping.
+            big.is_sleeping = true;
+            big.sleep_timer = small.sleep_timer.max(big.sleep_timer);
+        }
+
         #[cfg(debug_assertions)]
         {
             // Validate the big island.
@@ -809,7 +819,7 @@ impl PhysicsIslands {
             );
         }
 
-        // 3. Remove the small island.
+        // 4. Remove the small island.
         let big_id = big.id;
         let small_id = small.id;
         self.remove_island(small_id);

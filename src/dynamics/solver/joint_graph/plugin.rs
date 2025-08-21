@@ -218,16 +218,16 @@ fn on_remove_joint(mut world: DeferredWorld, ctx: HookContext) {
 
     // Remove the `JointComponentId` from the entity unless the component ID
     // was changed, implying that the joint is being replaced by another one.
-    if let Some(mut joint) = world.get_mut::<JointComponentId>(entity) {
-        if joint.0 == Some(component_id) {
-            joint.0 = None;
+    if let Some(mut joint) = world.get_mut::<JointComponentId>(entity)
+        && joint.0 == Some(component_id)
+    {
+        joint.0 = None;
 
-            // Remove the joint component.
-            world
-                .commands()
-                .entity(entity)
-                .try_remove::<JointComponentId>();
-        }
+        // Remove the joint component.
+        world
+            .commands()
+            .entity(entity)
+            .try_remove::<JointComponentId>();
     }
 }
 

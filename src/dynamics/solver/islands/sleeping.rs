@@ -13,7 +13,6 @@ use bevy::{
         },
         world::{Mut, Ref, World},
     },
-    log::warn,
     prelude::{Deref, DerefMut},
     reflect::{Reflect, prelude::ReflectDefault},
     time::Time,
@@ -275,8 +274,6 @@ impl Command for SleepIslands {
                         bodies_to_sleep.push((entity, Sleeping));
                         body = bodies.get(entity).unwrap().0.next;
                     }
-                } else {
-                    warn!("Tried to sleep island {island_id} that does not exist");
                 }
             }
 
@@ -338,8 +335,6 @@ impl Command for WakeIslands {
                             body = None;
                         }
                     }
-                } else {
-                    warn!("Tried to sleep island {island_id} that does not exist");
                 }
             }
 
