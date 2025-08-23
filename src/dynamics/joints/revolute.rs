@@ -378,6 +378,7 @@ fn update_local_frames(
     }
 }
 
+#[cfg(feature = "debug-plugin")]
 impl DebugRenderConstraint<2> for RevoluteJoint {
     type Context = ();
 

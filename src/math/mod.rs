@@ -82,7 +82,7 @@ pub(crate) type SymmetricTensor = SymmetricMatrix;
 
 /// The rotation type chosen based on the dimension.
 #[cfg(feature = "2d")]
-pub(crate) type Rot = Rotation;
+pub(crate) type Rot = crate::physics_transform::Rotation;
 
 /// The rotation type chosen based on the dimension.
 #[cfg(feature = "3d")]
@@ -660,7 +660,7 @@ pub fn orthonormal_basis(axes: [Vector; DIM]) -> Rot {
     #[cfg(feature = "2d")]
     {
         let mat = Matrix2::from_cols(axes[0], axes[1]);
-        Rotation::from(mat)
+        crate::physics_transform::Rotation::from(mat)
     }
     #[cfg(feature = "3d")]
     {
