@@ -12,8 +12,8 @@ env:
     RUSTDOCFLAGS: --deny warnings
 
 jobs:
-    check:
-        name: Check
+    check_all:
+        name: Check All Features
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
@@ -24,7 +24,22 @@ jobs:
                 cache-all-crates: true
                 shared-key: lints
             - name: Run cargo check
-              run: cargo check --locked --all-targets
+              # TODO: It would be nice to use `--all-features` here, but some features are mutually exclusive.
+              run: cargo check --locked --all-targets --features enhanced-determinism,parallel,collider-from-mesh,serialize,debug-plugin,xpbd_joints,avian2d/2d,avian3d/3d,avian2d/f64,avian3d/f64,default-collider,parry-f64,bevy_scene,bevy_picking,diagnostic_ui
+
+    check_minimal:
+        name: Check Minimal Features
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: dtolnay/rust-toolchain@stable
+            - uses: Swatinem/rust-cache@v2
+              with:
+                save-if: ${{ github.ref == 'refs/heads/main' }}
+                cache-all-crates: true
+                shared-key: lints
+            - name: Run cargo check
+              run: cargo check --locked --all-targets --no-default-features --features 2d,3d,f32
 
     docs:
         name: Check Documentation
