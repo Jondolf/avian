@@ -3,8 +3,8 @@
 //! Islands are retained across time steps. Each dynamic body starts with its own island,
 //! and when a constraint between two dynamic bodies is created, the islands are merged with union find.
 //!
-//! When constraints between two bodies are removed, their islands are marked as candidates for splitting.
-//! Splitting can be deferred and done in parallel, using union find, DFS, or any other island-finding algorithm.
+//! Splitting is deferred and done using depth-first search (DFS). Only one island is split per time step,
+//! choosing the sleepiest island with one or more constraints removed as the candidate.
 //!
 //! Islands are only used for sleeping and waking. Solver parallelism is achieved with [graph coloring](super::constraint_graph)
 //! using the [`ConstraintGraph`](super::constraint_graph::ConstraintGraph).
@@ -154,6 +154,42 @@ impl PhysicsIsland {
         }
     }
 
+    /// Returns the island ID.
+    #[inline]
+    pub const fn id(&self) -> u32 {
+        self.id
+    }
+
+    /// Returns the number of bodies in the island.
+    #[inline]
+    pub const fn body_count(&self) -> u32 {
+        self.body_count
+    }
+
+    /// Returns the number of contacts in the island.
+    #[inline]
+    pub const fn contact_count(&self) -> u32 {
+        self.contact_count
+    }
+
+    /// Returns the number of joints in the island.
+    #[inline]
+    pub const fn joint_count(&self) -> u32 {
+        self.joint_count
+    }
+
+    /// Returns `true` if the island is sleeping.
+    #[inline]
+    pub const fn is_sleeping(&self) -> bool {
+        self.is_sleeping
+    }
+
+    /// Returns the number of constraints that have been removed from the island,
+    #[inline]
+    pub const fn constraints_removed(&self) -> u32 {
+        self.constraints_removed
+    }
+
     // TODO: Use errors rather than panics.
     /// Validates the island.
     #[inline]
@@ -280,13 +316,16 @@ impl PhysicsIsland {
 #[derive(Resource, Debug, Default, Clone)]
 pub struct PhysicsIslands {
     /// The list of islands.
-    // TODO: Don't use a slab here.
+    // TODO: Don't use a slab here. Use an ID pool and `Vec` instead.
     islands: Slab<PhysicsIsland>,
     /// The current island candidate for splitting.
     ///
-    /// This is chosen based on which island is the sleepiest,
+    /// This is chosen based on which island with one or more constraints removed
+    /// has the largest sleep timer.
     pub split_candidate: Option<u32>,
-    /// The largest [`SleepTimer`](sleeping::SleepTimer) of the split candidate.
+    /// The largest [`SleepTimer`] of the split candidate.
+    ///
+    /// [`SleepTimer`]: crate::dynamics::rigid_body::sleeping::SleepTimer
     pub split_candidate_sleep_timer: f32,
 }
 

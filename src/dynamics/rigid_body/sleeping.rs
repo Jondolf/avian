@@ -42,13 +42,14 @@ use bevy::prelude::*;
 ///
 /// # Implementation Details
 ///
-/// Sleeping in Avian is handled using [simulation islands](PhysicsIsland). Each island is a collection of bodies
+/// Sleeping in Avian is handled using [simulation islands]. Each island is a collection of bodies
 /// that are connected through contacts or joints. An island is only allowed to sleep if all of its bodies are resting,
 /// and if any body in a sleeping island is woken up, the entire island is woken up with it.
 ///
 /// The [`PhysicsIslandPlugin`] is responsible for managing islands, and the [`PhysicsIslandSleepingPlugin`]
 /// is responsible for island sleeping and waking.
 ///
+/// [simulation islands]: crate::dynamics::solver::islands
 /// [`PhysicsIslandPlugin`]: crate::dynamics::solver::islands::PhysicsIslandPlugin
 /// [`PhysicsIslandSleepingPlugin`]: crate::dynamics::solver::islands::PhysicsIslandSleepingPlugin
 #[derive(Component, Clone, Copy, Debug, Default, Reflect)]
