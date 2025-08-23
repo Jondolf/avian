@@ -13,7 +13,7 @@ env:
 
 jobs:
     check_all:
-        name: Check All Features
+        name: Check With All Features
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
@@ -28,7 +28,7 @@ jobs:
               run: cargo check --locked --all-targets --features enhanced-determinism,parallel,collider-from-mesh,serialize,debug-plugin,xpbd_joints,avian2d/2d,avian3d/3d,avian2d/f64,avian3d/f64,default-collider,parry-f64,bevy_scene,bevy_picking,diagnostic_ui
 
     check_minimal:
-        name: Check Minimal Features
+        name: Check With Minimal Features
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
