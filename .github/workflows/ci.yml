@@ -54,11 +54,9 @@ jobs:
             - uses: dtolnay/rust-toolchain@nightly
               with:
                 components: llvm-tools-preview
-            - uses: cargo-bins/cargo-binstall@main
-            - name: Install nextest
-              run: cargo binstall cargo-nextest --force
-            - name: Install LLD
-              run: cargo binstall cargo-binutils --force
+            - uses: taiki-e/install-action@v2
+              with:
+                tool: cargo-nextest,cargo-binutils
             - name: Activate CI cargo config
               run: mv .cargo/config_ci.toml .cargo/config.toml
             - name: set LD_LIBRARY_PATH on unix
