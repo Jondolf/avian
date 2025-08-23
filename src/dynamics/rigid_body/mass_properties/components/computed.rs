@@ -1,4 +1,4 @@
-#![expect(clippy::unnecessary_cast)]
+#![allow(clippy::unnecessary_cast)]
 
 use crate::prelude::*;
 use bevy::prelude::*;

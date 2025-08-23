@@ -576,7 +576,7 @@ impl MatExt for SymmetricDMat3 {
     }
 }
 
-#[expect(clippy::unnecessary_cast)]
+#[allow(clippy::unnecessary_cast)]
 #[cfg(all(feature = "2d", any(feature = "parry-f32", feature = "parry-f64")))]
 pub(crate) fn na_iso_to_iso(isometry: &parry::math::Isometry<Scalar>) -> Isometry2d {
     Isometry2d::new(

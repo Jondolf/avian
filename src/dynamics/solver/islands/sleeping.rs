@@ -108,9 +108,12 @@ fn update_sleeping_states(
         #[cfg(feature = "3d")]
         let ang_vel_squared = solver_body.angular_velocity.length_squared();
 
-        if lin_vel_squared
-            < length_unit_squared * sleep_threshold.linear * sleep_threshold.linear.abs()
-            && ang_vel_squared < sleep_threshold.angular * sleep_threshold.angular.abs()
+        // Keep signs.
+        let lin_threshold_squared = sleep_threshold.linear * sleep_threshold.linear.abs();
+        let ang_threshold_squared = sleep_threshold.angular * sleep_threshold.angular.abs();
+
+        if lin_vel_squared < length_unit_squared * lin_threshold_squared as Scalar
+            && ang_vel_squared < ang_threshold_squared as Scalar
         {
             // Increment the sleep timer.
             sleep_timer.0 += delta_secs;
