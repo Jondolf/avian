@@ -21,6 +21,7 @@ fn main() {
         .add_plugins((
             DefaultPlugins,
             ExampleCommonPlugin,
+            PhysicsDebugPlugin::default(),
             PhysicsPlugins::default()
                 // Specify a units-per-meter scaling factor, 1 meter = 20 pixels.
                 // The unit allows the engine to tune its parameters for the scale of the world, improving stability.
@@ -168,17 +169,12 @@ fn movement(
 }
 
 fn pass_through_one_way_platform(
-    mut commands: Commands,
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut actors: Query<(Entity, &mut PassThroughOneWayPlatform), With<Actor>>,
+    mut actors: Query<&mut PassThroughOneWayPlatform, With<Actor>>,
 ) {
-    for (entity, mut pass_through_one_way_platform) in &mut actors {
+    for mut pass_through_one_way_platform in &mut actors {
         if keyboard_input.pressed(KeyCode::ArrowDown) && keyboard_input.pressed(KeyCode::Space) {
             *pass_through_one_way_platform = PassThroughOneWayPlatform::Always;
-
-            // Wake up the body when it's allowed to drop down.
-            // Otherwise it won't fall because gravity isn't simulated.
-            commands.queue(WakeBody(entity));
         } else {
             *pass_through_one_way_platform = PassThroughOneWayPlatform::ByNormal;
         }

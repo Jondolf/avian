@@ -14,7 +14,7 @@ use crate::{
     dynamics::solver::{
         ContactConstraints,
         constraint_graph::ConstraintGraph,
-        islands::{IslandBodyData, PhysicsIslands},
+        islands::{AwakeIslandBitVec, IslandBodyData, PhysicsIslands},
         joint_graph::JointGraph,
     },
     prelude::*,
@@ -378,7 +378,7 @@ fn remove_collider_on<E: Event, B: Bundle>(
     mut query: Query<&mut CollidingEntities, Or<(With<Disabled>, Without<Disabled>)>>,
     collider_of: Query<&ColliderOf, Or<(With<Disabled>, Without<Disabled>)>>,
     mut event_writer: EventWriter<CollisionEnded>,
-    mut commands: Commands,
+    mut awake_island_bit_vec: ResMut<AwakeIslandBitVec>,
 ) {
     let entity = trigger.target();
 
@@ -387,9 +387,11 @@ fn remove_collider_on<E: Event, B: Bundle>(
         .map(|&ColliderOf { body }| body)
         .ok();
 
-    if let Some(body1_island) = body1.and_then(|body| body_islands.get_mut(body).ok()) {
-        // Wake up the island if it was sleeping.
-        commands.queue(WakeIslands(vec![body1_island.island_id]));
+    // If the collider was attached to a rigid body, wake its island.
+    if let Some(body) = body1
+        && let Ok(body_island) = body_islands.get_mut(body)
+    {
+        awake_island_bit_vec.set(body_island.island_id as usize);
     }
 
     // Remove the collider from the contact graph.

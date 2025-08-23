@@ -6,7 +6,7 @@ use crate::{
     data_structures::{bit_vec::BitVec, pair_key::PairKey},
     dynamics::solver::{
         constraint_graph::ConstraintGraph,
-        islands::{IslandBodyData, PhysicsIslands, sleeping::WakeIslands},
+        islands::{IslandBodyData, PhysicsIslands, WakeIslands},
         joint_graph::JointGraph,
     },
     prelude::*,

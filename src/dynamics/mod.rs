@@ -99,16 +99,17 @@ pub mod prelude {
                     MassPropertiesBundle, NoAutoAngularInertia, NoAutoCenterOfMass, NoAutoMass,
                 },
             },
+            sleeping::{
+                DeactivationTime, SleepThreshold, SleepTimer, Sleeping, SleepingDisabled,
+                SleepingThreshold, TimeSleeping, TimeToSleep,
+            },
             *,
         },
         solver::{
             PhysicsLengthUnit, SolverPlugin, SolverPlugins,
             islands::{
-                PhysicsIslandPlugin,
-                sleeping::{
-                    PhysicsIslandSleepingPlugin, SleepBody, SleepIslands, SleepThreshold,
-                    SleepTimer, TimeToSleep, WakeBody, WakeIslands, WakeUpBody,
-                },
+                PhysicsIslandPlugin, PhysicsIslandSleepingPlugin, SleepBody, SleepIslands,
+                WakeBody, WakeIslands, WakeUpBody,
             },
             schedule::{SolverSchedulePlugin, SolverSet, SubstepCount, SubstepSchedule},
             solver_body::SolverBodyPlugin,

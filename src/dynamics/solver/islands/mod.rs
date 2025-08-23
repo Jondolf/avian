@@ -40,7 +40,13 @@
 // The implementation is largely based on Box2D:
 // https://github.com/erincatto/box2d/blob/df9787b59e4480135fbd73d275f007b5d931a83f/src/island.c#L57
 
-pub mod sleeping;
+mod sleeping;
+
+pub(crate) use sleeping::AwakeIslandBitVec;
+#[expect(deprecated)]
+pub use sleeping::{
+    PhysicsIslandSleepingPlugin, SleepBody, SleepIslands, WakeBody, WakeIslands, WakeUpBody,
+};
 
 use bevy::{
     ecs::{component::HookContext, world::DeferredWorld},
@@ -274,6 +280,7 @@ impl PhysicsIsland {
 #[derive(Resource, Debug, Default, Clone)]
 pub struct PhysicsIslands {
     /// The list of islands.
+    // TODO: Don't use a slab here.
     islands: Slab<PhysicsIsland>,
     /// The current island candidate for splitting.
     ///

@@ -5,10 +5,8 @@
 use bevy::{
     app::{App, Plugin},
     ecs::{
-        component::Component,
         entity::Entity,
         query::{Changed, Or, With, Without},
-        reflect::ReflectComponent,
         resource::Resource,
         schedule::{IntoScheduleConfigs, common_conditions::resource_changed},
         system::{
@@ -17,8 +15,8 @@ use bevy::{
         },
         world::{Mut, Ref, World},
     },
+    log::warn,
     prelude::{Deref, DerefMut},
-    reflect::{Reflect, prelude::ReflectDefault},
     time::Time,
 };
 
@@ -53,6 +51,7 @@ impl Plugin for PhysicsIslandSleepingPlugin {
             PhysicsSchedule,
             (
                 update_sleeping_states,
+                wake_islands_with_sleeping_disabled,
                 wake_on_changed,
                 wake_all_islands.run_if(resource_changed::<Gravity>),
                 sleep_islands,
@@ -65,64 +64,18 @@ impl Plugin for PhysicsIslandSleepingPlugin {
 
 /// A bit vector that stores which islands are kept awake and which are allowed to sleep.
 #[derive(Resource, Default, Deref, DerefMut)]
-struct AwakeIslandBitVec(BitVec);
+pub(crate) struct AwakeIslandBitVec(pub(crate) BitVec);
 
-/// A threshold that indicates the maximum linear and angular velocity allowed for a body to be deactivated.
-///
-/// Setting a negative sleeping threshold disables sleeping entirely.
-///
-/// See [`Sleeping`] for further information about sleeping.
-#[derive(Component, Clone, Copy, PartialEq, PartialOrd, Debug, Reflect)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Debug, Component, PartialEq)]
-pub struct SleepThreshold {
-    /// The maximum linear velocity allowed for a body to be marked as sleeping.
-    ///
-    /// This is implicitly scaled by the [`PhysicsLengthUnit`].
-    ///
-    /// Default: `0.15`
-    pub linear: f32,
-    /// The maximum angular velocity allowed for a body to be marked as sleeping.
-    ///
-    /// Default: `0.15`
-    pub angular: f32,
-}
+fn wake_islands_with_sleeping_disabled(
+    mut awake_island_bit_vec: ResMut<AwakeIslandBitVec>,
+    mut query: Query<(&IslandBodyData, &mut SleepTimer), With<SleepingDisabled>>,
+) {
+    // Wake up all islands that have a body with `SleepingDisabled`.
+    for (body_island, mut sleep_timer) in &mut query {
+        awake_island_bit_vec.set_and_grow(body_island.island_id as usize);
 
-impl Default for SleepThreshold {
-    fn default() -> Self {
-        Self {
-            linear: 0.15,
-            angular: 0.15,
-        }
-    }
-}
-
-/// How long the velocity of the body has been below the [`SleepingThreshold`],
-/// i.e. how long the body has been able to sleep.
-///
-/// See [`Sleeping`] for further information.
-#[derive(Component, Clone, Copy, Debug, Default, PartialEq, Reflect)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Debug, Component, Default, PartialEq)]
-pub struct SleepTimer(pub f32);
-
-/// How long in seconds the linear and angular velocity of a body need to be below
-/// the [`SleepThreshold`] before the body is allowed to sleep.
-///
-/// See [`Sleeping`] for further information about sleeping.
-///
-/// Default: `0.5`
-#[derive(Resource, Clone, Copy, Debug, PartialEq, PartialOrd, Reflect)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Debug, Default, PartialEq)]
-pub struct TimeToSleep(pub f32);
-
-impl Default for TimeToSleep {
-    fn default() -> Self {
-        Self(0.5)
+        // Reset the sleep timer.
+        sleep_timer.0 = 0.0;
     }
 }
 
@@ -136,7 +89,7 @@ fn update_sleeping_states(
             &SolverBody,
             &IslandBodyData,
         ),
-        Without<Sleeping>,
+        (Without<Sleeping>, Without<SleepingDisabled>),
     >,
     length_unit: Res<PhysicsLengthUnit>,
     time_to_sleep: Res<TimeToSleep>,
@@ -146,8 +99,6 @@ fn update_sleeping_states(
     let delta_secs = time.delta_secs();
 
     islands.split_candidate_sleep_timer = 0.0;
-
-    awake_island_bit_vec.set_bit_count_and_clear(islands.len());
 
     // TODO: This would be nice to do in parallel.
     for (mut sleep_timer, sleep_threshold, solver_body, island_data) in query.iter_mut() {
@@ -185,7 +136,7 @@ fn update_sleeping_states(
 }
 
 fn sleep_islands(
-    awake_island_bit_vec: Res<AwakeIslandBitVec>,
+    mut awake_island_bit_vec: ResMut<AwakeIslandBitVec>,
     mut islands: ResMut<PhysicsIslands>,
     mut commands: Commands,
     mut sleep_buffer: Local<Vec<u32>>,
@@ -217,6 +168,9 @@ fn sleep_islands(
     commands.queue(|world: &mut World| {
         WakeIslands(wake_buffer).apply(world);
     });
+
+    // Reset the awake island bit vector.
+    awake_island_bit_vec.set_bit_count_and_clear(islands.len());
 }
 
 #[derive(Resource)]
@@ -229,14 +183,15 @@ struct CachedSleepingSystemState(
     )>,
 );
 
-/// A [`Command`] that makes the [`PhysicsIsland`](super::PhysicsIsland) of the given [`RigidBody`] entity sleep if it is not already sleeping.
+/// A [`Command`] that forces a [`RigidBody`] and its [`PhysicsIsland`][super::PhysicsIsland] to be [`Sleeping`].
 pub struct SleepBody(pub Entity);
 
 impl Command for SleepBody {
     fn apply(self, world: &mut World) {
         if let Some(body_island) = world.get::<IslandBodyData>(self.0) {
-            let island_id = body_island.island_id;
-            world.commands().queue(SleepIslands(vec![island_id]));
+            SleepIslands(vec![body_island.island_id]).apply(world);
+        } else {
+            warn!("Tried to sleep body {:?} that does not exist", self.0);
         }
     }
 }
@@ -304,14 +259,15 @@ impl Command for SleepIslands {
     }
 }
 
-/// A [`Command`] that wakes up the [`PhysicsIsland`](super::PhysicsIsland) of the given [`RigidBody`] entity if it is sleeping.
+/// A [`Command`] that wakes up a [`RigidBody`] and its [`PhysicsIsland`](super::PhysicsIsland) if it is [`Sleeping`].
 pub struct WakeBody(pub Entity);
 
 impl Command for WakeBody {
     fn apply(self, world: &mut World) {
         if let Some(body_island) = world.get::<IslandBodyData>(self.0) {
-            let island_id = body_island.island_id;
-            world.commands().queue(WakeIslands(vec![island_id]));
+            WakeIslands(vec![body_island.island_id]).apply(world);
+        } else {
+            warn!("Tried to wake body {:?} that does not exist", self.0);
         }
     }
 }
@@ -413,7 +369,6 @@ type ConstantForceChanges = Or<(
 
 /// Removes the [`Sleeping`] component from sleeping bodies when properties like
 /// position, rotation, velocity and external forces are changed by the user.
-#[allow(clippy::type_complexity)]
 fn wake_on_changed(
     mut query: ParamSet<(
         // These could've been changed by physics too.
@@ -464,16 +419,14 @@ fn wake_on_changed(
     }
 }
 
-/// Removes the [`Sleeping`] component from all sleeping bodies.
-/// Triggered automatically when [`Gravity`] is changed.
-fn wake_all_islands(mut commands: Commands, physics_islands: Res<PhysicsIslands>) {
-    let wake_buffer = physics_islands
-        .islands
+/// Wakes up all sleeping [`PhysicsIsland`](super::PhysicsIsland)s. Triggered automatically when [`Gravity`] is changed.
+fn wake_all_islands(mut commands: Commands, islands: Res<PhysicsIslands>) {
+    let sleeping_islands: Vec<u32> = islands
         .iter()
-        .filter_map(|(_, island)| island.is_sleeping.then_some(island.id))
-        .collect::<Vec<_>>();
+        .filter_map(|island| island.is_sleeping.then_some(island.id))
+        .collect();
 
-    if !wake_buffer.is_empty() {
-        commands.queue(WakeIslands(wake_buffer));
+    if !sleeping_islands.is_empty() {
+        commands.queue(WakeIslands(sleeping_islands));
     }
 }

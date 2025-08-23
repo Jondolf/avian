@@ -2,6 +2,7 @@
 
 pub mod forces;
 pub mod mass_properties;
+pub mod sleeping;
 
 // Components
 mod locked_axes;
@@ -379,47 +380,6 @@ pub(crate) type RigidBodyActiveFilter = (Without<RigidBodyDisabled>, Without<Sle
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, Default)]
 pub struct RigidBodyDisabled;
-
-/// Indicates that a [rigid body](RigidBody) is not simulated by the physics engine until woken up again.
-/// This is done to improve performance and to help prevent small jitter that is typically present in collisions.
-///
-/// Bodies are marked as sleeping when their linear and angular velocity is below the [`SleepingThreshold`] for a time
-/// indicated by [`DeactivationTime`]. A sleeping body is woken up when an active body interacts with it through
-/// collisions or other constraints, or when gravity changes, or when the body's
-/// position, rotation, velocity, or external forces are modified.
-///
-/// Sleeping can be disabled for specific entities with the [`SleepingDisabled`] component,
-/// or for all entities by setting the [`SleepingThreshold`] to a negative value.
-#[derive(Reflect, Clone, Copy, Component, Debug, Default)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Debug, Component, Default)]
-pub struct Sleeping;
-
-/// How long the velocity of the body has been below the [`SleepingThreshold`],
-/// i.e. how long the body has been able to sleep.
-///
-/// See [`Sleeping`] for further information.
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, From)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Debug, Component, Default, PartialEq)]
-pub struct TimeSleeping(pub Scalar);
-
-impl TimeSleeping {
-    /// Resets the time sleeping to zero.
-    #[inline]
-    pub fn reset(&mut self) {
-        self.0 = 0.0;
-    }
-}
-
-/// Indicates that the body can not be deactivated by the physics engine. See [`Sleeping`] for information about sleeping.
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, Eq, From)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Debug, Component, Default, PartialEq)]
-pub struct SleepingDisabled;
 
 /// The linear velocity of a [rigid body](RigidBody), typically in meters per second.
 ///

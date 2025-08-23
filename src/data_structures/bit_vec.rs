@@ -91,6 +91,7 @@ impl BitVec {
     ///
     /// If the new block count exceeds the current capacity, the capacity is increased by half.
     /// The blocks are not cleared.
+    #[inline]
     pub fn grow(&mut self, new_block_count: usize) {
         if new_block_count > self.block_capacity {
             // Increase the block capacity by half if the new block count
