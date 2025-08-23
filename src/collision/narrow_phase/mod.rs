@@ -391,7 +391,7 @@ fn remove_collider_on<E: Event, B: Bundle>(
     if let Some(body) = body1
         && let Ok(body_island) = body_islands.get_mut(body)
     {
-        awake_island_bit_vec.set(body_island.island_id as usize);
+        awake_island_bit_vec.set_and_grow(body_island.island_id as usize);
     }
 
     // Remove the collider from the contact graph.

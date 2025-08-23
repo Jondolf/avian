@@ -1146,7 +1146,6 @@ impl PhysicsIslands {
 /// A node in a linked list in a [`PhysicsIsland`].
 #[derive(Clone, Debug, PartialEq, Eq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 pub struct IslandNode<Id> {
     // 4_294_967_295 islands is probably enough :)
     /// The ID of the island that the node belongs to.
