@@ -329,7 +329,6 @@ impl PhysicsIsland {
 #[derive(Resource, Debug, Default, Clone)]
 pub struct PhysicsIslands {
     /// The list of islands.
-    // TODO: Don't use a slab here. Use an ID pool and `Vec` instead.
     islands: Slab<PhysicsIsland>,
     /// The current island candidate for splitting.
     ///
