@@ -196,6 +196,7 @@ fn update_local_anchors(
     }
 }
 
+#[cfg(feature = "debug-plugin")]
 impl DebugRenderConstraint<2> for DistanceJoint {
     type Context = ();
 
