@@ -11,7 +11,12 @@ use system_param::ThreadLocalContactStatusBits;
 use core::marker::PhantomData;
 
 use crate::{
-    dynamics::solver::{ContactConstraints, constraint_graph::ConstraintGraph},
+    dynamics::solver::{
+        ContactConstraints,
+        constraint_graph::ConstraintGraph,
+        islands::{AwakeIslandBitVec, BodyIslandNode, PhysicsIslands},
+        joint_graph::JointGraph,
+    },
     prelude::*,
 };
 use bevy::{
@@ -365,12 +370,15 @@ fn trigger_collision_events(
 fn remove_collider_on<E: Event, B: Bundle>(
     trigger: Trigger<E, B>,
     mut contact_graph: ResMut<ContactGraph>,
+    joint_graph: ResMut<JointGraph>,
     mut constraint_graph: ResMut<ConstraintGraph>,
+    mut islands: ResMut<PhysicsIslands>,
+    mut body_islands: Query<&mut BodyIslandNode>,
     // TODO: Change this hack to include disabled entities with `Allows<T>` for 0.17
     mut query: Query<&mut CollidingEntities, Or<(With<Disabled>, Without<Disabled>)>>,
     collider_of: Query<&ColliderOf, Or<(With<Disabled>, Without<Disabled>)>>,
     mut event_writer: EventWriter<CollisionEnded>,
-    mut commands: Commands,
+    mut awake_island_bit_vec: ResMut<AwakeIslandBitVec>,
 ) {
     let entity = trigger.target();
 
@@ -378,6 +386,13 @@ fn remove_collider_on<E: Event, B: Bundle>(
         .get(entity)
         .map(|&ColliderOf { body }| body)
         .ok();
+
+    // If the collider was attached to a rigid body, wake its island.
+    if let Some(body) = body1
+        && let Ok(body_island) = body_islands.get_mut(body)
+    {
+        awake_island_bit_vec.set_and_grow(body_island.island_id as usize);
+    }
 
     // Remove the collider from the contact graph.
     contact_graph.remove_collider_with(entity, |contact_graph, contact_id| {
@@ -410,26 +425,25 @@ fn remove_collider_on<E: Event, B: Bundle>(
             colliding_entities.remove(&entity);
         }
 
-        // Wake up the other body.
-        let body2 = collider_of
-            .get(other_entity)
-            .map(|&ColliderOf { body }| body)
-            .ok();
-        if let Some(body2) = body2 {
-            commands.queue(WakeUpBody(body2));
-        }
+        let has_island = contact_edge.island.is_some();
 
         // Remove the contact edge from the constraint graph.
-        if let (Some(body1), Some(body2)) = (body1, body2) {
+        if let (Some(body1), Some(body2)) = (contact_edge.body1, contact_edge.body2) {
             for _ in 0..contact_edge.constraint_handles.len() {
                 constraint_graph.pop_manifold(contact_graph, contact_id, body1, body2);
             }
+        }
+
+        // Unlink the contact pair from its island.
+        if has_island {
+            islands.remove_contact(contact_id, &mut body_islands, contact_graph, &joint_graph);
         }
     });
 }
 
 // TODO: These are currently used just for sensors. It wouldn't be needed if sensor logic
 //       was separate from normal colliders and didn't compute contact manifolds.
+// TODO: Unlink from islands here?
 
 /// Adds all touching contact edges associated with an entity to the [`ConstraintGraph`].
 fn add_to_constraint_graph_on<E: Event, B: Bundle>(

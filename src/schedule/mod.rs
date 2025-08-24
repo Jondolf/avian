@@ -194,8 +194,6 @@ pub enum PhysicsStepSet {
     /// See [`SolverPlugin`] and [`SubstepSchedule`].
     Solver,
     /// Responsible for controlling when bodies should be deactivated and marked as [`Sleeping`].
-    ///
-    /// See [`SleepingPlugin`].
     Sleeping,
     /// Responsible for spatial queries like [raycasting](`RayCaster`) and shapecasting.
     ///

@@ -127,7 +127,6 @@ pub fn prepare_xpbd_joint<
 >(
     bodies: Query<RigidBodyQueryReadOnly, Without<RigidBodyDisabled>>,
     mut joints: Query<(&mut C, &mut C::SolverData), (Without<RigidBody>, Without<JointDisabled>)>,
-    mut commands: Commands,
 ) where
     C::SolverData: Component<Mutability = Mutable>,
 {
@@ -138,15 +137,6 @@ pub fn prepare_xpbd_joint<
         // Get components for entities
         if let Ok([body1, body2]) = bodies.get_many(joint.entities()) {
             joint.prepare([&body1, &body2], &mut solver_data);
-
-            // Wake up the bodies if they are sleeping.
-            // TODO: Simulation islands will let us handle this better.
-            if body1.is_sleeping {
-                commands.queue(WakeUpBody(body1.entity));
-            }
-            if body2.is_sleeping {
-                commands.queue(WakeUpBody(body2.entity));
-            }
         }
     }
 }

@@ -74,6 +74,7 @@ use super::{ContactEdge, ContactId};
 /// For filtering and modifying collisions, consider using [`CollisionHooks`] instead.
 #[derive(Resource, Clone, Debug, Default)]
 pub struct ContactGraph {
+    // TODO: Can and should edges be between bodies instead of colliders?
     // TODO: We could have a separate intersection graph for sensors.
     // TODO: Make the fields private, but expose a public API through methods.
     /// The internal undirected graph where nodes are entities and edges are contact pairs.
@@ -698,7 +699,7 @@ impl ContactGraph {
         }
     }
 
-    /// Transfers contact of a body from the sleeping contacts to the active contacts,
+    /// Transfers touching contacts of a body from the sleeping contacts to the active contacts,
     /// calling the given callback for each [`ContactPair`] that is moved to active contacts.
     #[inline]
     pub fn wake_entity_with<F>(&mut self, entity: Entity, mut pair_callback: F)
@@ -723,6 +724,12 @@ impl ContactGraph {
                 .edges
                 .edge_weight_mut(id.into())
                 .expect("edge should exist");
+
+            if !edge.is_touching() {
+                // Only wake touching contacts.
+                continue;
+            }
+
             let pair_index = edge.pair_index;
 
             // Remove the sleeping contact pair.
@@ -755,7 +762,7 @@ impl ContactGraph {
         }
     }
 
-    /// Transfers contact of a body from the active contacts to the sleeping contacts,
+    /// Transfers touching contacts of a body from the active contacts to the sleeping contacts,
     /// calling the given callback for each [`ContactPair`] that is moved to sleeping contacts.
     #[inline]
     pub fn sleep_entity_with<F>(&mut self, entity: Entity, mut pair_callback: F)
@@ -780,6 +787,12 @@ impl ContactGraph {
                 .edges
                 .edge_weight_mut(id.into())
                 .expect("edge should exist");
+
+            if !edge.is_touching() {
+                // Only sleep touching contacts.
+                continue;
+            }
+
             let pair_index = edge.pair_index;
 
             // Remove the active contact pair.
