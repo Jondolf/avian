@@ -31,10 +31,6 @@ pub use layers::*;
     any(feature = "parry-f32", feature = "parry-f64")
 ))]
 mod parry;
-#[cfg(all(
-    feature = "default-collider",
-    any(feature = "parry-f32", feature = "parry-f64")
-))]
 pub use parry::*;
 
 #[cfg(feature = "default-collider")]
