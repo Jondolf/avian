@@ -179,7 +179,11 @@ fn sleep_islands(
 #[derive(Resource)]
 struct CachedSleepingSystemState(
     SystemState<(
-        SQuery<(&'static BodyIslandNode, &'static mut SleepTimer)>,
+        SQuery<(
+            &'static BodyIslandNode,
+            &'static mut SleepTimer,
+            &'static RigidBodyColliders,
+        )>,
         SResMut<PhysicsIslands>,
         SResMut<ContactGraph>,
         SResMut<ConstraintGraph>,
@@ -222,36 +226,43 @@ impl Command for SleepIslands {
                     let mut body = island.head_body;
 
                     while let Some(entity) = body {
+                        let Ok((body_island, _, colliders)) = bodies.get(entity) else {
+                            body = None;
+                            continue;
+                        };
+
                         // Transfer the contact pairs to the sleeping set, and remove the body from the constraint graph.
-                        contact_graph.sleep_entity_with(entity, |graph, contact_pair| {
-                            // Remove touching contacts from the constraint graph.
-                            if !contact_pair.is_touching() || contact_pair.is_sensor() {
-                                return;
-                            }
-                            let contact_edge = graph
-                                .get_edge_mut_by_id(contact_pair.contact_id)
-                                .unwrap_or_else(|| {
-                                    panic!(
-                                        "Contact edge with id {:?} not found in contact graph.",
-                                        contact_pair.contact_id
-                                    )
-                                });
-                            if let (Some(body1), Some(body2)) =
-                                (contact_pair.body1, contact_pair.body2)
-                            {
-                                for _ in 0..contact_edge.constraint_handles.len() {
-                                    constraint_graph.pop_manifold(
-                                        &mut graph.edges,
-                                        contact_pair.contact_id,
-                                        body1,
-                                        body2,
-                                    );
+                        for collider in colliders {
+                            contact_graph.sleep_entity_with(collider, |graph, contact_pair| {
+                                // Remove touching contacts from the constraint graph.
+                                if !contact_pair.is_touching() || contact_pair.is_sensor() {
+                                    return;
                                 }
-                            }
-                        });
+                                let contact_edge = graph
+                                    .get_edge_mut_by_id(contact_pair.contact_id)
+                                    .unwrap_or_else(|| {
+                                        panic!(
+                                            "Contact edge with id {:?} not found in contact graph.",
+                                            contact_pair.contact_id
+                                        )
+                                    });
+                                if let (Some(body1), Some(body2)) =
+                                    (contact_pair.body1, contact_pair.body2)
+                                {
+                                    for _ in 0..contact_edge.constraint_handles.len() {
+                                        constraint_graph.pop_manifold(
+                                            &mut graph.edges,
+                                            contact_pair.contact_id,
+                                            body1,
+                                            body2,
+                                        );
+                                    }
+                                }
+                            });
+                        }
 
                         bodies_to_sleep.push((entity, Sleeping));
-                        body = bodies.get(entity).unwrap().0.next;
+                        body = body_island.next;
                     }
                 }
             }
@@ -309,34 +320,36 @@ impl Command for WakeIslands {
                     let mut body = island.head_body;
 
                     while let Some(entity) = body {
+                        let Ok((body_island, mut sleep_timer, colliders)) = bodies.get_mut(entity)
+                        else {
+                            body = None;
+                            continue;
+                        };
+
                         // Transfer the contact pairs to the awake set, and add touching contacts to the constraint graph.
-                        contact_graph.wake_entity_with(entity, |graph, contact_pair| {
-                            // Add touching contacts to the constraint graph.
-                            if !contact_pair.is_touching() || contact_pair.is_sensor() {
-                                return;
-                            }
-                            let contact_edge = graph
-                                .get_edge_mut_by_id(contact_pair.contact_id)
-                                .unwrap_or_else(|| {
-                                    panic!(
-                                        "Contact edge with id {:?} not found in contact graph.",
-                                        contact_pair.contact_id
-                                    )
-                                });
-                            for _ in contact_pair.manifolds.iter() {
-                                constraint_graph.push_manifold(contact_edge, contact_pair);
-                            }
-                        });
+                        for collider in colliders {
+                            contact_graph.wake_entity_with(collider, |graph, contact_pair| {
+                                // Add touching contacts to the constraint graph.
+                                if !contact_pair.is_touching() || contact_pair.is_sensor() {
+                                    return;
+                                }
+                                let contact_edge = graph
+                                    .get_edge_mut_by_id(contact_pair.contact_id)
+                                    .unwrap_or_else(|| {
+                                        panic!(
+                                            "Contact edge with id {:?} not found in contact graph.",
+                                            contact_pair.contact_id
+                                        )
+                                    });
+                                for _ in contact_pair.manifolds.iter() {
+                                    constraint_graph.push_manifold(contact_edge, contact_pair);
+                                }
+                            });
+                        }
 
                         bodies_to_wake.push(entity);
-
-                        if let Ok((body_island, mut sleep_timer)) = bodies.get_mut(entity) {
-                            body = body_island.next;
-                            // Reset the sleep timer.
-                            sleep_timer.0 = 0.0;
-                        } else {
-                            body = None;
-                        }
+                        body = body_island.next;
+                        sleep_timer.0 = 0.0;
                     }
                 }
             }

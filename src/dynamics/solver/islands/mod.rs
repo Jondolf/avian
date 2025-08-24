@@ -60,7 +60,7 @@ use crate::{
         joint_graph::{JointGraph, JointId},
         solver_body::SolverBody,
     },
-    prelude::{ContactGraph, PhysicsSchedule, RigidBody, Sleeping, SolverSet},
+    prelude::{ContactGraph, PhysicsSchedule, RigidBody, RigidBodyColliders, Sleeping, SolverSet},
 };
 
 /// A plugin for managing [`PhysicsIsland`]s.
@@ -96,6 +96,7 @@ impl Plugin for PhysicsIslandPlugin {
 fn split_island(
     mut islands: ResMut<PhysicsIslands>,
     mut body_islands: Query<&mut BodyIslandNode>,
+    body_colliders: Query<&RigidBodyColliders>,
     mut contact_graph: ResMut<ContactGraph>,
     mut joint_graph: ResMut<JointGraph>,
 ) {
@@ -104,6 +105,7 @@ fn split_island(
         islands.split_island(
             island_id,
             &mut body_islands,
+            &body_colliders,
             &mut contact_graph,
             &mut joint_graph,
         );
@@ -898,6 +900,7 @@ impl PhysicsIslands {
         &mut self,
         island_id: u32,
         body_islands: &mut Query<&mut BodyIslandNode>,
+        body_colliders: &Query<&RigidBodyColliders>,
         contact_graph: &mut ContactGraph,
         joint_graph: &mut JointGraph,
     ) {
@@ -1021,27 +1024,38 @@ impl PhysicsIslands {
 
                 // Traverse the contacts of the body.
                 // TODO: Avoid collecting here and only iterate once.
-                let contact_edges: Vec<(ContactId, Entity)> = contact_graph
-                    .contact_edges_with(body)
-                    .filter_map(|contact_edge| {
-                        if contact_edge.island.is_some_and(|island| island.is_visited) {
-                            // Only consider contacts that have not been visited yet.
-                            return None;
-                        }
+                let contact_edges: Vec<(ContactId, Entity)> = body_colliders
+                    .get(body)
+                    .iter()
+                    .flat_map(|colliders| {
+                        colliders.into_iter().flat_map(|collider| {
+                            contact_graph
+                                .contact_edges_with(collider)
+                                .filter_map(|contact_edge| {
+                                    if contact_edge.island.is_some_and(|island| island.is_visited) {
+                                        // Only consider contacts that have not been visited yet.
+                                        return None;
+                                    }
 
-                        if !contact_edge.is_touching() {
-                            // Only consider touching contacts.
-                            return None;
-                        }
+                                    if !contact_edge.is_touching() {
+                                        // Only consider touching contacts.
+                                        return None;
+                                    }
 
-                        // TODO: Remove this once the contact graph is reworked to only have rigid body collisions.
-                        let (Some(body1), Some(body2)) = (contact_edge.body1, contact_edge.body2)
-                        else {
-                            // Only consider contacts with two bodies.
-                            return None;
-                        };
+                                    // TODO: Remove this once the contact graph is reworked to only have rigid body collisions.
+                                    let (Some(body1), Some(body2)) =
+                                        (contact_edge.body1, contact_edge.body2)
+                                    else {
+                                        // Only consider contacts with two bodies.
+                                        return None;
+                                    };
 
-                        Some((contact_edge.id, if body1 == body { body2 } else { body1 }))
+                                    Some((
+                                        contact_edge.id,
+                                        if body1 == body { body2 } else { body1 },
+                                    ))
+                                })
+                        })
                     })
                     .collect();
 

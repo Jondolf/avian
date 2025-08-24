@@ -471,7 +471,8 @@ fn debug_render_shapecasts(
 
 fn debug_render_islands(
     islands: Res<PhysicsIslands>,
-    aabbs: Query<(&ColliderAabb, &BodyIslandNode)>,
+    bodies: Query<(&RigidBodyColliders, &BodyIslandNode)>,
+    aabbs: Query<&ColliderAabb>,
     mut gizmos: Gizmos<PhysicsGizmos>,
     store: Res<GizmoConfigStore>,
 ) {
@@ -484,17 +485,24 @@ fn debug_render_islands(
         }
 
         let mut body = island.head_body;
-        let Ok((aabb, _)) = aabbs.get(body.unwrap()) else {
-            continue;
-        };
+        let mut aabb: Option<ColliderAabb> = None;
 
-        let mut aabb = *aabb;
+        // Compute the island's AABB by merging the AABBs of all bodies in the island.
         while let Some(next_body) = body {
-            if let Ok((body_aabb, body_island)) = aabbs.get(next_body) {
-                aabb = aabb.merged(*body_aabb);
+            if let Ok((colliders, body_island)) = bodies.get(next_body) {
+                for collider in colliders.iter() {
+                    if let Ok(collider_aabb) = aabbs.get(collider) {
+                        aabb =
+                            Some(aabb.map_or(*collider_aabb, |aabb| aabb.merged(*collider_aabb)));
+                    }
+                }
                 body = body_island.next;
             }
         }
+
+        let Some(aabb) = aabb else {
+            continue;
+        };
 
         // Render the island's AABB.
         if let Some(mut color) = config.island_color {

@@ -74,6 +74,7 @@ use super::{ContactEdge, ContactId};
 /// For filtering and modifying collisions, consider using [`CollisionHooks`] instead.
 #[derive(Resource, Clone, Debug, Default)]
 pub struct ContactGraph {
+    // TODO: Can and should edges be between bodies instead of colliders?
     // TODO: We could have a separate intersection graph for sensors.
     // TODO: Make the fields private, but expose a public API through methods.
     /// The internal undirected graph where nodes are entities and edges are contact pairs.
