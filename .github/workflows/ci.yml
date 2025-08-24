@@ -12,27 +12,12 @@ env:
     RUSTDOCFLAGS: --deny warnings
 
 jobs:
-    check_all:
-        name: Check With All Features
+    check:
+        name: Check Minimal Features
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
-            - uses: dtolnay/rust-toolchain@stable
-            - uses: Swatinem/rust-cache@v2
-              with:
-                save-if: ${{ github.ref == 'refs/heads/main' }}
-                cache-all-crates: true
-                shared-key: lints
-            - name: Run cargo check
-              # TODO: It would be nice to use `--all-features` here, but some features are mutually exclusive.
-              run: cargo check --locked --all-targets --features enhanced-determinism,parallel,collider-from-mesh,serialize,debug-plugin,xpbd_joints,avian2d/2d,avian3d/3d,avian2d/f64,avian3d/f64,default-collider,parry-f64,bevy_scene,bevy_picking,diagnostic_ui
-
-    check_minimal:
-        name: Check With Minimal Features
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4
-            - uses: dtolnay/rust-toolchain@stable
+            - uses: dtolnay/rust-toolchain@nightly
             - uses: Swatinem/rust-cache@v2
               with:
                 save-if: ${{ github.ref == 'refs/heads/main' }}
@@ -46,7 +31,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
-            - uses: dtolnay/rust-toolchain@stable
+            - uses: dtolnay/rust-toolchain@nightly
             - uses: Swatinem/rust-cache@v2
               with:
                 save-if: ${{ github.ref == 'refs/heads/main' }}
@@ -117,7 +102,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
-            - uses: dtolnay/rust-toolchain@stable
+            - uses: dtolnay/rust-toolchain@nightly
             - uses: Swatinem/rust-cache@v2
               with:
                 save-if: ${{ github.ref == 'refs/heads/main' }}
