@@ -17,7 +17,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
-            - uses: dtolnay/rust-toolchain@nightly
+            - uses: dtolnay/rust-toolchain@stable
             - uses: Swatinem/rust-cache@v2
               with:
                 save-if: ${{ github.ref == 'refs/heads/main' }}
@@ -31,7 +31,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
-            - uses: dtolnay/rust-toolchain@nightly
+            - uses: dtolnay/rust-toolchain@stable
             - uses: Swatinem/rust-cache@v2
               with:
                 save-if: ${{ github.ref == 'refs/heads/main' }}
@@ -54,9 +54,11 @@ jobs:
             - uses: dtolnay/rust-toolchain@nightly
               with:
                 components: llvm-tools-preview
-            - uses: taiki-e/install-action@v2
-              with:
-                tool: cargo-nextest,cargo-binutils
+            - uses: cargo-bins/cargo-binstall@main
+            - name: Install nextest
+              run: cargo binstall cargo-nextest --force
+            - name: Install LLD
+              run: cargo binstall cargo-binutils --force
             - name: Activate CI cargo config
               run: mv .cargo/config_ci.toml .cargo/config.toml
             - name: set LD_LIBRARY_PATH on unix
@@ -102,7 +104,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
-            - uses: dtolnay/rust-toolchain@nightly
+            - uses: dtolnay/rust-toolchain@stable
             - uses: Swatinem/rust-cache@v2
               with:
                 save-if: ${{ github.ref == 'refs/heads/main' }}
