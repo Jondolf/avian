@@ -13,7 +13,7 @@ env:
 
 jobs:
     check:
-        name: Check
+        name: Check Minimal Features
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
@@ -24,7 +24,7 @@ jobs:
                 cache-all-crates: true
                 shared-key: lints
             - name: Run cargo check
-              run: cargo check --locked --all-targets
+              run: cargo check --locked --all-targets --no-default-features --features 2d,3d,f32
 
     docs:
         name: Check Documentation
@@ -53,7 +53,6 @@ jobs:
             - uses: actions/checkout@v4
             - uses: dtolnay/rust-toolchain@nightly
               with:
-                toolchain: nightly-2025-08-07
                 components: llvm-tools-preview
             - uses: cargo-bins/cargo-binstall@main
             - name: Install nextest
