@@ -62,7 +62,7 @@ impl Plugin for PhysicsTypeRegistrationPlugin {
         app.register_type::<ColliderConstructor>()
             .register_type::<ColliderConstructorHierarchy>()
             .register_type::<crate::collision::collider::ColliderConstructorHierarchyConfig>()
-            .register_type::<ShapeCaster>();
+            .register_type::<ShapeCaster<Collider>>();
 
         #[cfg(feature = "3d")]
         app.register_type::<SphericalJoint>();
