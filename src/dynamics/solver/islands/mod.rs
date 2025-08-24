@@ -70,10 +70,10 @@ impl Plugin for PhysicsIslandPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PhysicsIslands>();
 
-        // Insert `IslandBodyData` for each `SolverBody`.
-        app.register_required_components::<SolverBody, IslandBodyData>();
+        // Insert `BodyIslandNode` for each `SolverBody`.
+        app.register_required_components::<SolverBody, BodyIslandNode>();
 
-        // Remove `IslandBodyData` when `SolverBody` is removed *not* by sleeping,
+        // Remove `BodyIslandNode` when `SolverBody` is removed *not* by sleeping,
         // but by being removed from the world or becoming a static body.
         app.add_observer(
             |trigger: Trigger<OnRemove, SolverBody>,
@@ -84,7 +84,7 @@ impl Plugin for PhysicsIslandPlugin {
                 {
                     commands
                         .entity(trigger.target())
-                        .try_remove::<IslandBodyData>();
+                        .try_remove::<BodyIslandNode>();
                 }
             },
         );
@@ -95,7 +95,7 @@ impl Plugin for PhysicsIslandPlugin {
 
 fn split_island(
     mut islands: ResMut<PhysicsIslands>,
-    mut body_islands: Query<&mut IslandBodyData>,
+    mut body_islands: Query<&mut BodyIslandNode>,
     mut contact_graph: ResMut<ContactGraph>,
     mut joint_graph: ResMut<JointGraph>,
 ) {
@@ -110,7 +110,20 @@ fn split_island(
     }
 }
 
-/// A simulation island that contains bodies, contacts, and joints.
+/// A [simulation island](self) that contains bodies, contacts, and joints. Used for sleeping and waking.
+///
+/// Islands are retained across time steps. Each dynamic body starts with its own island,
+/// and when a constraint between two dynamic bodies is created, the islands are merged with union find.
+///
+/// Splitting is deferred and done using depth-first search (DFS). Only one island is split per time step,
+/// choosing the sleepiest island with one or more constraints removed as the candidate.
+///
+/// Bodies, contacts, and joints are linked to islands using linked lists for efficient addition, removal,
+/// and merging. Each island stores the head and tail of each list, while each [`BodyIslandNode`], [`ContactEdge`],
+/// and [`JointGraphEdge`] stores an [`IslandNode`] that links it to the next and previous item in the list.
+///
+/// [`ContactEdge`]: crate::collision::contact_types::ContactEdge
+/// [`JointGraphEdge`]: crate::dynamics::solver::joint_graph::JointGraphEdge
 #[derive(Clone, Debug, PartialEq)]
 pub struct PhysicsIsland {
     pub(crate) id: u32,
@@ -195,7 +208,7 @@ impl PhysicsIsland {
     #[inline]
     pub fn validate(
         &self,
-        body_islands: &Query<&IslandBodyData>,
+        body_islands: &Query<&BodyIslandNode>,
         contact_graph: &ContactGraphInternal,
         joint_graph: &JointGraph,
     ) {
@@ -205,7 +218,7 @@ impl PhysicsIsland {
     }
 
     /// Validates the body linked list.
-    pub fn validate_bodies(&self, body_islands: &Query<&IslandBodyData>) {
+    pub fn validate_bodies(&self, body_islands: &Query<&BodyIslandNode>) {
         if self.head_body.is_none() {
             assert!(self.tail_body.is_none());
             assert_eq!(self.body_count, 0);
@@ -413,7 +426,7 @@ impl PhysicsIslands {
     pub fn add_contact(
         &mut self,
         contact_id: ContactId,
-        body_islands: &mut Query<&mut IslandBodyData>,
+        body_islands: &mut Query<&mut BodyIslandNode>,
         contact_graph: &mut ContactGraph,
         joint_graph: &mut JointGraph,
     ) -> Option<&PhysicsIsland> {
@@ -487,7 +500,7 @@ impl PhysicsIslands {
     pub fn remove_contact(
         &mut self,
         contact_id: ContactId,
-        body_islands: &mut Query<&mut IslandBodyData>,
+        body_islands: &mut Query<&mut BodyIslandNode>,
         contact_graph: &mut ContactGraphInternal,
         joint_graph: &JointGraph,
     ) -> &PhysicsIsland {
@@ -562,7 +575,7 @@ impl PhysicsIslands {
     pub fn add_joint(
         &mut self,
         joint_id: JointId,
-        body_islands: &mut Query<&mut IslandBodyData>,
+        body_islands: &mut Query<&mut BodyIslandNode>,
         contact_graph: &mut ContactGraph,
         joint_graph: &mut JointGraph,
     ) -> Option<&PhysicsIsland> {
@@ -634,7 +647,7 @@ impl PhysicsIslands {
     pub fn remove_joint(
         &mut self,
         joint_id: JointId,
-        body_islands: &mut Query<&mut IslandBodyData>,
+        body_islands: &mut Query<&mut BodyIslandNode>,
         contact_graph: &ContactGraph,
         joint_graph: &mut JointGraph,
     ) -> &PhysicsIsland {
@@ -705,7 +718,7 @@ impl PhysicsIslands {
         &mut self,
         body1: Entity,
         body2: Entity,
-        body_islands: &mut Query<&mut IslandBodyData>,
+        body_islands: &mut Query<&mut BodyIslandNode>,
         contact_graph: &mut ContactGraph,
         joint_graph: &mut JointGraph,
     ) -> u32 {
@@ -885,7 +898,7 @@ impl PhysicsIslands {
     pub fn split_island(
         &mut self,
         island_id: u32,
-        body_islands: &mut Query<&mut IslandBodyData>,
+        body_islands: &mut Query<&mut BodyIslandNode>,
         contact_graph: &mut ContactGraph,
         joint_graph: &mut JointGraph,
     ) {
@@ -1178,11 +1191,11 @@ impl<Id: Copy> Copy for IslandNode<Id> {}
 
 /// A component that stores [`PhysicsIsland`] connectivity data for a rigid body.
 #[derive(Component, Default, Deref, DerefMut)]
-#[component(on_add = IslandBodyData::on_add, on_remove = IslandBodyData::on_remove)]
-pub struct IslandBodyData(IslandNode<Entity>);
+#[component(on_add = BodyIslandNode::on_add, on_remove = BodyIslandNode::on_remove)]
+pub struct BodyIslandNode(IslandNode<Entity>);
 
-impl IslandBodyData {
-    // Initialize a new island when `IslandBodyData` is added to a body.
+impl BodyIslandNode {
+    // Initialize a new island when `BodyIslandNode` is added to a body.
     fn on_add(mut world: DeferredWorld, ctx: HookContext) {
         // Create a new island for the body.
         let mut islands = world.resource_mut::<PhysicsIslands>();
@@ -1193,24 +1206,24 @@ impl IslandBodyData {
         });
 
         // Set the island ID for the body.
-        let mut body_island = world.get_mut::<IslandBodyData>(ctx.entity).unwrap();
+        let mut body_island = world.get_mut::<BodyIslandNode>(ctx.entity).unwrap();
         body_island.island_id = island_id;
     }
 
-    // Remove the body from the island when `IslandBodyData` is removed.
+    // Remove the body from the island when `BodyIslandNode` is removed.
     fn on_remove(mut world: DeferredWorld, ctx: HookContext) {
-        let body_island = world.get::<IslandBodyData>(ctx.entity).unwrap();
+        let body_island = world.get::<BodyIslandNode>(ctx.entity).unwrap();
         let island_id = body_island.island_id;
         let prev_body_entity = body_island.prev;
         let next_body_entity = body_island.next;
 
         // Fix the linked list of bodies in the island.
         if let Some(entity) = prev_body_entity {
-            let mut prev_body_island = world.get_mut::<IslandBodyData>(entity).unwrap();
+            let mut prev_body_island = world.get_mut::<BodyIslandNode>(entity).unwrap();
             prev_body_island.next = next_body_entity;
         }
         if let Some(entity) = next_body_entity {
-            let mut next_body_island = world.get_mut::<IslandBodyData>(entity).unwrap();
+            let mut next_body_island = world.get_mut::<BodyIslandNode>(entity).unwrap();
             next_body_island.prev = prev_body_entity;
         }
 
@@ -1249,7 +1262,7 @@ impl IslandBodyData {
                 use bevy::ecs::system::RunSystemOnce;
                 // TODO: This is probably quite inefficient.
                 let _ = world.run_system_once(
-                    move |bodies: Query<&IslandBodyData>,
+                    move |bodies: Query<&BodyIslandNode>,
                           islands: Res<PhysicsIslands>,
                           contact_graph: Res<ContactGraph>,
                           joint_graph: Res<JointGraph>| {

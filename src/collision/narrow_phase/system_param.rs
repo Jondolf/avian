@@ -6,7 +6,7 @@ use crate::{
     data_structures::{bit_vec::BitVec, pair_key::PairKey},
     dynamics::solver::{
         constraint_graph::ConstraintGraph,
-        islands::{IslandBodyData, PhysicsIslands, WakeIslands},
+        islands::{BodyIslandNode, PhysicsIslands, WakeIslands},
         joint_graph::JointGraph,
     },
     prelude::*,
@@ -68,7 +68,7 @@ pub struct NarrowPhase<'w, 's, C: AnyCollider> {
     collider_query: Query<'w, 's, ColliderQuery<C>, Without<ColliderDisabled>>,
     colliding_entities_query: Query<'w, 's, &'static mut CollidingEntities>,
     body_query: Query<'w, 's, RigidBodyQuery, Without<RigidBodyDisabled>>,
-    body_islands: Query<'w, 's, &'static mut IslandBodyData>,
+    body_islands: Query<'w, 's, &'static mut BodyIslandNode>,
     pub contact_graph: ResMut<'w, ContactGraph>,
     pub joint_graph: ResMut<'w, JointGraph>,
     pub constraint_graph: ResMut<'w, ConstraintGraph>,

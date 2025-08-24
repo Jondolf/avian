@@ -24,7 +24,7 @@ use crate::{
     data_structures::bit_vec::BitVec,
     dynamics::solver::{
         constraint_graph::ConstraintGraph,
-        islands::{IslandBodyData, PhysicsIslands},
+        islands::{BodyIslandNode, PhysicsIslands},
         solver_body::SolverBody,
     },
     prelude::*,
@@ -68,7 +68,7 @@ pub(crate) struct AwakeIslandBitVec(pub(crate) BitVec);
 
 fn wake_islands_with_sleeping_disabled(
     mut awake_island_bit_vec: ResMut<AwakeIslandBitVec>,
-    mut query: Query<(&IslandBodyData, &mut SleepTimer), With<SleepingDisabled>>,
+    mut query: Query<(&BodyIslandNode, &mut SleepTimer), With<SleepingDisabled>>,
 ) {
     // Wake up all islands that have a body with `SleepingDisabled`.
     for (body_island, mut sleep_timer) in &mut query {
@@ -87,7 +87,7 @@ fn update_sleeping_states(
             &mut SleepTimer,
             &SleepThreshold,
             &SolverBody,
-            &IslandBodyData,
+            &BodyIslandNode,
         ),
         (Without<Sleeping>, Without<SleepingDisabled>),
     >,
@@ -179,7 +179,7 @@ fn sleep_islands(
 #[derive(Resource)]
 struct CachedSleepingSystemState(
     SystemState<(
-        SQuery<(&'static IslandBodyData, &'static mut SleepTimer)>,
+        SQuery<(&'static BodyIslandNode, &'static mut SleepTimer)>,
         SResMut<PhysicsIslands>,
         SResMut<ContactGraph>,
         SResMut<ConstraintGraph>,
@@ -191,7 +191,7 @@ pub struct SleepBody(pub Entity);
 
 impl Command for SleepBody {
     fn apply(self, world: &mut World) {
-        if let Some(body_island) = world.get::<IslandBodyData>(self.0) {
+        if let Some(body_island) = world.get::<BodyIslandNode>(self.0) {
             SleepIslands(vec![body_island.island_id]).apply(world);
         } else {
             warn!("Tried to sleep body {:?} that does not exist", self.0);
@@ -267,7 +267,7 @@ pub struct WakeBody(pub Entity);
 
 impl Command for WakeBody {
     fn apply(self, world: &mut World) {
-        if let Some(body_island) = world.get::<IslandBodyData>(self.0) {
+        if let Some(body_island) = world.get::<BodyIslandNode>(self.0) {
             WakeIslands(vec![body_island.island_id]).apply(world);
         } else {
             warn!("Tried to wake body {:?} that does not exist", self.0);
@@ -383,7 +383,7 @@ fn wake_on_changed(
                 Ref<LinearVelocity>,
                 Ref<AngularVelocity>,
                 Ref<SleepTimer>,
-                &IslandBodyData,
+                &BodyIslandNode,
             ),
             (
                 With<Sleeping>,
@@ -398,7 +398,7 @@ fn wake_on_changed(
         >,
         // These are not modified by the physics engine
         // and don't need special handling.
-        Query<&IslandBodyData, Or<(ConstantForceChanges, Changed<GravityScale>)>>,
+        Query<&BodyIslandNode, Or<(ConstantForceChanges, Changed<GravityScale>)>>,
     )>,
     mut awake_island_bit_vec: ResMut<AwakeIslandBitVec>,
     last_physics_tick: Res<LastPhysicsTick>,

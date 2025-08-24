@@ -13,7 +13,7 @@ pub use gizmos::*;
 use crate::{
     dynamics::{
         joints::EntityConstraint,
-        solver::islands::{IslandBodyData, PhysicsIslands},
+        solver::islands::{BodyIslandNode, PhysicsIslands},
     },
     prelude::*,
 };
@@ -471,7 +471,7 @@ fn debug_render_shapecasts(
 
 fn debug_render_islands(
     islands: Res<PhysicsIslands>,
-    aabbs: Query<(&ColliderAabb, &IslandBodyData)>,
+    aabbs: Query<(&ColliderAabb, &BodyIslandNode)>,
     mut gizmos: Gizmos<PhysicsGizmos>,
     store: Res<GizmoConfigStore>,
 ) {

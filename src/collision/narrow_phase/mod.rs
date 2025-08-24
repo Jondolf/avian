@@ -14,7 +14,7 @@ use crate::{
     dynamics::solver::{
         ContactConstraints,
         constraint_graph::ConstraintGraph,
-        islands::{AwakeIslandBitVec, IslandBodyData, PhysicsIslands},
+        islands::{AwakeIslandBitVec, BodyIslandNode, PhysicsIslands},
         joint_graph::JointGraph,
     },
     prelude::*,
@@ -373,7 +373,7 @@ fn remove_collider_on<E: Event, B: Bundle>(
     joint_graph: ResMut<JointGraph>,
     mut constraint_graph: ResMut<ConstraintGraph>,
     mut islands: ResMut<PhysicsIslands>,
-    mut body_islands: Query<&mut IslandBodyData>,
+    mut body_islands: Query<&mut BodyIslandNode>,
     // TODO: Change this hack to include disabled entities with `Allows<T>` for 0.17
     mut query: Query<&mut CollidingEntities, Or<(With<Disabled>, Without<Disabled>)>>,
     collider_of: Query<&ColliderOf, Or<(With<Disabled>, Without<Disabled>)>>,
