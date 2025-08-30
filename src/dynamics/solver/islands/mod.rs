@@ -49,7 +49,7 @@ pub use sleeping::{
 };
 
 use bevy::{
-    ecs::{component::HookContext, world::DeferredWorld},
+    ecs::{component::HookContext, entity_disabling::Disabled, world::DeferredWorld},
     prelude::*,
 };
 use slab::Slab;
@@ -60,7 +60,9 @@ use crate::{
         joint_graph::{JointGraph, JointId},
         solver_body::SolverBody,
     },
-    prelude::{ContactGraph, PhysicsSchedule, RigidBody, RigidBodyColliders, Sleeping, SolverSet},
+    prelude::{
+        ContactGraph, PhysicsSchedule, RigidBody, RigidBodyColliders, RigidBodyDisabled, SolverSet,
+    },
 };
 
 /// A plugin for managing [`PhysicsIsland`]s.
@@ -73,14 +75,35 @@ impl Plugin for PhysicsIslandPlugin {
         // Insert `BodyIslandNode` for each `SolverBody`.
         app.register_required_components::<SolverBody, BodyIslandNode>();
 
-        // Remove `BodyIslandNode` when `SolverBody` is removed *not* by sleeping,
-        // but by being removed from the world or becoming a static body.
+        // Remove `BodyIslandNode` when any of the following happens:
+        //
+        // 1. `RigidBody` is removed.
+        // 2. `Disabled` or `RigidBodyDisabled` is added to the body.
+        // 3. The body becomes `RigidBody::Static`.
         app.add_observer(
-            |trigger: Trigger<OnRemove, SolverBody>,
-             query: Query<(&RigidBody, Has<Sleeping>)>,
+            |trigger: Trigger<OnRemove, RigidBody>, mut commands: Commands| {
+                commands
+                    .entity(trigger.target())
+                    .try_remove::<BodyIslandNode>();
+            },
+        );
+        app.add_observer(
+            |trigger: Trigger<OnAdd, (Disabled, RigidBodyDisabled)>,
+             query: Query<&RigidBody, Or<(With<Disabled>, Without<Disabled>)>>,
              mut commands: Commands| {
-                if let Ok((rb, is_sleeping)) = query.get(trigger.target())
-                    && (rb.is_static() || !is_sleeping)
+                if query.contains(trigger.target()) {
+                    commands
+                        .entity(trigger.target())
+                        .try_remove::<BodyIslandNode>();
+                }
+            },
+        );
+        app.add_observer(
+            |trigger: Trigger<OnInsert, RigidBody>,
+             query: Query<&RigidBody>,
+             mut commands: Commands| {
+                if let Ok(rb) = query.get(trigger.target())
+                    && rb.is_static()
                 {
                     commands
                         .entity(trigger.target())

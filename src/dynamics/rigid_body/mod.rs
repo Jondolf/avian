@@ -282,7 +282,7 @@ use derive_more::From;
     PreSolveDeltaPosition,
     PreSolveDeltaRotation,
 )]
-#[component(on_add = RigidBody::on_add)]
+#[component(immutable, on_add = RigidBody::on_add)]
 pub enum RigidBody {
     /// Dynamic bodies are bodies that are affected by forces, velocity and collisions.
     #[default]

@@ -11,6 +11,7 @@ use system_param::ThreadLocalContactStatusBits;
 use core::marker::PhantomData;
 
 use crate::{
+    data_structures::pair_key::PairKey,
     dynamics::solver::{
         ContactConstraints,
         constraint_graph::ConstraintGraph,
@@ -166,9 +167,12 @@ where
             app.add_observer(add_to_constraint_graph_on::<OnRemove, Sensor>);
             app.add_observer(remove_from_constraint_graph_on::<OnAdd, Sensor>);
 
+            // Remove contacts when both bodies become static.
+            app.add_observer(on_insert_rigid_body);
+
             // Trigger collision events for colliders that started or stopped touching.
             app.add_systems(
-                PhysicsSchedule,
+                self.schedule,
                 trigger_collision_events
                     .in_set(CollisionEventSystems)
                     // TODO: Ideally we don't need to make this ambiguous, but currently it is
@@ -465,13 +469,15 @@ fn add_to_constraint_graph_on<E: Event, B: Bundle>(
         ..
     } = &mut *contact_graph;
 
-    // Add all contact edges associated with the sensor to the constraint graph.
+    // Add all contact edges associated with the collider to the constraint graph.
     for contact_edge in edges.edge_weights_mut(node) {
         if !contact_edge.is_touching() {
             continue;
         }
         let pair = &active_pairs[contact_edge.pair_index];
-        constraint_graph.push_manifold(contact_edge, pair);
+        for _ in 0..contact_edge.constraint_handles.len() {
+            constraint_graph.push_manifold(contact_edge, pair);
+        }
     }
 }
 
@@ -485,21 +491,103 @@ fn remove_from_constraint_graph_on<E: Event, B: Bundle>(
 
     // Get all touching contact pairs.
     let contact_pairs = contact_graph
-        .contact_pairs_with(entity)
-        .filter_map(|contact_pair| {
-            if contact_pair.is_touching()
-                && let Some(body1) = contact_pair.body1
-                && let Some(body2) = contact_pair.body2
+        .contact_edges_with(entity)
+        .filter_map(|contact_edge| {
+            if contact_edge.is_touching()
+                && let Some(body1) = contact_edge.body1
+                && let Some(body2) = contact_edge.body2
             {
-                Some((contact_pair.contact_id, body1, body2))
+                Some((
+                    contact_edge.id,
+                    body1,
+                    body2,
+                    contact_edge.constraint_handles.len(),
+                ))
             } else {
                 None
             }
         })
         .collect::<Vec<_>>();
 
-    // Remove all contact edges associated with the sensor from the constraint graph.
-    for (contact_id, body1, body2) in contact_pairs {
-        constraint_graph.pop_manifold(&mut contact_graph.edges, contact_id, body1, body2);
+    // Remove all contact edges associated with the collider from the constraint graph.
+    for (contact_id, body1, body2, num_constraint_handles) in contact_pairs {
+        for _ in 0..num_constraint_handles {
+            constraint_graph.pop_manifold(&mut contact_graph.edges, contact_id, body1, body2);
+        }
+    }
+}
+
+/// Removes conatacts 3from the [`ConstraintGraph`], [`ContactGraph`], and [`PhysicsIslands`]
+/// when both bodies in a contact pair become static.
+fn on_insert_rigid_body(
+    trigger: Trigger<OnInsert, RigidBody>,
+    bodies: Query<(&RigidBody, &RigidBodyColliders)>,
+    mut body_islands: Query<&mut BodyIslandNode>,
+    mut islands: ResMut<PhysicsIslands>,
+    mut constraint_graph: ResMut<ConstraintGraph>,
+    mut contact_graph: ResMut<ContactGraph>,
+    joint_graph: ResMut<JointGraph>,
+) {
+    let Ok((rb, colliders)) = bodies.get(trigger.target()) else {
+        return;
+    };
+
+    if !rb.is_static() {
+        return;
+    }
+
+    // Get all touching contact edges where both bodies are static.
+    let static_edges = colliders
+        .iter()
+        .flat_map(|collider| {
+            contact_graph
+                .contact_edges_with(collider)
+                .filter_map(|contact_edge| {
+                    if let Some(body1) = contact_edge.body1
+                        && let Some(body2) = contact_edge.body2
+                    {
+                        let is_other_static = if body1 == trigger.target() {
+                            bodies.get(body2).is_ok_and(|(rb, _)| rb.is_static())
+                        } else {
+                            bodies.get(body1).is_ok_and(|(rb, _)| rb.is_static())
+                        };
+                        if !is_other_static {
+                            return None;
+                        }
+                        Some((
+                            contact_edge.id,
+                            body1,
+                            body2,
+                            contact_edge.constraint_handles.len(),
+                            PairKey::new(
+                                contact_edge.collider1.index(),
+                                contact_edge.collider2.index(),
+                            ),
+                            contact_edge.island.is_some(),
+                        ))
+                    } else {
+                        None
+                    }
+                })
+        })
+        .collect::<Vec<_>>();
+
+    // Remove all static contact edges from the constraint graph, contact graph, and islands.
+    for (contact_id, body1, body2, num_constraint_handles, pair_key, has_island) in static_edges {
+        for _ in 0..num_constraint_handles {
+            constraint_graph.pop_manifold(&mut contact_graph.edges, contact_id, body1, body2);
+        }
+
+        // Unlink the contact pair from its island.
+        if has_island {
+            islands.remove_contact(
+                contact_id,
+                &mut body_islands,
+                &mut contact_graph.edges,
+                &joint_graph,
+            );
+        }
+
+        contact_graph.remove_edge_by_id(&pair_key, contact_id);
     }
 }
