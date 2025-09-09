@@ -255,7 +255,7 @@ pub struct SleepIslands(pub Vec<u32>);
 
 impl Command for SleepIslands {
     fn apply(self, world: &mut World) {
-        world.resource_scope(|world, mut state: Mut<CachedSleepingSystemState>| {
+        world.try_resource_scope(|world, mut state: Mut<CachedSleepingSystemState>| {
             let (bodies, mut islands, mut contact_graph, mut constraint_graph) =
                 state.0.get_mut(world);
 
@@ -353,7 +353,7 @@ pub struct WakeIslands(pub Vec<u32>);
 
 impl Command for WakeIslands {
     fn apply(self, world: &mut World) {
-        world.resource_scope(|world, mut state: Mut<CachedSleepingSystemState>| {
+        world.try_resource_scope(|world, mut state: Mut<CachedSleepingSystemState>| {
             let (mut bodies, mut islands, mut contact_graph, mut constraint_graph) =
                 state.0.get_mut(world);
 
