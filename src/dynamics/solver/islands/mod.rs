@@ -42,7 +42,6 @@
 
 mod sleeping;
 
-pub(crate) use sleeping::AwakeIslandBitVec;
 #[expect(deprecated)]
 pub use sleeping::{
     PhysicsIslandSleepingPlugin, SleepBody, SleepIslands, WakeBody, WakeIslands, WakeUpBody,
@@ -75,6 +74,45 @@ impl Plugin for PhysicsIslandPlugin {
         // Insert `BodyIslandNode` for each `SolverBody`.
         app.register_required_components::<SolverBody, BodyIslandNode>();
 
+        // Add `BodyIslandNode` for each dynamic and kinematic rigid body
+        // when the associated rigid body is enabled.
+        app.add_observer(
+            |trigger: Trigger<OnReplace, RigidBodyDisabled>,
+             rb_query: Query<&RigidBody>,
+             mut commands: Commands| {
+                let Ok(rb) = rb_query.get(trigger.target()) else {
+                    return;
+                };
+                if rb.is_dynamic() || rb.is_kinematic() {
+                    commands
+                        .entity(trigger.target())
+                        .insert(BodyIslandNode::default());
+                }
+            },
+        );
+        app.add_observer(
+            |trigger: Trigger<OnReplace, Disabled>,
+             rb_query: Query<
+                &RigidBody,
+                (
+                    // The body still has `Disabled` at this point,
+                    // and we need to include in the query to match against the entity.
+                    With<Disabled>,
+                    Without<RigidBodyDisabled>,
+                ),
+            >,
+             mut commands: Commands| {
+                let Ok(rb) = rb_query.get(trigger.target()) else {
+                    return;
+                };
+                if rb.is_dynamic() || rb.is_kinematic() {
+                    commands
+                        .entity(trigger.target())
+                        .insert(BodyIslandNode::default());
+                }
+            },
+        );
+
         // Remove `BodyIslandNode` when any of the following happens:
         //
         // 1. `RigidBody` is removed.
@@ -88,7 +126,7 @@ impl Plugin for PhysicsIslandPlugin {
             },
         );
         app.add_observer(
-            |trigger: Trigger<OnAdd, (Disabled, RigidBodyDisabled)>,
+            |trigger: Trigger<OnInsert, (Disabled, RigidBodyDisabled)>,
              query: Query<&RigidBody, Or<(With<Disabled>, Without<Disabled>)>>,
              mut commands: Commands| {
                 if query.contains(trigger.target()) {
@@ -118,7 +156,7 @@ impl Plugin for PhysicsIslandPlugin {
 
 fn split_island(
     mut islands: ResMut<PhysicsIslands>,
-    mut body_islands: Query<&mut BodyIslandNode>,
+    mut body_islands: Query<&mut BodyIslandNode, Or<(With<Disabled>, Without<Disabled>)>>,
     body_colliders: Query<&RigidBodyColliders>,
     mut contact_graph: ResMut<ContactGraph>,
     mut joint_graph: ResMut<JointGraph>,
@@ -233,7 +271,7 @@ impl PhysicsIsland {
     #[inline]
     pub fn validate(
         &self,
-        body_islands: &Query<&BodyIslandNode>,
+        body_islands: &Query<&BodyIslandNode, Or<(With<Disabled>, Without<Disabled>)>>,
         contact_graph: &ContactGraphInternal,
         joint_graph: &JointGraph,
     ) {
@@ -243,7 +281,10 @@ impl PhysicsIsland {
     }
 
     /// Validates the body linked list.
-    pub fn validate_bodies(&self, body_islands: &Query<&BodyIslandNode>) {
+    pub fn validate_bodies(
+        &self,
+        body_islands: &Query<&BodyIslandNode, Or<(With<Disabled>, Without<Disabled>)>>,
+    ) {
         if self.head_body.is_none() {
             assert!(self.tail_body.is_none());
             assert_eq!(self.body_count, 0);
@@ -450,7 +491,7 @@ impl PhysicsIslands {
     pub fn add_contact(
         &mut self,
         contact_id: ContactId,
-        body_islands: &mut Query<&mut BodyIslandNode>,
+        body_islands: &mut Query<&mut BodyIslandNode, Or<(With<Disabled>, Without<Disabled>)>>,
         contact_graph: &mut ContactGraph,
         joint_graph: &mut JointGraph,
     ) -> Option<&PhysicsIsland> {
@@ -524,7 +565,7 @@ impl PhysicsIslands {
     pub fn remove_contact(
         &mut self,
         contact_id: ContactId,
-        body_islands: &mut Query<&mut BodyIslandNode>,
+        body_islands: &mut Query<&mut BodyIslandNode, Or<(With<Disabled>, Without<Disabled>)>>,
         contact_graph: &mut ContactGraphInternal,
         joint_graph: &JointGraph,
     ) -> &PhysicsIsland {
@@ -599,7 +640,7 @@ impl PhysicsIslands {
     pub fn add_joint(
         &mut self,
         joint_id: JointId,
-        body_islands: &mut Query<&mut BodyIslandNode>,
+        body_islands: &mut Query<&mut BodyIslandNode, Or<(With<Disabled>, Without<Disabled>)>>,
         contact_graph: &mut ContactGraph,
         joint_graph: &mut JointGraph,
     ) -> Option<&PhysicsIsland> {
@@ -671,7 +712,7 @@ impl PhysicsIslands {
     pub fn remove_joint(
         &mut self,
         joint_id: JointId,
-        body_islands: &mut Query<&mut BodyIslandNode>,
+        body_islands: &mut Query<&mut BodyIslandNode, Or<(With<Disabled>, Without<Disabled>)>>,
         contact_graph: &ContactGraph,
         joint_graph: &mut JointGraph,
     ) -> &PhysicsIsland {
@@ -742,7 +783,7 @@ impl PhysicsIslands {
         &mut self,
         body1: Entity,
         body2: Entity,
-        body_islands: &mut Query<&mut BodyIslandNode>,
+        body_islands: &mut Query<&mut BodyIslandNode, Or<(With<Disabled>, Without<Disabled>)>>,
         contact_graph: &mut ContactGraph,
         joint_graph: &mut JointGraph,
     ) -> u32 {
@@ -922,7 +963,7 @@ impl PhysicsIslands {
     pub fn split_island(
         &mut self,
         island_id: u32,
-        body_islands: &mut Query<&mut BodyIslandNode>,
+        body_islands: &mut Query<&mut BodyIslandNode, Or<(With<Disabled>, Without<Disabled>)>>,
         body_colliders: &Query<&RigidBodyColliders>,
         contact_graph: &mut ContactGraph,
         joint_graph: &mut JointGraph,
@@ -1030,6 +1071,7 @@ impl PhysicsIslands {
                 body_island.island_id = island_id;
 
                 if let Some(tail_body_id) = island.tail_body {
+                    debug_assert_ne!(tail_body_id, body);
                     unsafe {
                         body_islands.get_unchecked(tail_body_id).unwrap().next = Some(body);
                     }
@@ -1060,7 +1102,7 @@ impl PhysicsIslands {
                                         return None;
                                     }
 
-                                    if !contact_edge.is_touching() {
+                                    if contact_edge.constraint_handles.is_empty() {
                                         // Only consider touching contacts.
                                         return None;
                                     }
@@ -1298,7 +1340,10 @@ impl BodyIslandNode {
                 use bevy::ecs::system::RunSystemOnce;
                 // TODO: This is probably quite inefficient.
                 let _ = world.run_system_once(
-                    move |bodies: Query<&BodyIslandNode>,
+                    move |bodies: Query<
+                        &BodyIslandNode,
+                        Or<(With<Disabled>, Without<Disabled>)>,
+                    >,
                           islands: Res<PhysicsIslands>,
                           contact_graph: Res<ContactGraph>,
                           joint_graph: Res<JointGraph>| {

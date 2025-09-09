@@ -21,6 +21,7 @@ use bevy::prelude::*;
 /// - A joint is created between an awake body and a sleeping body.
 /// - A joint or contact is removed from a sleeping body.
 /// - The [`Transform`], [`LinearVelocity`], or [`AngularVelocity`] of a sleeping body is modified.
+/// - The [`RigidBody`] type of a body is changed.
 /// - A [constant force component](super::forces#constant-forces) of a sleeping body is modified.
 /// - A force, impulse, or acceleration is applied via [`Forces`], without using [`non_waking`].
 /// - The [`Gravity`] resource or [`GravityScale`] component is modified.

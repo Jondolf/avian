@@ -11,11 +11,10 @@ use system_param::ThreadLocalContactStatusBits;
 use core::marker::PhantomData;
 
 use crate::{
-    data_structures::pair_key::PairKey,
     dynamics::solver::{
         ContactConstraints,
         constraint_graph::ConstraintGraph,
-        islands::{AwakeIslandBitVec, BodyIslandNode, PhysicsIslands},
+        islands::{BodyIslandNode, PhysicsIslands},
         joint_graph::JointGraph,
     },
     prelude::*,
@@ -164,11 +163,17 @@ where
             // Add colliders to the constraint graph when `Sensor` is removed,
             // and remove them when `Sensor` is added.
             // TODO: If we separate sensors from normal colliders, this won't be needed.
-            app.add_observer(add_to_constraint_graph_on::<OnRemove, Sensor>);
-            app.add_observer(remove_from_constraint_graph_on::<OnAdd, Sensor>);
+            app.add_observer(on_add_sensor);
+            app.add_observer(on_remove_sensor);
 
-            // Remove contacts when both bodies become static.
-            app.add_observer(on_insert_rigid_body);
+            // Add contacts to the constraint graph when a body is enabled,
+            // and remove them when a body is disabled.
+            app.add_observer(on_body_remove_rigid_body_disabled);
+            app.add_observer(on_disable_body);
+
+            // Remove contacts when the body body is disabled or `RigidBody` is replaced or removed.
+            app.add_observer(remove_body_on::<OnInsert, RigidBody>);
+            app.add_observer(remove_body_on::<OnRemove, RigidBody>);
 
             // Trigger collision events for colliders that started or stopped touching.
             app.add_systems(
@@ -367,38 +372,40 @@ fn trigger_collision_events(
     });
 }
 
-/// Removes colliders from the [`ContactGraph`] when the given trigger is activated.
+// ===============================================================
+// The rest of this module contains observers and helper functions
+// for updating the contact graph, constraint graph, and islands
+// when bodies or colliders are added/removed or enabled/disabled.
+// ===============================================================
+
+// Cases to consider:
+// - Collider is removed -> remove all contacts
+// - Collider is disabled -> remove all contacts
+// - Collider becomes a sensor -> remove all touching contacts from constraint graph and islands
+// - Collider stops being a sensor -> add all touching contacts to constraint graph and islands
+// - Body is removed -> remove all touching contacts from constraint graph and islands
+// - Body is disabled -> remove all touching contacts from constraint graph and islands
+// - Body is enabled -> add all touching contacts to constraint graph and islands
+// - Body becomes static -> remove all static-static contacts
+
+/// Removes a collider from the [`ContactGraph`].
 ///
 /// Also removes the collider from the [`CollidingEntities`] of the other entity,
 /// wakes up the other body, and sends a [`CollisionEnded`] event.
-fn remove_collider_on<E: Event, B: Bundle>(
-    trigger: Trigger<E, B>,
-    mut contact_graph: ResMut<ContactGraph>,
-    joint_graph: ResMut<JointGraph>,
-    mut constraint_graph: ResMut<ConstraintGraph>,
-    mut islands: ResMut<PhysicsIslands>,
-    mut body_islands: Query<&mut BodyIslandNode>,
-    // TODO: Change this hack to include disabled entities with `Allows<T>` for 0.17
-    mut query: Query<&mut CollidingEntities, Or<(With<Disabled>, Without<Disabled>)>>,
-    collider_of: Query<&ColliderOf, Or<(With<Disabled>, Without<Disabled>)>>,
-    mut event_writer: EventWriter<CollisionEnded>,
-    mut awake_island_bit_vec: ResMut<AwakeIslandBitVec>,
+fn remove_collider(
+    entity: Entity,
+    contact_graph: &mut ContactGraph,
+    joint_graph: &JointGraph,
+    constraint_graph: &mut ConstraintGraph,
+    islands: &mut PhysicsIslands,
+    body_islands: &mut Query<&mut BodyIslandNode, Or<(With<Disabled>, Without<Disabled>)>>,
+    colliding_entities_query: &mut Query<
+        &mut CollidingEntities,
+        Or<(With<Disabled>, Without<Disabled>)>,
+    >,
+    event_writer: &mut EventWriter<CollisionEnded>,
 ) {
-    let entity = trigger.target();
-
-    let body1 = collider_of
-        .get(entity)
-        .map(|&ColliderOf { body }| body)
-        .ok();
-
-    // If the collider was attached to a rigid body, wake its island.
-    if let Some(body) = body1
-        && let Ok(body_island) = body_islands.get_mut(body)
-    {
-        awake_island_bit_vec.set_and_grow(body_island.island_id as usize);
-    }
-
-    // Remove the collider from the contact graph.
+    // TODO: Wake up the island of the other bodies.
     contact_graph.remove_collider_with(entity, |contact_graph, contact_id| {
         // Get the contact edge.
         let contact_edge = contact_graph.edge_weight(contact_id.into()).unwrap();
@@ -425,7 +432,7 @@ fn remove_collider_on<E: Event, B: Bundle>(
         } else {
             contact_edge.collider1
         };
-        if let Ok(mut colliding_entities) = query.get_mut(other_entity) {
+        if let Ok(mut colliding_entities) = colliding_entities_query.get_mut(other_entity) {
             colliding_entities.remove(&entity);
         }
 
@@ -440,154 +447,217 @@ fn remove_collider_on<E: Event, B: Bundle>(
 
         // Unlink the contact pair from its island.
         if has_island {
-            islands.remove_contact(contact_id, &mut body_islands, contact_graph, &joint_graph);
+            islands.remove_contact(contact_id, body_islands, contact_graph, joint_graph);
         }
     });
 }
 
-// TODO: These are currently used just for sensors. It wouldn't be needed if sensor logic
-//       was separate from normal colliders and didn't compute contact manifolds.
-// TODO: Unlink from islands here?
-
-/// Adds all touching contact edges associated with an entity to the [`ConstraintGraph`].
-fn add_to_constraint_graph_on<E: Event, B: Bundle>(
-    trigger: Trigger<E, B>,
-    mut constraint_graph: ResMut<ConstraintGraph>,
-    mut contact_graph: ResMut<ContactGraph>,
-) {
-    let entity = trigger.target();
-
-    // Get the node index of the entity in the contact graph.
-    let Some(node) = contact_graph.entity_to_node(entity) else {
-        return;
-    };
-
-    // TODO: It'd be nice to have some APIs on the contact graph to do this more cleanly.
-    let ContactGraph {
-        edges,
-        active_pairs,
-        ..
-    } = &mut *contact_graph;
-
-    // Add all contact edges associated with the collider to the constraint graph.
-    for contact_edge in edges.edge_weights_mut(node) {
-        if !contact_edge.is_touching() {
-            continue;
-        }
-        let pair = &active_pairs[contact_edge.pair_index];
-        for _ in 0..contact_edge.constraint_handles.len() {
-            constraint_graph.push_manifold(contact_edge, pair);
-        }
-    }
-}
-
-/// Removes all contact edges associated with an entity from the [`ConstraintGraph`].
-fn remove_from_constraint_graph_on<E: Event, B: Bundle>(
-    trigger: Trigger<E, B>,
-    mut constraint_graph: ResMut<ConstraintGraph>,
-    mut contact_graph: ResMut<ContactGraph>,
-) {
-    let entity = trigger.target();
-
-    // Get all touching contact pairs.
-    let contact_pairs = contact_graph
-        .contact_edges_with(entity)
-        .filter_map(|contact_edge| {
-            if contact_edge.is_touching()
-                && let Some(body1) = contact_edge.body1
-                && let Some(body2) = contact_edge.body2
-            {
-                Some((
-                    contact_edge.id,
-                    body1,
-                    body2,
-                    contact_edge.constraint_handles.len(),
-                ))
-            } else {
-                None
-            }
-        })
-        .collect::<Vec<_>>();
-
-    // Remove all contact edges associated with the collider from the constraint graph.
-    for (contact_id, body1, body2, num_constraint_handles) in contact_pairs {
-        for _ in 0..num_constraint_handles {
-            constraint_graph.pop_manifold(&mut contact_graph.edges, contact_id, body1, body2);
-        }
-    }
-}
-
-/// Removes conatacts 3from the [`ConstraintGraph`], [`ContactGraph`], and [`PhysicsIslands`]
+/// Removes contacts from the [`ConstraintGraph`], [`ContactGraph`], and [`PhysicsIslands`]
 /// when both bodies in a contact pair become static.
-fn on_insert_rigid_body(
-    trigger: Trigger<OnInsert, RigidBody>,
-    bodies: Query<(&RigidBody, &RigidBodyColliders)>,
-    mut body_islands: Query<&mut BodyIslandNode>,
+fn remove_body_on<E: Event, B: Bundle>(
+    trigger: Trigger<E, B>,
+    body_collider_query: Query<&RigidBodyColliders>,
+    mut colliding_entities_query: Query<
+        &mut CollidingEntities,
+        Or<(With<Disabled>, Without<Disabled>)>,
+    >,
+    mut event_writer: EventWriter<CollisionEnded>,
+    mut body_islands: Query<&mut BodyIslandNode, Or<(With<Disabled>, Without<Disabled>)>>,
     mut islands: ResMut<PhysicsIslands>,
     mut constraint_graph: ResMut<ConstraintGraph>,
     mut contact_graph: ResMut<ContactGraph>,
     joint_graph: ResMut<JointGraph>,
+    mut commands: Commands,
 ) {
-    let Ok((rb, colliders)) = bodies.get(trigger.target()) else {
+    let Ok(colliders) = body_collider_query.get(trigger.target()) else {
         return;
     };
 
-    if !rb.is_static() {
+    // Wake up the body's island.
+    if let Ok(body_island) = body_islands.get_mut(trigger.target()) {
+        commands.queue(WakeIslands(vec![body_island.island_id]));
+    }
+
+    // TODO: Only remove static-static contacts and unlink from islands.
+    for collider in colliders {
+        remove_collider(
+            collider,
+            &mut contact_graph,
+            &joint_graph,
+            &mut constraint_graph,
+            &mut islands,
+            &mut body_islands,
+            &mut colliding_entities_query,
+            &mut event_writer,
+        );
+    }
+}
+
+/// Removes colliders from the [`ContactGraph`] when the given trigger is activated.
+///
+/// Also removes the collider from the [`CollidingEntities`] of the other entity,
+/// wakes up the other body, and sends a [`CollisionEnded`] event.
+fn remove_collider_on<E: Event, B: Bundle>(
+    trigger: Trigger<E, B>,
+    mut contact_graph: ResMut<ContactGraph>,
+    joint_graph: ResMut<JointGraph>,
+    mut constraint_graph: ResMut<ConstraintGraph>,
+    mut islands: ResMut<PhysicsIslands>,
+    mut body_islands: Query<&mut BodyIslandNode, Or<(With<Disabled>, Without<Disabled>)>>,
+    // TODO: Change this hack to include disabled entities with `Allows<T>` for 0.17
+    mut query: Query<&mut CollidingEntities, Or<(With<Disabled>, Without<Disabled>)>>,
+    collider_of: Query<&ColliderOf, Or<(With<Disabled>, Without<Disabled>)>>,
+    mut event_writer: EventWriter<CollisionEnded>,
+    mut commands: Commands,
+) {
+    let entity = trigger.target();
+
+    let body1 = collider_of
+        .get(entity)
+        .map(|&ColliderOf { body }| body)
+        .ok();
+
+    // If the collider was attached to a rigid body, wake its island.
+    if let Some(body) = body1
+        && let Ok(body_island) = body_islands.get_mut(body)
+    {
+        commands.queue(WakeIslands(vec![body_island.island_id]));
+    }
+
+    // Remove the collider from the contact graph.
+    remove_collider(
+        entity,
+        &mut contact_graph,
+        &joint_graph,
+        &mut constraint_graph,
+        &mut islands,
+        &mut body_islands,
+        &mut query,
+        &mut event_writer,
+    );
+}
+
+/// Adds the touching contacts of a body to the [`ConstraintGraph`] and [`PhysicsIslands`]
+/// when the body is enabled by removing [`RigidBodyDisabled`].
+fn on_body_remove_rigid_body_disabled(
+    trigger: Trigger<OnAdd, BodyIslandNode>,
+    body_collider_query: Query<&RigidBodyColliders>,
+    mut constraint_graph: ResMut<ConstraintGraph>,
+    mut contact_graph: ResMut<ContactGraph>,
+    joint_graph: ResMut<JointGraph>,
+    mut islands: ResMut<PhysicsIslands>,
+    mut body_islands: Query<&mut BodyIslandNode, Or<(With<Disabled>, Without<Disabled>)>>,
+    mut colliding_entities_query: Query<
+        &mut CollidingEntities,
+        Or<(With<Disabled>, Without<Disabled>)>,
+    >,
+    mut event_writer: EventWriter<CollisionEnded>,
+) {
+    let Ok(colliders) = body_collider_query.get(trigger.target()) else {
         return;
+    };
+
+    for collider in colliders {
+        remove_collider(
+            collider,
+            &mut contact_graph,
+            &joint_graph,
+            &mut constraint_graph,
+            &mut islands,
+            &mut body_islands,
+            &mut colliding_entities_query,
+            &mut event_writer,
+        );
     }
+}
 
-    // Get all touching contact edges where both bodies are static.
-    let static_edges = colliders
-        .iter()
-        .flat_map(|collider| {
-            contact_graph
-                .contact_edges_with(collider)
-                .filter_map(|contact_edge| {
-                    if let Some(body1) = contact_edge.body1
-                        && let Some(body2) = contact_edge.body2
-                    {
-                        let is_other_static = if body1 == trigger.target() {
-                            bodies.get(body2).is_ok_and(|(rb, _)| rb.is_static())
-                        } else {
-                            bodies.get(body1).is_ok_and(|(rb, _)| rb.is_static())
-                        };
-                        if !is_other_static {
-                            return None;
-                        }
-                        Some((
-                            contact_edge.id,
-                            body1,
-                            body2,
-                            contact_edge.constraint_handles.len(),
-                            PairKey::new(
-                                contact_edge.collider1.index(),
-                                contact_edge.collider2.index(),
-                            ),
-                            contact_edge.island.is_some(),
-                        ))
-                    } else {
-                        None
-                    }
-                })
-        })
-        .collect::<Vec<_>>();
+/// Removes the touching contacts of a body from the [`ConstraintGraph`] and [`PhysicsIslands`]
+/// when the body is disabled with [`Disabled`] or [`RigidBodyDisabled`].
+fn on_disable_body(
+    trigger: Trigger<OnAdd, (Disabled, RigidBodyDisabled)>,
+    body_collider_query: Query<&RigidBodyColliders, Or<(With<Disabled>, Without<Disabled>)>>,
+    mut constraint_graph: ResMut<ConstraintGraph>,
+    mut contact_graph: ResMut<ContactGraph>,
+    joint_graph: Res<JointGraph>,
+    mut islands: ResMut<PhysicsIslands>,
+    mut body_islands: Query<&mut BodyIslandNode, Or<(With<Disabled>, Without<Disabled>)>>,
+    mut colliding_entities_query: Query<
+        &mut CollidingEntities,
+        Or<(With<Disabled>, Without<Disabled>)>,
+    >,
+    mut event_writer: EventWriter<CollisionEnded>,
+) {
+    let Ok(colliders) = body_collider_query.get(trigger.target()) else {
+        return;
+    };
 
-    // Remove all static contact edges from the constraint graph, contact graph, and islands.
-    for (contact_id, body1, body2, num_constraint_handles, pair_key, has_island) in static_edges {
-        for _ in 0..num_constraint_handles {
-            constraint_graph.pop_manifold(&mut contact_graph.edges, contact_id, body1, body2);
-        }
-
-        // Unlink the contact pair from its island.
-        if has_island {
-            islands.remove_contact(
-                contact_id,
-                &mut body_islands,
-                &mut contact_graph.edges,
-                &joint_graph,
-            );
-        }
-
-        contact_graph.remove_edge_by_id(&pair_key, contact_id);
+    for collider in colliders {
+        remove_collider(
+            collider,
+            &mut contact_graph,
+            &joint_graph,
+            &mut constraint_graph,
+            &mut islands,
+            &mut body_islands,
+            &mut colliding_entities_query,
+            &mut event_writer,
+        );
     }
+}
+
+// TODO: These are currently used just for sensors. It wouldn't be needed if sensor logic
+//       was separate from normal colliders and didn't compute contact manifolds.
+
+/// Removes the touching contacts of a collider from the [`ConstraintGraph`] and [`PhysicsIslands`]
+/// when a collider becomes a [`Sensor`].
+fn on_add_sensor(
+    trigger: Trigger<OnAdd, Sensor>,
+    mut constraint_graph: ResMut<ConstraintGraph>,
+    mut contact_graph: ResMut<ContactGraph>,
+    joint_graph: Res<JointGraph>,
+    mut islands: ResMut<PhysicsIslands>,
+    mut body_islands: Query<&mut BodyIslandNode, Or<(With<Disabled>, Without<Disabled>)>>,
+    mut colliding_entities_query: Query<
+        &mut CollidingEntities,
+        Or<(With<Disabled>, Without<Disabled>)>,
+    >,
+    mut event_writer: EventWriter<CollisionEnded>,
+) {
+    remove_collider(
+        trigger.target(),
+        &mut contact_graph,
+        &joint_graph,
+        &mut constraint_graph,
+        &mut islands,
+        &mut body_islands,
+        &mut colliding_entities_query,
+        &mut event_writer,
+    );
+}
+
+/// Adds the touching contacts of a collider to the [`ConstraintGraph`] and [`PhysicsIslands`]
+/// when a collider stops being a [`Sensor`].
+fn on_remove_sensor(
+    trigger: Trigger<OnRemove, Sensor>,
+    mut constraint_graph: ResMut<ConstraintGraph>,
+    mut contact_graph: ResMut<ContactGraph>,
+    joint_graph: ResMut<JointGraph>,
+    mut islands: ResMut<PhysicsIslands>,
+    mut body_islands: Query<&mut BodyIslandNode, Or<(With<Disabled>, Without<Disabled>)>>,
+    mut colliding_entities_query: Query<
+        &mut CollidingEntities,
+        Or<(With<Disabled>, Without<Disabled>)>,
+    >,
+    mut event_writer: EventWriter<CollisionEnded>,
+) {
+    remove_collider(
+        trigger.target(),
+        &mut contact_graph,
+        &joint_graph,
+        &mut constraint_graph,
+        &mut islands,
+        &mut body_islands,
+        &mut colliding_entities_query,
+        &mut event_writer,
+    );
 }

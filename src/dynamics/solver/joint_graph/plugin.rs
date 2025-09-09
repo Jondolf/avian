@@ -122,7 +122,7 @@ fn add_joint_to_graph<T: Component + EntityConstraint<2>, E: Event, B: Bundle, F
     trigger: Trigger<E, B>,
     query: Query<(&T, Has<JointCollisionDisabled>), F>,
     mut commands: Commands,
-    mut body_islands: Query<&mut BodyIslandNode>,
+    mut body_islands: Query<&mut BodyIslandNode, Or<(With<Disabled>, Without<Disabled>)>>,
     mut contact_graph: ResMut<ContactGraph>,
     mut joint_graph: ResMut<JointGraph>,
     mut islands: ResMut<PhysicsIslands>,
@@ -154,7 +154,7 @@ fn add_joint_to_graph<T: Component + EntityConstraint<2>, E: Event, B: Bundle, F
 fn remove_joint_from_graph<E: Event, B: Bundle>(
     trigger: Trigger<E, B>,
     mut commands: Commands,
-    mut body_islands: Query<&mut BodyIslandNode>,
+    mut body_islands: Query<&mut BodyIslandNode, Or<(With<Disabled>, Without<Disabled>)>>,
     contact_graph: ResMut<ContactGraph>,
     mut joint_graph: ResMut<JointGraph>,
     mut islands: ResMut<PhysicsIslands>,
@@ -286,7 +286,7 @@ fn on_disable_joint_collision(
 fn on_change_joint_entities<T: Component + EntityConstraint<2>>(
     query: Query<(Entity, &T), Changed<T>>,
     mut commands: Commands,
-    mut body_islands: Query<&mut BodyIslandNode>,
+    mut body_islands: Query<&mut BodyIslandNode, Or<(With<Disabled>, Without<Disabled>)>>,
     mut joint_graph: ResMut<JointGraph>,
     mut contact_graph: ResMut<ContactGraph>,
     mut islands: ResMut<PhysicsIslands>,

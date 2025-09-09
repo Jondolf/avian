@@ -6,15 +6,16 @@ use bevy::{
     app::{App, Plugin},
     ecs::{
         entity::Entity,
+        entity_disabling::Disabled,
         observer::Trigger,
-        query::{Changed, Or, With, Without},
+        query::{Changed, Has, Or, With, Without},
         resource::Resource,
         schedule::{IntoScheduleConfigs, common_conditions::resource_changed},
         system::{
             Command, Commands, Local, ParamSet, Query, Res, ResMut, SystemChangeTick, SystemState,
             lifetimeless::{SQuery, SResMut},
         },
-        world::{Mut, OnReplace, Ref, World},
+        world::{Mut, OnInsert, OnReplace, Ref, World},
     },
     log::warn,
     prelude::{Deref, DerefMut},
@@ -49,6 +50,7 @@ impl Plugin for PhysicsIslandSleepingPlugin {
         app.insert_resource(cached_system_state);
 
         app.add_observer(wake_on_replace_rigid_body);
+        app.add_observer(wake_on_enable_rigid_body);
 
         app.add_systems(
             PhysicsSchedule,
@@ -77,13 +79,43 @@ fn wake_on_replace_rigid_body(
     commands.queue(WakeIslands(vec![body_island.island_id]));
 }
 
+fn wake_on_enable_rigid_body(
+    trigger: Trigger<OnInsert, BodyIslandNode>,
+    mut commands: Commands,
+    mut query: Query<
+        (&BodyIslandNode, &mut SleepTimer, Has<Sleeping>),
+        Or<(With<Disabled>, Without<Disabled>)>,
+    >,
+) {
+    let Ok((body_island, mut sleep_timer, is_sleeping)) = query.get_mut(trigger.target()) else {
+        return;
+    };
+
+    if is_sleeping {
+        commands.entity(trigger.target()).try_remove::<Sleeping>();
+    }
+
+    // Reset the sleep timer and wake up the island.
+    if sleep_timer.0 > 0.0 {
+        sleep_timer.0 = 0.0;
+        commands.queue(WakeIslands(vec![body_island.island_id]));
+    }
+}
+
 /// A bit vector that stores which islands are kept awake and which are allowed to sleep.
 #[derive(Resource, Default, Deref, DerefMut)]
 pub(crate) struct AwakeIslandBitVec(pub(crate) BitVec);
 
 fn wake_islands_with_sleeping_disabled(
     mut awake_island_bit_vec: ResMut<AwakeIslandBitVec>,
-    mut query: Query<(&BodyIslandNode, &mut SleepTimer), With<SleepingDisabled>>,
+    mut query: Query<
+        (&BodyIslandNode, &mut SleepTimer),
+        Or<(
+            With<SleepingDisabled>,
+            With<Disabled>,
+            With<RigidBodyDisabled>,
+        )>,
+    >,
 ) {
     // Wake up all islands that have a body with `SleepingDisabled`.
     for (body_island, mut sleep_timer) in &mut query {
@@ -251,7 +283,9 @@ impl Command for SleepIslands {
                             for collider in colliders {
                                 contact_graph.sleep_entity_with(collider, |graph, contact_pair| {
                                     // Remove touching contacts from the constraint graph.
-                                    if !contact_pair.is_touching() || contact_pair.is_sensor() {
+                                    if !contact_pair.is_touching()
+                                        || !contact_pair.generates_constraints()
+                                    {
                                         return;
                                     }
                                     let contact_edge = graph
@@ -348,7 +382,9 @@ impl Command for WakeIslands {
                             for collider in colliders {
                                 contact_graph.wake_entity_with(collider, |graph, contact_pair| {
                                     // Add touching contacts to the constraint graph.
-                                    if !contact_pair.is_touching() || contact_pair.is_sensor() {
+                                    if !contact_pair.is_touching()
+                                        || !contact_pair.generates_constraints()
+                                    {
                                         return;
                                     }
                                     let contact_edge = graph
