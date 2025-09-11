@@ -522,7 +522,7 @@ impl SpatialQuery<'_, '_> {
     ///     let filter = SpatialQueryFilter::default();
     ///
     ///     // Cast shape and get up to 20 hits
-    ///     let hits = spatial_query.cast_shape(&shape, origin, rotation, direction, 20, &config, &filter);
+    ///     let hits = spatial_query.shape_hits(&shape, origin, rotation, direction, 20, &config, &filter);
     ///
     ///     // Print hits
     ///     for hit in hits.iter() {
