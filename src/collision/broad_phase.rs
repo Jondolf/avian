@@ -76,7 +76,7 @@ where
         // TODO: Deduplicate these observers.
         // Add colliders back to the broad phase when `Disabled` is removed.
         app.add_observer(
-            |trigger: Trigger<OnRemove, Disabled>,
+            |trigger: On<Remove, Disabled>,
              // TODO: Use `Allows<T>` in Bevy 0.17.
              query: Query<
                 AabbIntervalQueryData,
@@ -87,7 +87,7 @@ where
             >,
              rbs: Query<&RigidBody>,
              mut intervals: ResMut<AabbIntervals>| {
-                let entity = trigger.target();
+                let entity = trigger.entity;
 
                 // Re-enable the collider.
                 if let Ok((entity, collider_of, aabb, layers, is_sensor, events_enabled, hooks)) =
@@ -116,11 +116,11 @@ where
 
         // Add colliders back to the broad phase when `ColliderDisabled` is removed.
         app.add_observer(
-            |trigger: Trigger<OnRemove, ColliderDisabled>,
+            |trigger: On<Remove, ColliderDisabled>,
              query: Query<AabbIntervalQueryData>,
              rbs: Query<&RigidBody>,
              mut intervals: ResMut<AabbIntervals>| {
-                let entity = trigger.target();
+                let entity = trigger.entity;
 
                 // Re-enable the collider.
                 if let Ok((entity, collider_of, aabb, layers, is_sensor, events_enabled, hooks)) =

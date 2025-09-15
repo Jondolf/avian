@@ -49,10 +49,10 @@ impl Plugin for SleepingPlugin {
         );
 
         app.add_observer(
-            |trigger: Trigger<OnAdd, Sleeping>,
+            |trigger: On<Add, Sleeping>,
              mut contact_graph: ResMut<ContactGraph>,
              mut constraint_graph: ResMut<ConstraintGraph>| {
-                contact_graph.sleep_entity_with(trigger.target(), |graph, contact_pair| {
+                contact_graph.sleep_entity_with(trigger.entity, |graph, contact_pair| {
                     // Remove touching contacts from the constraint graph.
                     if !contact_pair.is_touching() || contact_pair.is_sensor() {
                         return;
@@ -80,10 +80,10 @@ impl Plugin for SleepingPlugin {
         );
 
         app.add_observer(
-            |trigger: Trigger<OnRemove, Sleeping>,
+            |trigger: On<Remove, Sleeping>,
              mut contact_graph: ResMut<ContactGraph>,
              mut constraint_graph: ResMut<ConstraintGraph>| {
-                contact_graph.wake_entity_with(trigger.target(), |graph, contact_pair| {
+                contact_graph.wake_entity_with(trigger.entity, |graph, contact_pair| {
                     // Add touching contacts to the constraint graph.
                     if !contact_pair.is_touching() || contact_pair.is_sensor() {
                         return;

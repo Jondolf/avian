@@ -1,6 +1,6 @@
 use bevy_math::primitives::{
-    BoxedPolyline3d, Capsule3d, Cone, Cuboid, Cylinder, InfinitePlane3d, Line3d, Plane3d,
-    Polyline3d, Segment3d, Sphere,
+    Capsule3d, Cone, Cuboid, Cylinder, InfinitePlane3d, Line3d, Plane3d, Polyline3d, Segment3d,
+    Sphere,
 };
 use parry::shape::SharedShape;
 
@@ -56,17 +56,10 @@ impl IntoCollider<Collider> for Segment3d {
     }
 }
 
-impl<const N: usize> IntoCollider<Collider> for Polyline3d<N> {
+impl IntoCollider<Collider> for Polyline3d {
     fn collider(&self) -> Collider {
-        let vertices = self.vertices.map(|v| v.adjust_precision());
-        Collider::polyline(vertices.to_vec(), None)
-    }
-}
-
-impl IntoCollider<Collider> for BoxedPolyline3d {
-    fn collider(&self) -> Collider {
-        let vertices = self.vertices.iter().map(|v| v.adjust_precision());
-        Collider::polyline(vertices.collect(), None)
+        let vertices = self.vertices.iter().map(|v| v.adjust_precision()).collect();
+        Collider::polyline(vertices, None)
     }
 }
 

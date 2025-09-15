@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 use bevy::{
-    ecs::{component::HookContext, world::DeferredWorld},
+    ecs::{lifecycle::HookContext, world::DeferredWorld},
     prelude::*,
 };
 #[cfg(feature = "3d")]

@@ -126,7 +126,7 @@ impl CharacterControllerBundle {
 
 /// Sends [`MovementAction`] events based on keyboard input.
 fn keyboard_input(
-    mut movement_event_writer: EventWriter<MovementAction>,
+    mut movement_writer: MessageWriter<MovementAction>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
 ) {
     let left = keyboard_input.any_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]);
@@ -136,26 +136,26 @@ fn keyboard_input(
     let direction = horizontal as Scalar;
 
     if direction != 0.0 {
-        movement_event_writer.write(MovementAction::Move(direction));
+        movement_writer.write(MovementAction::Move(direction));
     }
 
     if keyboard_input.just_pressed(KeyCode::Space) {
-        movement_event_writer.write(MovementAction::Jump);
+        movement_writer.write(MovementAction::Jump);
     }
 }
 
 /// Sends [`MovementAction`] events based on gamepad input.
 fn gamepad_input(
-    mut movement_event_writer: EventWriter<MovementAction>,
+    mut movement_writer: MessageWriter<MovementAction>,
     gamepads: Query<&Gamepad>,
 ) {
     for gamepad in gamepads.iter() {
         if let Some(x) = gamepad.get(GamepadAxis::LeftStickX) {
-            movement_event_writer.write(MovementAction::Move(x as Scalar));
+            movement_writer.write(MovementAction::Move(x as Scalar));
         }
 
         if gamepad.just_pressed(GamepadButton::South) {
-            movement_event_writer.write(MovementAction::Jump);
+            movement_writer.write(MovementAction::Jump);
         }
     }
 }
@@ -190,7 +190,7 @@ fn update_grounded(
 /// Responds to [`MovementAction`] events and moves character controllers accordingly.
 fn movement(
     time: Res<Time>,
-    mut movement_event_reader: EventReader<MovementAction>,
+    mut movement_reader: MessageReader<MovementAction>,
     mut controllers: Query<(
         &MovementAcceleration,
         &JumpImpulse,
@@ -202,7 +202,7 @@ fn movement(
     // both the `f32` and `f64` features. Otherwise you don't need this.
     let delta_time = time.delta_secs_f64().adjust_precision();
 
-    for event in movement_event_reader.read() {
+    for event in movement_reader.read() {
         for (movement_acceleration, jump_impulse, mut linear_velocity, is_grounded) in
             &mut controllers
         {

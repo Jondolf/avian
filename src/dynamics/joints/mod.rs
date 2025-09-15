@@ -228,7 +228,7 @@ pub use spherical::SphericalJoint;
 
 use crate::{dynamics::solver::joint_graph::JointGraph, prelude::*};
 use bevy::{
-    ecs::{component::HookContext, entity::MapEntities, world::DeferredWorld},
+    ecs::{entity::MapEntities, lifecycle::HookContext, world::DeferredWorld},
     prelude::*,
 };
 

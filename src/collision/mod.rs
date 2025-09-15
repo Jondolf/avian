@@ -34,7 +34,7 @@
 //!
 //! Collision events can be used for detecting when colliders start or stop touching.
 //!
-//! Avian provides two buffered collision event types that can be read using an [`EventReader`](bevy::ecs::event::EventReader):
+//! Avian provides two buffered collision event types that can be read using an [`MessageReader`](bevy::ecs::event::MessageReader):
 //!
 //! - [`CollisionStarted`]
 //! - [`CollisionEnded`]
@@ -44,8 +44,8 @@
 //!
 //! Avian also provides two collision event types that are triggered for observers:
 //!
-//! - [`OnCollisionStart`]
-//! - [`OnCollisionEnd`]
+//! - [`CollisionStart`]
+//! - [`CollisionEnd`]
 //!
 //! These events are good for entity-specific collision scenarios, such as for detecting when a player
 //! steps on a pressure plate or enters a trigger volume.
@@ -100,8 +100,10 @@ pub mod prelude {
         Collider, ColliderConstructor, ColliderConstructorHierarchy, FillMode, TrimeshFlags,
         VhacdParameters,
     };
+    #[expect(deprecated)]
     pub use super::collision_events::{
-        CollisionEnded, CollisionEventsEnabled, CollisionStarted, OnCollisionEnd, OnCollisionStart,
+        CollisionEnd, CollisionEnded, CollisionEventsEnabled, CollisionStart, CollisionStarted,
+        OnCollisionEnd, OnCollisionStart,
     };
     pub use super::contact_types::{
         Collisions, ContactEdge, ContactGraph, ContactManifold, ContactPair, ContactPairFlags,

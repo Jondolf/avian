@@ -103,8 +103,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     /// - Removes [`ContactManifold`]s from the [`ConstraintGraph`] when they are destroyed.
     pub fn update<H: CollisionHooks>(
         &mut self,
-        collision_started_event_writer: &mut EventWriter<CollisionStarted>,
-        collision_ended_event_writer: &mut EventWriter<CollisionEnded>,
+        collision_started_writer: &mut MessageWriter<CollisionStarted>,
+        collision_ended_writer: &mut MessageWriter<CollisionEnded>,
         delta_secs: Scalar,
         hooks: &SystemParamItem<H>,
         context: &SystemParamItem<C::Context>,
@@ -146,7 +146,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         .flags
                         .contains(ContactEdgeFlags::TOUCHING | ContactEdgeFlags::CONTACT_EVENTS);
                     if send_event {
-                        collision_ended_event_writer.write(CollisionEnded(
+                        collision_ended_writer.write(CollisionEnded(
                             contact_pair.collider1,
                             contact_pair.collider2,
                         ));
@@ -183,7 +183,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 } else if contact_pair.collision_started() {
                     // Send collision started event.
                     if contact_edge.events_enabled() {
-                        collision_started_event_writer.write(CollisionStarted(
+                        collision_started_writer.write(CollisionStarted(
                             contact_pair.collider1,
                             contact_pair.collider2,
                         ));
@@ -230,7 +230,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 {
                     // Send collision ended event.
                     if contact_edge.events_enabled() {
-                        collision_ended_event_writer.write(CollisionEnded(
+                        collision_ended_writer.write(CollisionEnded(
                             contact_pair.collider1,
                             contact_pair.collider2,
                         ));

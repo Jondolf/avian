@@ -731,7 +731,7 @@ mod tests {
         let mut app = create_gltf_test_app();
 
         app.add_observer(
-            |_trigger: Trigger<bevy::scene::SceneInstanceReady>, mut commands: Commands| {
+            |_trigger: On<bevy::scene::SceneInstanceReady>, mut commands: Commands| {
                 commands.insert_resource(SceneReady);
             },
         );

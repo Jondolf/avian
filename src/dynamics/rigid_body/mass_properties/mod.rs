@@ -296,17 +296,16 @@ impl Plugin for MassPropertyPlugin {
 
         // Compute mass properties for new rigid bodies at spawn.
         app.add_observer(
-            |trigger: Trigger<OnAdd, RigidBody>, mut mass_helper: MassPropertyHelper| {
-                mass_helper.update_mass_properties(trigger.target());
+            |trigger: On<Add, RigidBody>, mut mass_helper: MassPropertyHelper| {
+                mass_helper.update_mass_properties(trigger.entity);
             },
         );
 
         // Update the mass properties of rigid bodies when colliders added or removed.
         // TODO: Avoid duplicating work with the above observer.
         app.add_observer(
-            |trigger: Trigger<OnInsert, RigidBodyColliders>,
-             mut mass_helper: MassPropertyHelper| {
-                mass_helper.update_mass_properties(trigger.target());
+            |trigger: On<Insert, RigidBodyColliders>, mut mass_helper: MassPropertyHelper| {
+                mass_helper.update_mass_properties(trigger.entity);
             },
         );
 

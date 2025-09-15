@@ -190,7 +190,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
 
         // Initialize `ColliderAabb` for colliders.
         app.add_observer(
-            |trigger: Trigger<OnAdd, C>,
+            |trigger: On<Add, C>,
              mut query: Query<(
                 &C,
                 &Position,
@@ -202,10 +202,10 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
              length_unit: Res<PhysicsLengthUnit>,
              collider_context: StaticSystemParam<C::Context>| {
                 let contact_tolerance = length_unit.0 * narrow_phase_config.contact_tolerance;
-                let aabb_context = AabbContext::new(trigger.target(), &*collider_context);
+                let aabb_context = AabbContext::new(trigger.entity, &*collider_context);
 
                 if let Ok((collider, pos, rot, collision_margin, mut aabb)) =
-                    query.get_mut(trigger.target())
+                    query.get_mut(trigger.entity)
                 {
                     let collision_margin = collision_margin.map_or(0.0, |m| m.0);
                     *aabb = collider
@@ -217,11 +217,11 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
 
         // When the `Sensor` component is added to a collider, queue its rigid body for a mass property update.
         app.add_observer(
-            |trigger: Trigger<OnAdd, Sensor>,
+            |trigger: On<Add, Sensor>,
              mut commands: Commands,
              query: Query<(&ColliderMassProperties, &ColliderOf)>| {
                 if let Ok((collider_mass_properties, &ColliderOf { body })) =
-                    query.get(trigger.target())
+                    query.get(trigger.entity)
                 {
                     // If the collider mass properties are zero, there is nothing to subtract.
                     if *collider_mass_properties == ColliderMassProperties::ZERO {
@@ -238,14 +238,14 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
 
         // When the `Sensor` component is removed from a collider, update its mass properties.
         app.add_observer(
-            |trigger: Trigger<OnRemove, Sensor>,
+            |trigger: On<Remove, Sensor>,
              mut collider_query: Query<(
                 Ref<C>,
                 &ColliderDensity,
                 &mut ColliderMassProperties,
             )>| {
                 if let Ok((collider, density, mut collider_mass_properties)) =
-                    collider_query.get_mut(trigger.target())
+                    collider_query.get_mut(trigger.entity)
                 {
                     // Update collider mass props.
                     *collider_mass_properties =

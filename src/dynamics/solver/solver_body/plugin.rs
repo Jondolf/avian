@@ -40,24 +40,24 @@ impl Plugin for SolverBodyPlugin {
 
         // Add a solver body for each dynamic and kinematic rigid body when the rigid body is created.
         app.add_observer(
-            |trigger: Trigger<OnAdd, RigidBody>,
+            |trigger: On<Add, RigidBody>,
              rb_query: Query<&RigidBody, RigidBodyActiveFilter>,
              commands: Commands| {
-                add_solver_body(In(trigger.target()), rb_query, commands);
+                add_solver_body(In(trigger.entity), rb_query, commands);
             },
         );
 
         // Add a solver body for each dynamic and kinematic rigid body
         // when the associated rigid body is enabled or woken up.
         app.add_observer(
-            |trigger: Trigger<OnRemove, RigidBodyDisabled>,
+            |trigger: On<Remove, RigidBodyDisabled>,
              rb_query: Query<&RigidBody, Without<Sleeping>>,
              commands: Commands| {
-                add_solver_body::<Without<Sleeping>>(In(trigger.target()), rb_query, commands);
+                add_solver_body::<Without<Sleeping>>(In(trigger.entity), rb_query, commands);
             },
         );
         app.add_observer(
-            |trigger: Trigger<OnRemove, Disabled>,
+            |trigger: On<Remove, Disabled>,
              rb_query: Query<
                 &RigidBody,
                 (
@@ -73,15 +73,15 @@ impl Plugin for SolverBodyPlugin {
                     With<Disabled>,
                     Without<RigidBodyDisabled>,
                     Without<Sleeping>,
-                )>(In(trigger.target()), rb_query, commands);
+                )>(In(trigger.entity), rb_query, commands);
             },
         );
         app.add_observer(
-            |trigger: Trigger<OnRemove, Sleeping>,
+            |trigger: On<Remove, Sleeping>,
              rb_query: Query<&RigidBody, Without<RigidBodyDisabled>>,
              commands: Commands| {
                 add_solver_body::<Without<RigidBodyDisabled>>(
-                    In(trigger.target()),
+                    In(trigger.entity),
                     rb_query,
                     commands,
                 );
@@ -90,16 +90,16 @@ impl Plugin for SolverBodyPlugin {
 
         // Remove solver bodies when their associated rigid body is removed.
         app.add_observer(
-            |trigger: Trigger<OnRemove, RigidBody>, deferred_world: DeferredWorld| {
-                remove_solver_body(In(trigger.target()), deferred_world);
+            |trigger: On<Remove, RigidBody>, deferred_world: DeferredWorld| {
+                remove_solver_body(In(trigger.entity), deferred_world);
             },
         );
 
         // Remove solver bodies when their associated rigid body is disabled or put to sleep.
         app.add_observer(
-            |trigger: Trigger<OnAdd, (Disabled, RigidBodyDisabled, Sleeping)>,
+            |trigger: On<Add, (Disabled, RigidBodyDisabled, Sleeping)>,
              deferred_world: DeferredWorld| {
-                remove_solver_body(In(trigger.target()), deferred_world);
+                remove_solver_body(In(trigger.entity), deferred_world);
             },
         );
 

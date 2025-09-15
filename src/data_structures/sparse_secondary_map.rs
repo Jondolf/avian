@@ -15,11 +15,11 @@ use core::mem::MaybeUninit;
 use std::collections::hash_map::{self, HashMap};
 use std::hash;
 
-use bevy::ecs::entity::Entity;
+use bevy::ecs::entity::{Entity, EntityGeneration};
 
 #[derive(Debug, Clone)]
 struct Slot<T> {
-    generation: u32,
+    generation: EntityGeneration,
     value: T,
 }
 
@@ -146,7 +146,12 @@ impl<V, S: hash::BuildHasher> SparseSecondaryEntityMap<V, S> {
             }
 
             // Don't replace existing newer values.
-            if is_older_generation(generation, slot.generation) {
+            if unsafe {
+                is_older_generation(
+                    core::mem::transmute::<EntityGeneration, u32>(generation),
+                    core::mem::transmute::<EntityGeneration, u32>(slot.generation),
+                )
+            } {
                 return None;
             }
 
@@ -267,7 +272,9 @@ impl<V, S: hash::BuildHasher> SparseSecondaryEntityMap<V, S> {
                     // invalid, since keys always have an odd generation. This
                     // gives us a linear time disjointness check.
                     ptrs[i] = MaybeUninit::new(&mut *value);
-                    *generation ^= 1;
+                    unsafe {
+                        *core::mem::transmute::<&mut EntityGeneration, &mut u32>(generation) ^= 1;
+                    }
                 }
 
                 _ => break,
@@ -279,9 +286,9 @@ impl<V, S: hash::BuildHasher> SparseSecondaryEntityMap<V, S> {
         // Undo temporary even versions.
         for entity in &entities[0..i] {
             match self.slots.get_mut(&entity.index()) {
-                Some(Slot { generation, .. }) => {
-                    *generation ^= 1;
-                }
+                Some(Slot { generation, .. }) => unsafe {
+                    *core::mem::transmute::<&mut EntityGeneration, &mut u32>(generation) ^= 1;
+                },
                 _ => unsafe { core::hint::unreachable_unchecked() },
             }
         }

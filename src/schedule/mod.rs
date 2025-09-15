@@ -20,7 +20,7 @@ use bevy::{
         system::SystemChangeTick,
     },
     prelude::*,
-    transform::TransformSystem,
+    transform::TransformSystems,
 };
 
 /// Sets up the default scheduling, system set configuration, and time resources for physics.
@@ -78,7 +78,7 @@ impl Plugin for PhysicsSchedulePlugin {
                 PhysicsSet::Last,
             )
                 .chain()
-                .before(TransformSystem::TransformPropagate),
+                .before(TransformSystems::Propagate),
         );
 
         // Set up the physics schedule, the schedule that advances the physics simulation

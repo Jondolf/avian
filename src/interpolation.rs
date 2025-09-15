@@ -5,8 +5,9 @@
 use bevy::{ecs::query::QueryData, prelude::*};
 use bevy_transform_interpolation::{VelocitySource, prelude::*};
 
+#[expect(deprecated)]
 pub use bevy_transform_interpolation::{
-    TransformEasingSet,
+    TransformEasingSet, TransformEasingSystems,
     prelude::{
         NoRotationEasing, NoScaleEasing, NoTransformEasing, NoTranslationEasing,
         RotationExtrapolation, RotationHermiteEasing, RotationInterpolation, ScaleInterpolation,
