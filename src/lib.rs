@@ -809,7 +809,6 @@ impl PluginGroup for PhysicsPlugins {
 
         builder
             .add(BroadPhasePlugin::<()>::default())
-            .add(SolverSchedulePlugin)
             .add(JointPlugin)
             .add(SpatialQueryPlugin)
             .add(PhysicsTransformPlugin::new(self.schedule))
