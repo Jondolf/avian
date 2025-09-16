@@ -1,7 +1,7 @@
 #![allow(clippy::unnecessary_cast)]
 
 use avian3d::{math::*, prelude::*};
-use bevy::{color::palettes::css::RED, pbr::NotShadowReceiver, prelude::*};
+use bevy::{color::palettes::css::RED, light::NotShadowReceiver, prelude::*};
 use examples_common_3d::ExampleCommonPlugin;
 
 fn main() {

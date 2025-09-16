@@ -8,7 +8,7 @@ pub struct CharacterControllerPlugin;
 
 impl Plugin for CharacterControllerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<MovementAction>()
+        app.add_message::<MovementAction>()
             .add_systems(
                 Update,
                 (
@@ -32,8 +32,8 @@ impl Plugin for CharacterControllerPlugin {
     }
 }
 
-/// An event sent for a movement input action.
-#[derive(Event)]
+/// A [`Message`] written for a movement input action.
+#[derive(Message)]
 pub enum MovementAction {
     Move(Vector2),
     Jump,

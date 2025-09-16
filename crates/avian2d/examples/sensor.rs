@@ -13,7 +13,7 @@ fn main() {
         ))
         .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))
         .insert_resource(Gravity(Vector::ZERO))
-        .add_event::<MovementAction>()
+        .add_message::<MovementAction>()
         .add_systems(Startup, setup)
         .add_systems(
             Update,
@@ -92,7 +92,7 @@ fn setup(
     commands.spawn(Camera2d);
 }
 
-#[derive(Event, Debug, Reflect)]
+#[derive(Message, Debug, Reflect)]
 pub enum MovementAction {
     Velocity(Vector),
     Offset(Vector),

@@ -13,10 +13,7 @@
 mod plugin;
 
 use avian2d::{math::*, prelude::*};
-use bevy::{
-    prelude::*,
-    render::{render_asset::RenderAssetUsages, render_resource::PrimitiveTopology},
-};
+use bevy::{asset::RenderAssetUsages, prelude::*, render::render_resource::PrimitiveTopology};
 use examples_common_2d::ExampleCommonPlugin;
 use plugin::*;
 

@@ -8,7 +8,7 @@ pub struct CharacterControllerPlugin;
 
 impl Plugin for CharacterControllerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<MovementAction>()
+        app.add_message::<MovementAction>()
             .add_systems(
                 Update,
                 (
@@ -32,8 +32,8 @@ impl Plugin for CharacterControllerPlugin {
     }
 }
 
-/// An event sent for a movement input action.
-#[derive(Event)]
+/// A [`Message`] written for a movement input action.
+#[derive(Message)]
 pub enum MovementAction {
     Move(Scalar),
     Jump,
@@ -162,10 +162,7 @@ fn keyboard_input(
 }
 
 /// Sends [`MovementAction`] events based on gamepad input.
-fn gamepad_input(
-    mut movement_writer: MessageWriter<MovementAction>,
-    gamepads: Query<&Gamepad>,
-) {
+fn gamepad_input(mut movement_writer: MessageWriter<MovementAction>, gamepads: Query<&Gamepad>) {
     for gamepad in gamepads.iter() {
         if let Some(x) = gamepad.get(GamepadAxis::LeftStickX) {
             movement_writer.write(MovementAction::Move(x as Scalar));
