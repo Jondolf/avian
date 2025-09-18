@@ -221,9 +221,15 @@ fn movement(
 }
 
 /// Slows down movement in the X direction.
-fn apply_movement_damping(mut query: Query<(&MovementDampingFactor, &mut LinearVelocity)>) {
+fn apply_movement_damping(
+    time: Res<Time>,
+    mut query: Query<(&MovementDampingFactor, &mut LinearVelocity)>,
+) {
     for (damping_factor, mut linear_velocity) in &mut query {
+        // Precision is adjusted so that the example works with
+        // both the `f32` and `f64` features. Otherwise you don't need this.
+        let delta_time = time.delta_secs_f64().adjust_precision();
         // We could use `LinearDamping`, but we don't want to dampen movement along the Y axis
-        linear_velocity.x *= damping_factor.0;
+        linear_velocity.x *= 1.0 / (1.0 + damping_factor.0 * delta_time);
     }
 }
