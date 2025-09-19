@@ -168,8 +168,8 @@ impl SpatialQueryPipeline {
         filter: &SpatialQueryFilter,
         predicate: &dyn Fn(Entity) -> bool,
     ) -> Option<RayHitData> {
-        let pipeline_shape =
-            CompositeShapeRef(&self.as_composite_shape_with_predicate(filter, predicate));
+        let composite = self.as_composite_shape_with_predicate(filter, predicate);
+        let pipeline_shape = CompositeShapeRef(&composite);
         let ray = parry::query::Ray::new(origin.into(), direction.adjust_precision().into());
 
         pipeline_shape
@@ -366,8 +366,8 @@ impl SpatialQueryPipeline {
 
         let shape_isometry = make_isometry(origin, rotation);
         let shape_direction = direction.adjust_precision().into();
-        let pipeline_shape =
-            CompositeShapeRef(&self.as_composite_shape_with_predicate(filter, predicate));
+        let composite = self.as_composite_shape_with_predicate(filter, predicate);
+        let pipeline_shape = CompositeShapeRef(&composite);
 
         pipeline_shape
             .cast_shape(
@@ -493,7 +493,8 @@ impl SpatialQueryPipeline {
         let shape_direction = direction.adjust_precision().into();
 
         loop {
-            let pipeline_shape = CompositeShapeRef(&self.as_composite_shape(&query_filter));
+            let composite = self.as_composite_shape(&query_filter);
+            let pipeline_shape = CompositeShapeRef(&composite);
 
             let hit = pipeline_shape
                 .cast_shape(
@@ -572,8 +573,8 @@ impl SpatialQueryPipeline {
         }
 
         let point = point.into();
-        let pipeline_shape =
-            CompositeShapeRef(&self.as_composite_shape_with_predicate(filter, predicate));
+        let composite = self.as_composite_shape_with_predicate(filter, predicate);
+        let pipeline_shape = CompositeShapeRef(&composite);
 
         let (index, projection) = pipeline_shape.project_local_point(&point, solid);
 

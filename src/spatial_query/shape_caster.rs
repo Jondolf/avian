@@ -370,8 +370,8 @@ impl ShapeCaster {
         let shape_direction = self.global_direction().adjust_precision().into();
 
         while hits.len() < self.max_hits as usize {
-            let pipeline_shape =
-                CompositeShapeRef(&query_pipeline.as_composite_shape(&query_filter));
+            let composite = query_pipeline.as_composite_shape(&query_filter);
+            let pipeline_shape = CompositeShapeRef(&composite);
 
             let hit = pipeline_shape
                 .cast_shape(

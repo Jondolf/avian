@@ -162,8 +162,10 @@ fn on_add_joint<T: Component + EntityConstraint<2>>(mut world: DeferredWorld, ct
 
             // Log a warning about the joint replacement in case it was not intentional.
             let components = world.components();
-            let old_joint_name = ShortName(&components.get_info(old_joint).unwrap().name());
-            let new_joint_name = ShortName(&components.get_info(component_id).unwrap().name());
+            let old_joint_shortname = components.get_info(old_joint).unwrap().name();
+            let old_joint_name = ShortName(&old_joint_shortname);
+            let new_joint_shortname = components.get_info(component_id).unwrap().name();
+            let new_joint_name = ShortName(&new_joint_shortname);
 
             warn!(
                 "{old_joint_name} was replaced with {new_joint_name} on entity {entity}. An entity can only hold one joint type at a time."
