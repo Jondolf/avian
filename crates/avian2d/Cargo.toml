@@ -95,7 +95,7 @@ parry2d = { version = "0.21", optional = true }
 parry2d-f64 = { version = "0.21", optional = true }
 nalgebra = { version = "0.33", features = ["convert-glam029"], optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
-derive_more = "1"
+derive_more = "2"
 thiserror = "2"
 arrayvec = "0.7"
 smallvec = "1.15"
