@@ -37,8 +37,8 @@ use bevy::{app::PluginGroupBuilder, prelude::*};
 /// | [`IntegratorPlugin`]              | Handles motion caused by velocity, and applies external forces and gravity.                                                                                |
 /// | [`SolverPlugin`]                  | Manages and solves contacts, [joints](dynamics::joints), and other constraints.                                                                            |
 /// | [`CcdPlugin`]                     | Performs sweep-based [Continuous Collision Detection](dynamics::ccd) for bodies with the [`SweptCcd`] component.                                           |
-/// | [`PhysicsIslandPlugin`]           | Manages [simulation islands](dynamics::solver::islands) for sleeping and waking.                                                                           |
-/// | [`PhysicsIslandSleepingPlugin`]   | Manages sleeping and waking of [simulation islands](dynamics::solver::islands).                                                                            |
+/// | [`IslandPlugin`]                  | Manages [simulation islands](dynamics::solver::islands) for sleeping and waking.                                                                           |
+/// | [`IslandSleepingPlugin`]          | Manages sleeping and waking of [simulation islands](dynamics::solver::islands).                                                                            |
 /// | [`JointGraphPlugin`]              | Manages the [`JointGraph`](joint_graph::JointGraph) for each joint type.                                                                                   |
 /// | [`XpbdSolverPlugin`]              | Solves joints using Extended Position-Based Dynamics (XPBD). Requires the `xpbd_joints` feature.                                                           |
 ///
@@ -66,8 +66,8 @@ impl PluginGroup for SolverPlugins {
             .add(IntegratorPlugin::default())
             .add(SolverPlugin::new_with_length_unit(self.length_unit))
             .add(CcdPlugin)
-            .add(PhysicsIslandPlugin)
-            .add(PhysicsIslandSleepingPlugin)
+            .add(IslandPlugin)
+            .add(IslandSleepingPlugin)
             .add(JointGraphPlugin::<FixedJoint>::default())
             .add(JointGraphPlugin::<RevoluteJoint>::default())
             .add(JointGraphPlugin::<PrismaticJoint>::default())

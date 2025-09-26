@@ -44,7 +44,7 @@ mod sleeping;
 
 #[expect(deprecated)]
 pub use sleeping::{
-    PhysicsIslandSleepingPlugin, SleepBody, SleepIslands, WakeBody, WakeIslands, WakeUpBody,
+    IslandSleepingPlugin, SleepBody, SleepIslands, WakeBody, WakeIslands, WakeUpBody,
 };
 
 use bevy::{
@@ -65,9 +65,9 @@ use crate::{
 };
 
 /// A plugin for managing [`PhysicsIsland`]s.
-pub struct PhysicsIslandPlugin;
+pub struct IslandPlugin;
 
-impl Plugin for PhysicsIslandPlugin {
+impl Plugin for IslandPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PhysicsIslands>();
 

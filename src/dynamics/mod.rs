@@ -108,8 +108,8 @@ pub mod prelude {
         solver::{
             PhysicsLengthUnit, SolverPlugin, SolverPlugins,
             islands::{
-                PhysicsIslandPlugin, PhysicsIslandSleepingPlugin, SleepBody, SleepIslands,
-                WakeBody, WakeIslands, WakeUpBody,
+                IslandPlugin, IslandSleepingPlugin, SleepBody, SleepIslands, WakeBody, WakeIslands,
+                WakeUpBody,
             },
             schedule::{SolverSchedulePlugin, SolverSet, SubstepCount, SubstepSchedule},
             solver_body::SolverBodyPlugin,

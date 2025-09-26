@@ -1,6 +1,6 @@
 //! Sleeping and waking for [`PhysicsIsland`](super::PhysicsIsland)s.
 //!
-//! See [`PhysicsIslandSleepingPlugin`].
+//! See [`IslandSleepingPlugin`].
 
 use bevy::{
     app::{App, Plugin},
@@ -37,9 +37,9 @@ use crate::{
 };
 
 /// A plugin for managing sleeping and waking of [`PhysicsIsland`](super::PhysicsIsland)s.
-pub struct PhysicsIslandSleepingPlugin;
+pub struct IslandSleepingPlugin;
 
-impl Plugin for PhysicsIslandSleepingPlugin {
+impl Plugin for IslandSleepingPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<AwakeIslandBitVec>();
         app.init_resource::<TimeToSleep>();

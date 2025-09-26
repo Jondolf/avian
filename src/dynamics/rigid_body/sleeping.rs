@@ -47,12 +47,12 @@ use bevy::prelude::*;
 /// that are connected through contacts or joints. An island is only allowed to sleep if all of its bodies are resting,
 /// and if any body in a sleeping island is woken up, the entire island is woken up with it.
 ///
-/// The [`PhysicsIslandPlugin`] is responsible for managing islands, and the [`PhysicsIslandSleepingPlugin`]
+/// The [`IslandPlugin`] is responsible for managing islands, and the [`IslandSleepingPlugin`]
 /// is responsible for island sleeping and waking.
 ///
 /// [simulation islands]: crate::dynamics::solver::islands
-/// [`PhysicsIslandPlugin`]: crate::dynamics::solver::islands::PhysicsIslandPlugin
-/// [`PhysicsIslandSleepingPlugin`]: crate::dynamics::solver::islands::PhysicsIslandSleepingPlugin
+/// [`IslandPlugin`]: crate::dynamics::solver::islands::IslandPlugin
+/// [`IslandSleepingPlugin`]: crate::dynamics::solver::islands::IslandSleepingPlugin
 #[derive(Component, Clone, Copy, Debug, Default, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
