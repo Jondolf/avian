@@ -1268,7 +1268,8 @@ impl<Id> Default for IslandNode<Id> {
 impl<Id: Copy> Copy for IslandNode<Id> {}
 
 /// A component that stores [`PhysicsIsland`] connectivity data for a rigid body.
-#[derive(Component, Default, Deref, DerefMut)]
+#[derive(Component, Clone, Debug, Default, Deref, DerefMut, PartialEq, Eq, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[component(on_add = BodyIslandNode::on_add, on_remove = BodyIslandNode::on_remove)]
 pub struct BodyIslandNode(IslandNode<Entity>);
 
