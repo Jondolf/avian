@@ -10,7 +10,10 @@ use bevy::{
         observer::Trigger,
         query::{Changed, Has, Or, With, Without},
         resource::Resource,
-        schedule::{IntoScheduleConfigs, common_conditions::resource_changed},
+        schedule::{
+            IntoScheduleConfigs,
+            common_conditions::{resource_changed, resource_exists},
+        },
         system::{
             Command, Commands, Local, ParamSet, Query, Res, ResMut, SystemChangeTick, SystemState,
             lifetimeless::{SQuery, SResMut},
@@ -62,6 +65,7 @@ impl Plugin for PhysicsIslandSleepingPlugin {
                 sleep_islands,
             )
                 .chain()
+                .run_if(resource_exists::<PhysicsIslands>)
                 .in_set(PhysicsStepSet::Sleeping),
         );
     }

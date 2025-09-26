@@ -145,7 +145,7 @@ impl Plugin for PhysicsDebugPlugin {
                         any(feature = "parry-f32", feature = "parry-f64")
                     ))]
                     debug_render_shapecasts,
-                    debug_render_islands,
+                    debug_render_islands.run_if(resource_exists::<PhysicsIslands>),
                 )
                     .after(PhysicsSet::StepSimulation)
                     .run_if(|store: Res<GizmoConfigStore>| {

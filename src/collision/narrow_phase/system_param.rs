@@ -75,7 +75,7 @@ pub struct NarrowPhase<'w, 's, C: AnyCollider> {
     pub contact_graph: ResMut<'w, ContactGraph>,
     pub joint_graph: ResMut<'w, JointGraph>,
     pub constraint_graph: ResMut<'w, ConstraintGraph>,
-    pub island_manager: ResMut<'w, PhysicsIslands>,
+    pub islands: Option<ResMut<'w, PhysicsIslands>>,
     contact_status_bits: ResMut<'w, ContactStatusBits>,
     #[cfg(feature = "parallel")]
     thread_local_contact_status_bits: ResMut<'w, ThreadLocalContactStatusBits>,
@@ -192,8 +192,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         }
 
                         // Unlink the contact pair from its island.
-                        if has_island {
-                            self.island_manager.remove_contact(
+                        if has_island && let Some(islands) = &mut self.islands {
+                            islands.remove_contact(
                                 contact_id,
                                 &mut self.body_islands,
                                 &mut self.contact_graph.edges,
@@ -238,18 +238,20 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         }
 
                         // Link the contact pair to an island.
-                        let island = self.island_manager.add_contact(
-                            contact_id,
-                            &mut self.body_islands,
-                            &mut self.contact_graph,
-                            &mut self.joint_graph,
-                        );
+                        if let Some(islands) = &mut self.islands {
+                            let island = islands.add_contact(
+                                contact_id,
+                                &mut self.body_islands,
+                                &mut self.contact_graph,
+                                &mut self.joint_graph,
+                            );
 
-                        if let Some(island) = island
-                            && island.is_sleeping
-                        {
-                            // Wake up the island if it was previously sleeping.
-                            islands_to_wake.push(island.id);
+                            if let Some(island) = island
+                                && island.is_sleeping
+                            {
+                                // Wake up the island if it was previously sleeping.
+                                islands_to_wake.push(island.id);
+                            }
                         }
                     }
                 } else if contact_pair
@@ -296,17 +298,19 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         }
 
                         // Unlink the contact pair from its island.
-                        let island = self.island_manager.remove_contact(
-                            contact_id,
-                            &mut self.body_islands,
-                            &mut self.contact_graph.edges,
-                            &self.joint_graph,
-                        );
+                        if let Some(islands) = &mut self.islands {
+                            let island = islands.remove_contact(
+                                contact_id,
+                                &mut self.body_islands,
+                                &mut self.contact_graph.edges,
+                                &self.joint_graph,
+                            );
 
-                        // TODO: Do we need this?
-                        if island.is_sleeping {
-                            // Wake up the island if it was previously sleeping.
-                            islands_to_wake.push(island.id);
+                            // TODO: Do we need this?
+                            if island.is_sleeping {
+                                // Wake up the island if it was previously sleeping.
+                                islands_to_wake.push(island.id);
+                            }
                         }
                     }
                 } else if contact_pair.is_touching()
@@ -326,18 +330,20 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     }
 
                     // Link the contact pair to an island.
-                    let island = self.island_manager.add_contact(
-                        contact_id,
-                        &mut self.body_islands,
-                        &mut self.contact_graph,
-                        &mut self.joint_graph,
-                    );
+                    if let Some(islands) = &mut self.islands {
+                        let island = islands.add_contact(
+                            contact_id,
+                            &mut self.body_islands,
+                            &mut self.contact_graph,
+                            &mut self.joint_graph,
+                        );
 
-                    if let Some(island) = island
-                        && island.is_sleeping
-                    {
-                        // Wake up the island if it was previously sleeping.
-                        islands_to_wake.push(island.id);
+                        if let Some(island) = island
+                            && island.is_sleeping
+                        {
+                            // Wake up the island if it was previously sleeping.
+                            islands_to_wake.push(island.id);
+                        }
                     }
                 } else if contact_pair.is_touching()
                     && contact_pair.generates_constraints()

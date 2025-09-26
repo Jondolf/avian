@@ -397,7 +397,7 @@ fn remove_collider(
     contact_graph: &mut ContactGraph,
     joint_graph: &JointGraph,
     constraint_graph: &mut ConstraintGraph,
-    islands: &mut PhysicsIslands,
+    mut islands: Option<&mut PhysicsIslands>,
     body_islands: &mut Query<&mut BodyIslandNode, Or<(With<Disabled>, Without<Disabled>)>>,
     colliding_entities_query: &mut Query<
         &mut CollidingEntities,
@@ -446,7 +446,7 @@ fn remove_collider(
         }
 
         // Unlink the contact pair from its island.
-        if has_island {
+        if has_island && let Some(ref mut islands) = islands {
             islands.remove_contact(contact_id, body_islands, contact_graph, joint_graph);
         }
     });
@@ -463,7 +463,7 @@ fn remove_body_on<E: Event, B: Bundle>(
     >,
     mut event_writer: EventWriter<CollisionEnded>,
     mut body_islands: Query<&mut BodyIslandNode, Or<(With<Disabled>, Without<Disabled>)>>,
-    mut islands: ResMut<PhysicsIslands>,
+    mut islands: Option<ResMut<PhysicsIslands>>,
     mut constraint_graph: ResMut<ConstraintGraph>,
     mut contact_graph: ResMut<ContactGraph>,
     joint_graph: ResMut<JointGraph>,
@@ -485,7 +485,7 @@ fn remove_body_on<E: Event, B: Bundle>(
             &mut contact_graph,
             &joint_graph,
             &mut constraint_graph,
-            &mut islands,
+            islands.as_deref_mut(),
             &mut body_islands,
             &mut colliding_entities_query,
             &mut event_writer,
@@ -502,7 +502,7 @@ fn remove_collider_on<E: Event, B: Bundle>(
     mut contact_graph: ResMut<ContactGraph>,
     joint_graph: ResMut<JointGraph>,
     mut constraint_graph: ResMut<ConstraintGraph>,
-    mut islands: ResMut<PhysicsIslands>,
+    mut islands: Option<ResMut<PhysicsIslands>>,
     mut body_islands: Query<&mut BodyIslandNode, Or<(With<Disabled>, Without<Disabled>)>>,
     // TODO: Change this hack to include disabled entities with `Allows<T>` for 0.17
     mut query: Query<&mut CollidingEntities, Or<(With<Disabled>, Without<Disabled>)>>,
@@ -530,7 +530,7 @@ fn remove_collider_on<E: Event, B: Bundle>(
         &mut contact_graph,
         &joint_graph,
         &mut constraint_graph,
-        &mut islands,
+        islands.as_deref_mut(),
         &mut body_islands,
         &mut query,
         &mut event_writer,
@@ -545,7 +545,7 @@ fn on_body_remove_rigid_body_disabled(
     mut constraint_graph: ResMut<ConstraintGraph>,
     mut contact_graph: ResMut<ContactGraph>,
     joint_graph: ResMut<JointGraph>,
-    mut islands: ResMut<PhysicsIslands>,
+    mut islands: Option<ResMut<PhysicsIslands>>,
     mut body_islands: Query<&mut BodyIslandNode, Or<(With<Disabled>, Without<Disabled>)>>,
     mut colliding_entities_query: Query<
         &mut CollidingEntities,
@@ -563,7 +563,7 @@ fn on_body_remove_rigid_body_disabled(
             &mut contact_graph,
             &joint_graph,
             &mut constraint_graph,
-            &mut islands,
+            islands.as_deref_mut(),
             &mut body_islands,
             &mut colliding_entities_query,
             &mut event_writer,
@@ -579,7 +579,7 @@ fn on_disable_body(
     mut constraint_graph: ResMut<ConstraintGraph>,
     mut contact_graph: ResMut<ContactGraph>,
     joint_graph: Res<JointGraph>,
-    mut islands: ResMut<PhysicsIslands>,
+    mut islands: Option<ResMut<PhysicsIslands>>,
     mut body_islands: Query<&mut BodyIslandNode, Or<(With<Disabled>, Without<Disabled>)>>,
     mut colliding_entities_query: Query<
         &mut CollidingEntities,
@@ -597,7 +597,7 @@ fn on_disable_body(
             &mut contact_graph,
             &joint_graph,
             &mut constraint_graph,
-            &mut islands,
+            islands.as_deref_mut(),
             &mut body_islands,
             &mut colliding_entities_query,
             &mut event_writer,
@@ -615,7 +615,7 @@ fn on_add_sensor(
     mut constraint_graph: ResMut<ConstraintGraph>,
     mut contact_graph: ResMut<ContactGraph>,
     joint_graph: Res<JointGraph>,
-    mut islands: ResMut<PhysicsIslands>,
+    mut islands: Option<ResMut<PhysicsIslands>>,
     mut body_islands: Query<&mut BodyIslandNode, Or<(With<Disabled>, Without<Disabled>)>>,
     mut colliding_entities_query: Query<
         &mut CollidingEntities,
@@ -628,7 +628,7 @@ fn on_add_sensor(
         &mut contact_graph,
         &joint_graph,
         &mut constraint_graph,
-        &mut islands,
+        islands.as_deref_mut(),
         &mut body_islands,
         &mut colliding_entities_query,
         &mut event_writer,
@@ -642,7 +642,7 @@ fn on_remove_sensor(
     mut constraint_graph: ResMut<ConstraintGraph>,
     mut contact_graph: ResMut<ContactGraph>,
     joint_graph: ResMut<JointGraph>,
-    mut islands: ResMut<PhysicsIslands>,
+    mut islands: Option<ResMut<PhysicsIslands>>,
     mut body_islands: Query<&mut BodyIslandNode, Or<(With<Disabled>, Without<Disabled>)>>,
     mut colliding_entities_query: Query<
         &mut CollidingEntities,
@@ -655,7 +655,7 @@ fn on_remove_sensor(
         &mut contact_graph,
         &joint_graph,
         &mut constraint_graph,
-        &mut islands,
+        islands.as_deref_mut(),
         &mut body_islands,
         &mut colliding_entities_query,
         &mut event_writer,
