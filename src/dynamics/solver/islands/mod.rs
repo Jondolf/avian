@@ -9,6 +9,8 @@
 //! Islands are only used for sleeping and waking. Solver parallelism is achieved with [graph coloring](super::constraint_graph)
 //! using the [`ConstraintGraph`](super::constraint_graph::ConstraintGraph).
 //!
+//! If simulation islands are not needed, the [`IslandPlugin`] can be omitted.
+//!
 //! # References
 //!
 //! - [Box2D - Simulation Islands] by [Erin Catto]
@@ -65,6 +67,8 @@ use crate::{
 };
 
 /// A plugin for managing [`PhysicsIsland`]s.
+///
+/// See the [module-level documentation](self) for more information.
 pub struct IslandPlugin;
 
 impl Plugin for IslandPlugin {
