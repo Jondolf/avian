@@ -33,14 +33,19 @@ use crate::{
 
 use super::contact::ContactConstraint;
 
-/// The maximum number of colors in the constraint graph.
+/// The maximum number of [`GraphColor`]s in the [`ConstraintGraph`].
 /// Constraints that cannot find a color are added to the overflow set,
 /// which is solved on a single thread.
-pub const GRAPH_COLOR_COUNT: usize = 12;
+pub const GRAPH_COLOR_COUNT: usize = 24;
 
 /// The index of the overflow color in the graph, used for constraints that don't fit
 /// the graph color limit. This can happen when a single body is interacting with many other bodies.
 pub const COLOR_OVERFLOW_INDEX: usize = GRAPH_COLOR_COUNT - 1;
+
+/// The number of colors with constraints involving two non-static bodies.
+/// Leaving constraints involving static bodies to later colors gives higher priority
+/// to those constraints, reducing tunneling through static geometry.
+pub const DYNAMIC_COLOR_COUNT: usize = GRAPH_COLOR_COUNT - 4;
 
 /// A color in the [`ConstraintGraph`]. Each color is a set of bodies and constraints
 /// that can be solved in parallel without race conditions.
@@ -171,7 +176,10 @@ impl ConstraintGraph {
 
         // TODO: We could allow forcing overflow by making this optional.
         if !is_static1 && !is_static2 {
-            for i in 0..COLOR_OVERFLOW_INDEX {
+            // Constraints involving only non-static bodies cannot be in colors reserved
+            // for constraints involving static bodies. This helps reduce tunneling through
+            // static geometry by solving static contacts last.
+            for i in 0..DYNAMIC_COLOR_COUNT {
                 let color = &mut self.colors[i];
                 if color.body_set.get(body1.index() as usize)
                     || color.body_set.get(body2.index() as usize)
@@ -185,8 +193,8 @@ impl ConstraintGraph {
                 break;
             }
         } else if !is_static1 {
-            // No static contacts in color 0
-            for i in 1..COLOR_OVERFLOW_INDEX {
+            // Build static colors from the end to give them higher priority.
+            for i in (1..COLOR_OVERFLOW_INDEX).rev() {
                 let color = &mut self.colors[i];
                 if color.body_set.get(body1.index() as usize) {
                     continue;
@@ -197,8 +205,8 @@ impl ConstraintGraph {
                 break;
             }
         } else if !is_static2 {
-            // No static contacts in color 0
-            for i in 1..COLOR_OVERFLOW_INDEX {
+            // Build static colors from the end to give them higher priority.
+            for i in (1..COLOR_OVERFLOW_INDEX).rev() {
                 let color = &mut self.colors[i];
                 if color.body_set.get(body2.index() as usize) {
                     continue;
