@@ -396,7 +396,7 @@ fn prepare_contact_constraints(
             let manifold_index = handle.manifold_index;
             let manifold = &contact_pair.manifolds[manifold_index];
 
-            if contact_pair.is_sensor() {
+            if !contact_pair.generates_constraints() {
                 continue;
             }
 

@@ -38,14 +38,8 @@ impl Plugin for SolverBodyPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<(SolverBody, SolverBodyInertia)>();
 
-        // Add a solver body for each dynamic and kinematic rigid body when the rigid body is created.
-        app.add_observer(
-            |trigger: Trigger<OnAdd, RigidBody>,
-             rb_query: Query<&RigidBody, RigidBodyActiveFilter>,
-             commands: Commands| {
-                add_solver_body(In(trigger.target()), rb_query, commands);
-            },
-        );
+        // Add or remove solver bodies when `RigidBody` component is added or replaced.
+        app.add_observer(on_insert_rigid_body);
 
         // Add a solver body for each dynamic and kinematic rigid body
         // when the associated rigid body is enabled or woken up.
@@ -106,7 +100,7 @@ impl Plugin for SolverBodyPlugin {
         // Prepare solver bodies before the substepping loop.
         app.add_systems(
             PhysicsSchedule,
-            (on_change_rigid_body_type, prepare_solver_bodies)
+            prepare_solver_bodies
                 .chain()
                 .in_set(SolverSet::PrepareSolverBodies),
         );
@@ -129,28 +123,25 @@ impl Plugin for SolverBodyPlugin {
     }
 }
 
-fn on_change_rigid_body_type(
-    rb_query: Query<(Entity, Ref<RigidBody>)>,
-    solver_body_query: Query<(), With<SolverBody>>,
+fn on_insert_rigid_body(
+    trigger: Trigger<OnInsert, RigidBody>,
+    bodies: Query<(&RigidBody, Has<SolverBody>), RigidBodyActiveFilter>,
     mut commands: Commands,
 ) {
-    for (entity, rb) in &rb_query {
-        // Only handle modifications to the rigid body type here.
-        if !rb.is_changed() || rb.is_added() {
-            continue;
-        }
+    let Ok((rb, has_solver_body)) = bodies.get(trigger.target()) else {
+        return;
+    };
 
-        if rb.is_static() {
-            // Remove the solver body if the rigid body is static.
-            commands
-                .entity(entity)
-                .try_remove::<(SolverBody, SolverBodyInertia)>();
-        } else if !solver_body_query.contains(entity) {
-            // Create a new solver body if the rigid body is dynamic or kinematic.
-            commands
-                .entity(entity)
-                .try_insert((SolverBody::default(), SolverBodyInertia::default()));
-        }
+    if rb.is_static() && has_solver_body {
+        // Remove the solver body if the rigid body is static.
+        commands
+            .entity(trigger.target())
+            .try_remove::<(SolverBody, SolverBodyInertia)>();
+    } else if !rb.is_static() && !has_solver_body {
+        // Create a new solver body if the rigid body is dynamic or kinematic.
+        commands
+            .entity(trigger.target())
+            .try_insert((SolverBody::default(), SolverBodyInertia::default()));
     }
 }
 

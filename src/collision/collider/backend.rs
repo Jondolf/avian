@@ -14,11 +14,7 @@ use crate::{
 #[cfg(all(feature = "bevy_scene", feature = "default-collider"))]
 use bevy::scene::SceneInstance;
 use bevy::{
-    ecs::{
-        intern::Interned,
-        schedule::ScheduleLabel,
-        system::{StaticSystemParam, SystemId},
-    },
+    ecs::{intern::Interned, schedule::ScheduleLabel, system::StaticSystemParam},
     prelude::*,
 };
 use mass_properties::{MassPropertySystems, components::RecomputeMassProperties};
@@ -109,12 +105,6 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
         app.init_resource::<NarrowPhaseConfig>();
         app.init_resource::<PhysicsLengthUnit>();
 
-        // Register the one-shot system that is run for all removed colliders.
-        if !app.world().contains_resource::<ColliderRemovalSystem>() {
-            let collider_removed_id = app.world_mut().register_system(collider_removed);
-            app.insert_resource(ColliderRemovalSystem(collider_removed_id));
-        }
-
         let hooks = app.world_mut().register_component_hooks::<C>();
 
         // Initialize missing components for colliders.
@@ -176,16 +166,15 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 let entity_ref = world.entity_mut(ctx.entity);
 
                 // Get the rigid body entity that the collider is attached to.
-                let Some(collider_of) = entity_ref.get::<ColliderOf>().copied() else {
+                let Some(ColliderOf { body }) = entity_ref.get::<ColliderOf>().copied() else {
                     return;
                 };
 
-                // Get the ID of the one-shot system run for collider removals.
-                let ColliderRemovalSystem(system_id) =
-                    *world.resource::<ColliderRemovalSystem>().to_owned();
-
-                // Handle collider removal.
-                world.commands().run_system_with(system_id, collider_of);
+                // Queue the rigid body for a mass property update.
+                world
+                    .commands()
+                    .entity(body)
+                    .try_insert(RecomputeMassProperties);
             });
 
         // Initialize `ColliderAabb` for colliders.
@@ -655,32 +644,6 @@ pub fn update_collider_scale<C: ScalableCollider>(
             //       can't be represented without approximations after scaling.
             collider.set_scale(collider_transform.scale, 10);
         }
-    }
-}
-
-/// A resource that stores the system ID for the system that reacts to collider removals.
-#[derive(Resource)]
-struct ColliderRemovalSystem(SystemId<In<ColliderOf>>);
-
-/// Updates the mass properties of bodies and wakes bodies up when an attached collider is removed.
-///
-/// Takes the removed collider's entity, rigid body entity, mass properties, and transform as input.
-fn collider_removed(
-    In(ColliderOf { body }): In<ColliderOf>,
-    mut commands: Commands,
-    mut sleep_query: Query<&mut TimeSleeping>,
-) {
-    let Ok(mut entity_commands) = commands.get_entity(body) else {
-        return;
-    };
-
-    // Queue the rigid body for mass property recomputation.
-    entity_commands.insert(RecomputeMassProperties);
-
-    if let Ok(mut time_sleeping) = sleep_query.get_mut(body) {
-        // Wake up the rigid body since removing the collider could also remove active contacts.
-        entity_commands.remove::<Sleeping>();
-        time_sleeping.0 = 0.0;
     }
 }
 

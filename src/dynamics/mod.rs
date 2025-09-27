@@ -21,12 +21,12 @@
 //!
 //! # Plugins
 //!
-//! | Plugin               | Description                                                                                                                           |
-//! | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-//! | [`IntegratorPlugin`] | Handles motion caused by velocity, and applies external forces and gravity.                                                           |
-//! | [`SolverPlugin`]     | Solves constraints (contacts and joints).                                                                                             |
-//! | [`CcdPlugin`]        | Performs sweep-based [Continuous Collision Detection](dynamics::ccd) for bodies with the [`SweptCcd`] component to prevent tunneling. |
-//! | [`SleepingPlugin`]   | Manages sleeping and waking for bodies, automatically deactivating them to save computational resources.                              |
+//! | Plugin                 | Description                                                                                                                                |
+//! | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+//! | [`SolverPlugins`]      | A plugin group for the physics solver's plugins. See the plugin group's documentation for more information.                                |
+//! | [`JointPlugin`]        | A plugin for managing and initializing [joints]. Does *not* include the actual joint solver.                                               |
+//! | [`MassPropertyPlugin`] | Manages mass properties of dynamic [rigid bodies](RigidBody).                                                                              |
+//! | [`ForcePlugin`]        | Manages and applies external forces, torques, and acceleration for rigid bodies. See the [module-level documentation](rigid_body::forces). |
 //!
 //! # Accuracy
 //!
@@ -65,7 +65,6 @@ pub mod ccd;
 pub mod integrator;
 pub mod joints;
 pub mod rigid_body;
-pub mod sleeping;
 pub mod solver;
 
 /// Re-exports common types related to the rigid body dynamics functionality.
@@ -73,6 +72,7 @@ pub mod prelude {
     pub(crate) use super::rigid_body::mass_properties::{ComputeMassProperties, MassProperties};
     #[cfg(feature = "xpbd_joints")]
     pub use super::solver::xpbd::XpbdSolverPlugin;
+    #[expect(deprecated)]
     pub use super::{
         ccd::{CcdPlugin, SpeculativeMargin, SweepMode, SweptCcd},
         integrator::{Gravity, IntegratorPlugin},
@@ -99,11 +99,18 @@ pub mod prelude {
                     MassPropertiesBundle, NoAutoAngularInertia, NoAutoCenterOfMass, NoAutoMass,
                 },
             },
+            sleeping::{
+                DeactivationTime, SleepThreshold, SleepTimer, Sleeping, SleepingDisabled,
+                SleepingThreshold, TimeSleeping, TimeToSleep,
+            },
             *,
         },
-        sleeping::{DeactivationTime, SleepingPlugin, SleepingThreshold, WakeUpBody},
         solver::{
             PhysicsLengthUnit, SolverPlugin, SolverPlugins,
+            islands::{
+                IslandPlugin, IslandSleepingPlugin, SleepBody, SleepIslands, WakeBody, WakeIslands,
+                WakeUpBody,
+            },
             schedule::{SolverSchedulePlugin, SolverSet, SubstepCount, SubstepSchedule},
             solver_body::SolverBodyPlugin,
         },

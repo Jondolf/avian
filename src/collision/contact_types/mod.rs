@@ -10,13 +10,14 @@ use smallvec::SmallVec;
 pub use system_param::Collisions;
 
 use crate::{
-    data_structures::graph::EdgeIndex, dynamics::solver::constraint_graph::ContactConstraintHandle,
+    data_structures::graph::EdgeIndex,
+    dynamics::solver::{constraint_graph::ContactConstraintHandle, islands::IslandNode},
     prelude::*,
 };
 use bevy::prelude::*;
 
 /// A stable identifier for a [`ContactEdge`].
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Reflect)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, PartialEq)]
@@ -41,6 +42,12 @@ impl From<EdgeIndex> for ContactId {
     }
 }
 
+impl core::fmt::Display for ContactId {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "ContactId({})", self.0)
+    }
+}
+
 /// Cold contact data stored in the [`ContactGraph`]. Used as a persistent handle for a [`ContactPair`].
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -60,16 +67,19 @@ pub struct ContactEdge {
     /// The entity of the second body involved in the contact.
     pub body2: Option<Entity>,
 
-    /// The handles to the constraints associated with this contact edge.
-    #[cfg(feature = "2d")]
-    pub constraint_handles: SmallVec<[ContactConstraintHandle; 2]>,
-
     /// The index of the [`ContactPair`] in the [`ContactGraph`].
     pub pair_index: usize,
 
     /// The handles to the constraints associated with this contact edge.
+    #[cfg(feature = "2d")]
+    pub constraint_handles: SmallVec<[ContactConstraintHandle; 2]>,
+
+    /// The handles to the constraints associated with this contact edge.
     #[cfg(feature = "3d")]
     pub constraint_handles: SmallVec<[ContactConstraintHandle; 4]>,
+
+    /// The [`IslandNode`] associated with this contact edge.
+    pub island: Option<IslandNode<ContactId>>,
 
     /// Flags for the contact edge.
     pub flags: ContactEdgeFlags,
@@ -88,6 +98,7 @@ impl ContactEdge {
             body2: None,
             pair_index: 0,
             constraint_handles: SmallVec::new(),
+            island: None,
             flags: ContactEdgeFlags::empty(),
         }
     }
@@ -171,10 +182,10 @@ pub struct ContactPair {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Hash, Clone, Copy, PartialEq, Eq, Debug, Reflect)]
 #[reflect(opaque, Hash, PartialEq, Debug)]
-pub struct ContactPairFlags(u8);
+pub struct ContactPairFlags(u16);
 
 bitflags::bitflags! {
-    impl ContactPairFlags: u8 {
+    impl ContactPairFlags: u16 {
         /// Set if the colliders are touching, including sensors.
         const TOUCHING = 1 << 0;
         /// Set if the AABBs of the colliders are no longer overlapping.
@@ -183,14 +194,17 @@ bitflags::bitflags! {
         const STARTED_TOUCHING = 1 << 2;
         /// Set if the colliders are not touching and were touching previously.
         const STOPPED_TOUCHING = 1 << 3;
-        /// Set if at least one of the colliders is a sensor.
-        const SENSOR = 1 << 4;
+        /// Set if the contact pair should generate contact constraints.
+        const GENERATE_CONSTRAINTS = 1 << 4;
+        /// Set if the contact pair just started generating contact constraints,
+        /// for example because a sensor became a normal collider or a collider was attached to a rigid body.
+        const STARTED_GENERATING_CONSTRAINTS = 1 << 5;
         /// Set if the first rigid body is static.
-        const STATIC1 = 1 << 5;
+        const STATIC1 = 1 << 6;
         /// Set if the second rigid body is static.
-        const STATIC2 = 1 << 6;
+        const STATIC2 = 1 << 7;
         /// Set if the contact pair should have a custom contact modification hook applied.
-        const MODIFY_CONTACTS = 1 << 7;
+        const MODIFY_CONTACTS = 1 << 8;
     }
 }
 
@@ -262,12 +276,6 @@ impl ContactPair {
             .fold(0.0, |acc, manifold| acc.max(manifold.max_normal_impulse()))
     }
 
-    /// Returns `true` if at least one of the colliders is a [`Sensor`].
-    #[inline]
-    pub fn is_sensor(&self) -> bool {
-        self.flags.contains(ContactPairFlags::SENSOR)
-    }
-
     /// Returns `true` if the colliders are touching, including sensors.
     #[inline]
     pub fn is_touching(&self) -> bool {
@@ -290,6 +298,14 @@ impl ContactPair {
     #[inline]
     pub fn collision_ended(&self) -> bool {
         self.flags.contains(ContactPairFlags::STOPPED_TOUCHING)
+    }
+
+    /// Returns `true` if the contact pair should generate contact constraints.
+    ///
+    /// This is typically `true` unless the contact pair involves a [`Sensor`] or a disabled rigid body.
+    #[inline]
+    pub fn generates_constraints(&self) -> bool {
+        self.flags.contains(ContactPairFlags::GENERATE_CONSTRAINTS)
     }
 
     /// Returns the contact with the largest penetration depth.
