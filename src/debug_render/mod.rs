@@ -40,6 +40,7 @@ use bevy::{
 /// - [Joints](dynamics::joints)
 /// - [`RayCaster`]
 /// - [`ShapeCaster`]
+/// - [Simulation islands](dynamics::solver::islands)
 /// - Changing the visibility of entities to only show debug rendering
 ///
 /// By default, [AABBs](ColliderAabb) and [contacts](ContactPair) are not debug rendered.
