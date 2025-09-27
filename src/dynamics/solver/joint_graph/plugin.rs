@@ -7,7 +7,7 @@ use crate::{
         joints::EntityConstraint,
         solver::{
             constraint_graph::ConstraintGraph,
-            islands::{BodyIslandNode, PhysicsIslands},
+            islands::{BodyIslandNode, IslandId, PhysicsIslands},
             joint_graph::{JointGraph, JointGraphEdge},
         },
     },
@@ -299,7 +299,7 @@ fn on_change_joint_entities<T: Component + EntityConstraint<2>>(
     mut contact_graph: ResMut<ContactGraph>,
     mut islands: Option<ResMut<PhysicsIslands>>,
 ) {
-    let mut islands_to_wake: Vec<u32> = Vec::new();
+    let mut islands_to_wake: Vec<IslandId> = Vec::new();
 
     for (entity, joint) in &query {
         let [body1, body2] = joint.entities();

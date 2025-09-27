@@ -29,7 +29,7 @@ use crate::{
     data_structures::bit_vec::BitVec,
     dynamics::solver::{
         constraint_graph::ConstraintGraph,
-        islands::{BodyIslandNode, PhysicsIslands},
+        islands::{BodyIslandNode, IslandId, PhysicsIslands},
         solver_body::SolverBody,
     },
     prelude::*,
@@ -123,7 +123,7 @@ fn wake_islands_with_sleeping_disabled(
 ) {
     // Wake up all islands that have a body with `SleepingDisabled`.
     for (body_island, mut sleep_timer) in &mut query {
-        awake_island_bit_vec.set_and_grow(body_island.island_id as usize);
+        awake_island_bit_vec.set_and_grow(body_island.island_id.0 as usize);
 
         // Reset the sleep timer.
         sleep_timer.0 = 0.0;
@@ -175,7 +175,7 @@ fn update_sleeping_states(
 
         if sleep_timer.0 < time_to_sleep.0 {
             // Keep the island awake.
-            awake_island_bit_vec.set_and_grow(island_data.island_id as usize);
+            awake_island_bit_vec.set_and_grow(island_data.island_id.0 as usize);
         } else if let Some(island) = islands.get(island_data.island_id)
             && island.constraints_removed > 0
         {
@@ -193,8 +193,8 @@ fn sleep_islands(
     mut awake_island_bit_vec: ResMut<AwakeIslandBitVec>,
     mut islands: ResMut<PhysicsIslands>,
     mut commands: Commands,
-    mut sleep_buffer: Local<Vec<u32>>,
-    mut wake_buffer: Local<Vec<u32>>,
+    mut sleep_buffer: Local<Vec<IslandId>>,
+    mut wake_buffer: Local<Vec<IslandId>>,
 ) {
     // Clear the buffers.
     sleep_buffer.clear();
@@ -202,7 +202,7 @@ fn sleep_islands(
 
     // Sleep islands that are not in the awake bit vector.
     for island in islands.iter_mut() {
-        if awake_island_bit_vec.get(island.id as usize) {
+        if awake_island_bit_vec.get(island.id.0 as usize) {
             if island.is_sleeping {
                 wake_buffer.push(island.id);
             }
@@ -255,7 +255,7 @@ impl Command for SleepBody {
 }
 
 /// A [`Command`] that makes the [`PhysicsIsland`](super::PhysicsIsland)s with the given IDs sleep if they are not already sleeping.
-pub struct SleepIslands(pub Vec<u32>);
+pub struct SleepIslands(pub Vec<IslandId>);
 
 impl Command for SleepIslands {
     fn apply(self, world: &mut World) {
@@ -353,7 +353,7 @@ impl Command for WakeUpBody {
 }
 
 /// A [`Command`] that wakes up the [`PhysicsIsland`](super::PhysicsIsland)s with the given IDs if they are sleeping.
-pub struct WakeIslands(pub Vec<u32>);
+pub struct WakeIslands(pub Vec<IslandId>);
 
 impl Command for WakeIslands {
     fn apply(self, world: &mut World) {
@@ -485,18 +485,18 @@ fn wake_on_changed(
             || is_changed_after_tick(ang_vel, last_physics_tick.0, this_run)
             || is_changed_after_tick(sleep_timer, last_physics_tick.0, this_run)
         {
-            awake_island_bit_vec.set_and_grow(body_island.island_id as usize);
+            awake_island_bit_vec.set_and_grow(body_island.island_id.0 as usize);
         }
     }
 
     for body_island in &query.p1() {
-        awake_island_bit_vec.set_and_grow(body_island.island_id as usize);
+        awake_island_bit_vec.set_and_grow(body_island.island_id.0 as usize);
     }
 }
 
 /// Wakes up all sleeping [`PhysicsIsland`](super::PhysicsIsland)s. Triggered automatically when [`Gravity`] is changed.
 fn wake_all_islands(mut commands: Commands, islands: Res<PhysicsIslands>) {
-    let sleeping_islands: Vec<u32> = islands
+    let sleeping_islands: Vec<IslandId> = islands
         .iter()
         .filter_map(|island| island.is_sleeping.then_some(island.id))
         .collect();

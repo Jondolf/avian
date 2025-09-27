@@ -30,7 +30,7 @@ pub struct JointGraph {
 }
 
 /// A stable identifier for a [`JointGraphEdge`].
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Reflect)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, PartialEq)]
@@ -50,6 +50,12 @@ impl From<JointId> for EdgeIndex {
 impl From<EdgeIndex> for JointId {
     fn from(id: EdgeIndex) -> Self {
         Self(id.0)
+    }
+}
+
+impl core::fmt::Display for JointId {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "JointId({})", self.0)
     }
 }
 

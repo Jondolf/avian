@@ -173,6 +173,24 @@ fn split_island(
     }
 }
 
+/// A stable identifier for a [`PhysicsIsland`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, PartialEq)]
+pub struct IslandId(pub u32);
+
+impl IslandId {
+    /// A placeholder identifier for a [`PhysicsIsland`].
+    pub const PLACEHOLDER: Self = Self(u32::MAX);
+}
+
+impl core::fmt::Display for IslandId {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "IslandId({})", self.0)
+    }
+}
+
 /// A [simulation island](self) that contains bodies, contacts, and joints. Used for sleeping and waking.
 ///
 /// Islands are retained across time steps. Each dynamic body starts with its own island,
@@ -189,7 +207,7 @@ fn split_island(
 /// [`JointGraphEdge`]: crate::dynamics::solver::joint_graph::JointGraphEdge
 #[derive(Clone, Debug, PartialEq)]
 pub struct PhysicsIsland {
-    pub(crate) id: u32,
+    pub(crate) id: IslandId,
 
     pub(crate) head_body: Option<Entity>,
     pub(crate) tail_body: Option<Entity>,
@@ -212,7 +230,7 @@ pub struct PhysicsIsland {
 impl PhysicsIsland {
     /// Creates a new [`PhysicsIsland`] with the given ID.
     #[inline]
-    pub const fn new(id: u32) -> Self {
+    pub const fn new(id: IslandId) -> Self {
         Self {
             id,
             head_body: None,
@@ -232,7 +250,7 @@ impl PhysicsIsland {
 
     /// Returns the island ID.
     #[inline]
-    pub const fn id(&self) -> u32 {
+    pub const fn id(&self) -> IslandId {
         self.id
     }
 
@@ -400,7 +418,7 @@ pub struct PhysicsIslands {
     ///
     /// This is chosen based on which island with one or more constraints removed
     /// has the largest sleep timer.
-    pub split_candidate: Option<u32>,
+    pub split_candidate: Option<IslandId>,
     /// The largest [`SleepTimer`] of the split candidate.
     ///
     /// [`SleepTimer`]: crate::dynamics::rigid_body::sleeping::SleepTimer
@@ -410,7 +428,7 @@ pub struct PhysicsIslands {
 impl PhysicsIslands {
     /// Creates a new [`PhysicsIsland`], calling the given `init` function before pushing the island to the list.
     #[inline]
-    pub fn create_island_with<F>(&mut self, init: F) -> u32
+    pub fn create_island_with<F>(&mut self, init: F) -> IslandId
     where
         F: FnOnce(&mut PhysicsIsland),
     {
@@ -422,7 +440,7 @@ impl PhysicsIslands {
         init(&mut island);
 
         // Add the island to the list.
-        self.islands.insert(island) as u32
+        IslandId(self.islands.insert(island) as u32)
     }
 
     /// Removes a [`PhysicsIsland`] with the given ID. The island is assumed to be empty,
@@ -431,31 +449,31 @@ impl PhysicsIslands {
     ///
     /// Panics if `island_id` is out of bounds.
     #[inline]
-    pub fn remove_island(&mut self, island_id: u32) -> PhysicsIsland {
+    pub fn remove_island(&mut self, island_id: IslandId) -> PhysicsIsland {
         if self.split_candidate == Some(island_id) {
             self.split_candidate = None;
         }
 
         // Assume the island is empty, and remove it.
-        self.islands.remove(island_id as usize)
+        self.islands.remove(island_id.0 as usize)
     }
 
     /// Returns the next available island ID.
     #[inline]
-    pub fn next_id(&self) -> u32 {
-        self.islands.vacant_key() as u32
+    pub fn next_id(&self) -> IslandId {
+        IslandId(self.islands.vacant_key() as u32)
     }
 
     /// Returns a reference to the [`PhysicsIsland`] with the given ID.
     #[inline]
-    pub fn get(&self, island_id: u32) -> Option<&PhysicsIsland> {
-        self.islands.get(island_id as usize)
+    pub fn get(&self, island_id: IslandId) -> Option<&PhysicsIsland> {
+        self.islands.get(island_id.0 as usize)
     }
 
     /// Returns a mutable reference to the [`PhysicsIsland`] with the given ID.
     #[inline]
-    pub fn get_mut(&mut self, island_id: u32) -> Option<&mut PhysicsIsland> {
-        self.islands.get_mut(island_id as usize)
+    pub fn get_mut(&mut self, island_id: IslandId) -> Option<&mut PhysicsIsland> {
+        self.islands.get_mut(island_id.0 as usize)
     }
 
     /// Returns an iterator over all [`PhysicsIsland`]s.
@@ -508,9 +526,12 @@ impl PhysicsIslands {
         let island_id = self.merge_islands(body1, body2, body_islands, contact_graph, joint_graph);
 
         // Link the contact to the island.
-        let island = self.islands.get_mut(island_id as usize).unwrap_or_else(|| {
-            panic!("Island {island_id} does not exist");
-        });
+        let island = self
+            .islands
+            .get_mut(island_id.0 as usize)
+            .unwrap_or_else(|| {
+                panic!("Island {island_id} does not exist");
+            });
 
         let mut contact_island = IslandNode {
             island_id: island.id,
@@ -603,7 +624,7 @@ impl PhysicsIslands {
 
         let island = self
             .islands
-            .get_mut(contact_island.island_id as usize)
+            .get_mut(contact_island.island_id.0 as usize)
             .unwrap_or_else(|| {
                 panic!("Island {} does not exist", contact_island.island_id);
             });
@@ -656,9 +677,12 @@ impl PhysicsIslands {
         );
 
         // Link the joint to the island.
-        let island = self.islands.get_mut(island_id as usize).unwrap_or_else(|| {
-            panic!("Island {island_id} does not exist");
-        });
+        let island = self
+            .islands
+            .get_mut(island_id.0 as usize)
+            .unwrap_or_else(|| {
+                panic!("Island {island_id} does not exist");
+            });
 
         let mut joint_island = IslandNode {
             island_id: island.id,
@@ -718,7 +742,7 @@ impl PhysicsIslands {
     ) -> &PhysicsIsland {
         let joint = joint_graph.get_mut_by_id(joint_id).unwrap();
 
-        debug_assert!(joint.island.island_id != u32::MAX);
+        debug_assert!(joint.island.island_id != IslandId::PLACEHOLDER);
 
         // Remove the island from the joint edge.
         let joint_island = joint.island;
@@ -740,7 +764,7 @@ impl PhysicsIslands {
 
         let island = self
             .islands
-            .get_mut(joint_island.island_id as usize)
+            .get_mut(joint_island.island_id.0 as usize)
             .unwrap_or_else(|| {
                 panic!("Island {} does not exist", joint_island.island_id);
             });
@@ -786,7 +810,7 @@ impl PhysicsIslands {
         body_islands: &mut Query<&mut BodyIslandNode, Or<(With<Disabled>, Without<Disabled>)>>,
         contact_graph: &mut ContactGraph,
         joint_graph: &mut JointGraph,
-    ) -> u32 {
+    ) -> IslandId {
         let Ok(island_id1) = body_islands.get(body1).map(|island| island.island_id) else {
             let island2 = body_islands.get(body2).unwrap_or_else(|_| {
                 panic!("Neither body {body1:?} nor {body2:?} is in an island");
@@ -810,7 +834,7 @@ impl PhysicsIslands {
         // Keep the bigger island to reduce cache misses.
         let [mut big, mut small] = self
             .islands
-            .get_disjoint_mut([island_id1 as usize, island_id2 as usize])
+            .get_disjoint_mut([island_id1.0 as usize, island_id2.0 as usize])
             .unwrap();
         if big.body_count < small.body_count {
             core::mem::swap(&mut big, &mut small);
@@ -962,13 +986,13 @@ impl PhysicsIslands {
     /// Unlike merging, splitting can be deferred and done in parallel with other work.
     pub fn split_island(
         &mut self,
-        island_id: u32,
+        island_id: IslandId,
         body_islands: &mut Query<&mut BodyIslandNode, Or<(With<Disabled>, Without<Disabled>)>>,
         body_colliders: &Query<&RigidBodyColliders>,
         contact_graph: &mut ContactGraph,
         joint_graph: &mut JointGraph,
     ) {
-        let island = self.islands.get_mut(island_id as usize).unwrap();
+        let island = self.islands.get_mut(island_id.0 as usize).unwrap();
 
         if island.is_sleeping {
             // Only awake islands can be split.
@@ -1238,9 +1262,8 @@ impl PhysicsIslands {
 #[derive(Clone, Debug, PartialEq, Eq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct IslandNode<Id> {
-    // 4_294_967_295 islands is probably enough :)
     /// The ID of the island that the node belongs to.
-    pub(crate) island_id: u32,
+    pub(crate) island_id: IslandId,
     /// The ID of the previous node in the linked list.
     pub(crate) prev: Option<Id>,
     /// The ID of the next node in the linked list.
@@ -1252,7 +1275,7 @@ pub struct IslandNode<Id> {
 impl<Id> IslandNode<Id> {
     /// A placeholder [`IslandNode`] that has not been initialized yet.
     pub const PLACEHOLDER: Self = Self {
-        island_id: u32::MAX,
+        island_id: IslandId::PLACEHOLDER,
         prev: None,
         next: None,
         is_visited: false,

@@ -6,7 +6,7 @@ use crate::{
     data_structures::{bit_vec::BitVec, pair_key::PairKey},
     dynamics::solver::{
         constraint_graph::ConstraintGraph,
-        islands::{BodyIslandNode, PhysicsIslands, WakeIslands},
+        islands::{BodyIslandNode, IslandId, PhysicsIslands, WakeIslands},
         joint_graph::JointGraph,
     },
     prelude::*,
@@ -132,7 +132,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         // Update contacts for all contact pairs.
         self.update_contacts::<H>(delta_secs, hooks, context, commands);
 
-        let mut islands_to_wake: Vec<u32> = Vec::with_capacity(128);
+        let mut islands_to_wake: Vec<IslandId> = Vec::with_capacity(128);
 
         // Process contact status changes, iterating over set bits serially to maintain determinism.
         //

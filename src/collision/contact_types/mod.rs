@@ -17,7 +17,7 @@ use crate::{
 use bevy::prelude::*;
 
 /// A stable identifier for a [`ContactEdge`].
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Reflect)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, PartialEq)]
@@ -39,6 +39,12 @@ impl From<ContactId> for EdgeIndex {
 impl From<EdgeIndex> for ContactId {
     fn from(id: EdgeIndex) -> Self {
         Self(id.0)
+    }
+}
+
+impl core::fmt::Display for ContactId {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "ContactId({})", self.0)
     }
 }
 
