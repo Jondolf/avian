@@ -67,6 +67,7 @@
 //! | `parallel`             | Enables some extra multithreading, which improves performance for larger simulations but can add some overhead for smaller ones.                    | Yes             |
 //! | `simd`                 | Enables [SIMD] optimizations.                                                                                                                       | No              |
 //! | `serialize`            | Enables support for serialization and deserialization using Serde.                                                                                  | No              |
+//! | `validate`             | Enables additional correctness checks and validation at the cost of worse performance.                                                              | No              |
 //!
 //! [`bevy_picking`]: bevy::picking
 //! [physics diagnostics]: diagnostics

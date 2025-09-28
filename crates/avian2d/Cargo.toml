@@ -71,6 +71,9 @@ bevy_diagnostic = []
 # Enables the `PhysicsDiagnosticsUiPlugin` for visualizing physics diagnostics data with a debug UI.
 diagnostic_ui = ["bevy_diagnostic", "bevy/bevy_ui"]
 
+# Enables additional correctness checks and validation at the cost of worse performance.
+validate = []
+
 [lib]
 name = "avian2d"
 path = "../../src/lib.rs"
