@@ -49,7 +49,7 @@
 #![cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
 //! # use bevy::prelude::*;
 //! #
-//! fn print_started_collisions(mut collision_reader: MessageReader<CollisionStarted>) {
+//! fn print_started_collisions(mut collision_reader: MessageReader<CollisionStart>) {
 //!     for event in collision_reader.read() {
 //!         println!("{} and {} started colliding", event.collider1, event.collider2);
 //!     }
@@ -105,8 +105,7 @@ use bevy::prelude::*;
 /// Below is an example of observing the [`CollisionStart`] event using an [observer](Observer).
 ///
 /// ```
-#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
+/// use avian3d::prelude::*;
 /// use bevy::prelude::*;
 ///
 /// #[derive(Component)]
@@ -118,8 +117,7 @@ use bevy::prelude::*;
 /// fn setup_pressure_plates(mut commands: Commands) {
 ///     commands.spawn((
 ///         PressurePlate,
-#[cfg_attr(feature = "2d", doc = "        Collider::rectangle(1.0, 1.0),")]
-#[cfg_attr(feature = "3d", doc = "        Collider::cuboid(1.0, 0.1, 1.0),")]
+///         Collider::cuboid(1.0, 0.1, 1.0),
 ///         Sensor,
 ///         // Enable collision events for this entity.
 ///         CollisionEventsEnabled,
@@ -143,7 +141,7 @@ use bevy::prelude::*;
 /// This can be more efficient for processing large numbers of collisions.
 ///
 /// ```
-/// fn print_started_collisions(mut collision_reader: MessageReader<CollisionStarted>) {
+/// fn print_started_collisions(mut collision_reader: MessageReader<CollisionStart>) {
 ///     for event in collision_reader.read() {
 ///         println!("{} and {} started colliding", event.collider1, event.collider2);
 ///     }
@@ -230,7 +228,7 @@ pub type OnCollisionStart = CollisionStart;
 /// This can be more efficient for processing large numbers of collisions.
 ///
 /// ```
-/// fn print_ended_collisions(mut collision_reader: MessageReader<CollisionEnded>) {
+/// fn print_ended_collisions(mut collision_reader: MessageReader<CollisionEnd>) {
 ///     for event in collision_reader.read() {
 ///         println!("{} and {} stopped colliding", event.collider1, event.collider2);
 ///     }
