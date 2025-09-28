@@ -568,7 +568,7 @@ impl PhysicsIslands {
 
         island.contact_count += 1;
 
-        #[cfg(debug_assertions)]
+        #[cfg(feature = "validate")]
         {
             // Validate the island.
             island.validate(
@@ -587,6 +587,10 @@ impl PhysicsIslands {
     /// The [`PhysicsIsland::constraints_removed`] counter is incremented.
     ///
     /// Called when a contact is destroyed or no longer touching.
+    #[expect(
+        unused_variables,
+        reason = "additional parameters are needed with the `validate` feature"
+    )]
     pub fn remove_contact(
         &mut self,
         contact_id: ContactId,
@@ -647,7 +651,7 @@ impl PhysicsIslands {
         island.contact_count -= 1;
         island.constraints_removed += 1;
 
-        #[cfg(debug_assertions)]
+        #[cfg(feature = "validate")]
         {
             // Validate the island.
             island.validate(&body_islands.as_readonly(), contact_graph, joint_graph);
@@ -716,7 +720,7 @@ impl PhysicsIslands {
 
         island.joint_count += 1;
 
-        #[cfg(debug_assertions)]
+        #[cfg(feature = "validate")]
         {
             // Validate the island.
             island.validate(
@@ -737,6 +741,10 @@ impl PhysicsIslands {
     /// The joint should be removed from the [`JointGraph`] in concert with calling this method.
     ///
     /// Called when a joint is destroyed or no longer connected to the bodies.
+    #[expect(
+        unused_variables,
+        reason = "additional parameters are needed with the `validate` feature"
+    )]
     pub fn remove_joint(
         &mut self,
         joint_id: JointId,
@@ -787,7 +795,7 @@ impl PhysicsIslands {
         island.joint_count -= 1;
         island.constraints_removed += 1;
 
-        #[cfg(debug_assertions)]
+        #[cfg(feature = "validate")]
         {
             // Validate the island.
             island.validate(
@@ -967,7 +975,7 @@ impl PhysicsIslands {
             big.sleep_timer = small.sleep_timer.max(big.sleep_timer);
         }
 
-        #[cfg(debug_assertions)]
+        #[cfg(feature = "validate")]
         {
             // Validate the big island.
             big.validate(
@@ -1008,7 +1016,7 @@ impl PhysicsIslands {
             return;
         }
 
-        #[cfg(debug_assertions)]
+        #[cfg(feature = "validate")]
         {
             // Validate the island before splitting.
             island.validate(
@@ -1246,7 +1254,7 @@ impl PhysicsIslands {
                 }
             }
 
-            #[cfg(debug_assertions)]
+            #[cfg(feature = "validate")]
             {
                 // Validate the new island.
                 island.validate(
@@ -1341,6 +1349,7 @@ impl BodyIslandNode {
         debug_assert!(island.body_count > 0);
         island.body_count -= 1;
 
+        #[cfg(feature = "validate")]
         let mut island_removed = false;
 
         if island.head_body == Some(ctx.entity) {
@@ -1355,13 +1364,17 @@ impl BodyIslandNode {
                 world
                     .resource_mut::<PhysicsIslands>()
                     .remove_island(island_id);
-                island_removed = true;
+
+                #[cfg(feature = "validate")]
+                {
+                    island_removed = true;
+                }
             }
         } else if island.tail_body == Some(ctx.entity) {
             island.tail_body = prev_body_entity;
         }
 
-        #[cfg(debug_assertions)]
+        #[cfg(feature = "validate")]
         if !island_removed {
             // Validate the island.
             world.commands().queue(move |world: &mut World| {
