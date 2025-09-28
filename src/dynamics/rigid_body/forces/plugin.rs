@@ -19,19 +19,6 @@ pub struct ForcePlugin;
 
 impl Plugin for ForcePlugin {
     fn build(&self, app: &mut App) {
-        // Register types.
-        app.register_type::<(
-            ConstantForce,
-            ConstantTorque,
-            ConstantLinearAcceleration,
-            ConstantAngularAcceleration,
-            ConstantLocalForce,
-            ConstantLocalLinearAcceleration,
-            AccumulatedLocalAcceleration,
-        )>();
-        #[cfg(feature = "3d")]
-        app.register_type::<(ConstantLocalTorque, ConstantLocalAngularAcceleration)>();
-
         // Set up system sets.
         app.configure_sets(
             PhysicsSchedule,

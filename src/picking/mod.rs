@@ -63,12 +63,7 @@ pub struct PhysicsPickingPlugin;
 impl Plugin for PhysicsPickingPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PhysicsPickingSettings>()
-            .add_systems(PreUpdate, update_hits.in_set(PickingSystems::Backend))
-            .register_type::<(
-                PhysicsPickingSettings,
-                PhysicsPickable,
-                PhysicsPickingFilter,
-            )>();
+            .add_systems(PreUpdate, update_hits.in_set(PickingSystems::Backend));
     }
 
     fn finish(&self, app: &mut App) {

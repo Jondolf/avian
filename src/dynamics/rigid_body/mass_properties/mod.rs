@@ -276,20 +276,6 @@ impl Default for MassPropertyPlugin {
 
 impl Plugin for MassPropertyPlugin {
     fn build(&self, app: &mut App) {
-        app.register_type::<(
-            Mass,
-            AngularInertia,
-            CenterOfMass,
-            ComputedMass,
-            ComputedAngularInertia,
-            ComputedCenterOfMass,
-            ColliderDensity,
-            ColliderMassProperties,
-            NoAutoMass,
-            NoAutoAngularInertia,
-            NoAutoCenterOfMass,
-        )>();
-
         // TODO: We probably don't need this since we have the observer.
         // Force mass property computation for new rigid bodies.
         app.register_required_components::<RigidBody, RecomputeMassProperties>();

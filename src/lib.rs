@@ -500,9 +500,6 @@ pub mod spatial_query;
 
 pub mod data_structures;
 
-mod type_registration;
-pub use type_registration::PhysicsTypeRegistrationPlugin;
-
 // TODO: Where should this go?
 pub(crate) mod ancestor_marker;
 
@@ -531,7 +528,6 @@ pub mod prelude {
             PhysicsTime, Substeps,
         },
         spatial_query::{self, *},
-        type_registration::PhysicsTypeRegistrationPlugin,
     };
     pub(crate) use crate::{
         diagnostics::AppDiagnosticsExt,
@@ -564,7 +560,6 @@ use prelude::*;
 /// | Plugin                            | Description                                                                                                                                                |
 /// | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 /// | [`PhysicsSchedulePlugin`]         | Sets up the physics engine by initializing the necessary schedules, sets and resources.                                                                    |
-/// | [`PhysicsTypeRegistrationPlugin`] | Registers physics types to the `TypeRegistry` resource in `bevy_reflect`.                                                                                  |
 /// | [`ColliderBackendPlugin`]         | Handles generic collider backend logic, like initializing colliders and AABBs and updating related components.                                             |
 /// | [`ColliderHierarchyPlugin`]       | Manages [`ColliderOf`] relationships based on the entity hierarchy.                                                                                        |
 /// | [`ColliderTransformPlugin`]       | Propagates and updates transforms for colliders.
@@ -788,7 +783,6 @@ impl PluginGroup for PhysicsPlugins {
     fn build(self) -> PluginGroupBuilder {
         let builder = PluginGroupBuilder::start::<Self>()
             .add(PhysicsSchedulePlugin::new(self.schedule))
-            .add(PhysicsTypeRegistrationPlugin)
             .add(MassPropertyPlugin::new(self.schedule))
             .add(ForcePlugin)
             .add(ColliderHierarchyPlugin)

@@ -36,8 +36,6 @@ pub struct SolverBodyPlugin;
 
 impl Plugin for SolverBodyPlugin {
     fn build(&self, app: &mut App) {
-        app.register_type::<(SolverBody, SolverBodyInertia)>();
-
         // Add or remove solver bodies when `RigidBody` component is added or replaced.
         app.add_observer(on_insert_rigid_body);
 

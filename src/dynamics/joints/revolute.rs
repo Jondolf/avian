@@ -347,7 +347,6 @@ impl MapEntities for RevoluteJoint {
 }
 
 pub(super) fn plugin(app: &mut App) {
-    app.register_type::<RevoluteJoint>();
     app.add_systems(
         PhysicsSchedule,
         update_local_frames.in_set(JointSet::PrepareLocalFrames),

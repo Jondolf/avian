@@ -249,13 +249,6 @@ impl Plugin for JointPlugin {
             spherical::plugin,
         ));
 
-        app.register_type::<(
-            JointDisabled,
-            JointCollisionDisabled,
-            JointDamping,
-            JointForces,
-        )>();
-
         app.configure_sets(
             PhysicsSchedule,
             JointSet::PrepareLocalFrames

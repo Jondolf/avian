@@ -9,16 +9,19 @@ use bevy::prelude::*;
 ///
 /// One use case is speeding up transform propagation: we only need to propagate
 /// down trees that have a certain type of entity, like a collider or a rigid body.
-pub struct AncestorMarkerPlugin<C: Component>(PhantomData<C>);
+pub struct AncestorMarkerPlugin<C: Component + TypePath>(PhantomData<C>);
 
-impl<C: Component> Default for AncestorMarkerPlugin<C> {
+impl<C: Component + TypePath> Default for AncestorMarkerPlugin<C> {
     fn default() -> Self {
         Self(PhantomData)
     }
 }
 
-impl<C: Component> Plugin for AncestorMarkerPlugin<C> {
+impl<C: Component + TypePath> Plugin for AncestorMarkerPlugin<C> {
     fn build(&self, app: &mut App) {
+        // Register types with generics.
+        app.register_type::<AncestorMarker<C>>();
+
         // Add `AncestorMarker<C>` for the ancestors of colliders that are inserted as children,
         // until an ancestor that has other `AncestorMarker<C>` entities as children is encountered.
         app.add_observer(
@@ -175,7 +178,7 @@ fn remove_ancestor_markers<C: Component>(
 mod tests {
     use super::*;
 
-    #[derive(Component)]
+    #[derive(Component, Reflect)]
     struct C;
 
     #[test]

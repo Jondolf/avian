@@ -120,43 +120,39 @@ impl Plugin for PhysicsDebugPlugin {
             config.line.width = 1.5;
         }
 
-        app.register_type::<PhysicsGizmos>()
-            .register_type::<DebugRender>()
-            .add_systems(
-                self.schedule,
-                (
-                    debug_render_axes,
-                    debug_render_aabbs,
-                    #[cfg(all(
-                        feature = "default-collider",
-                        any(feature = "parry-f32", feature = "parry-f64")
-                    ))]
-                    debug_render_colliders,
-                    debug_render_contacts,
-                    // TODO: Refactor joints to allow iterating over all of them without generics
-                    debug_render_constraint::<FixedJoint, 2>,
-                    debug_render_constraint::<PrismaticJoint, 2>,
-                    debug_render_constraint::<DistanceJoint, 2>,
-                    debug_render_constraint::<RevoluteJoint, 2>,
-                    #[cfg(feature = "3d")]
-                    debug_render_constraint::<SphericalJoint, 2>,
-                    debug_render_raycasts,
-                    #[cfg(all(
-                        feature = "default-collider",
-                        any(feature = "parry-f32", feature = "parry-f64")
-                    ))]
-                    debug_render_shapecasts,
-                    debug_render_islands.run_if(resource_exists::<PhysicsIslands>),
-                )
-                    .after(PhysicsSet::StepSimulation)
-                    .run_if(|store: Res<GizmoConfigStore>| {
-                        store.config::<PhysicsGizmos>().0.enabled
-                    }),
+        app.add_systems(
+            self.schedule,
+            (
+                debug_render_axes,
+                debug_render_aabbs,
+                #[cfg(all(
+                    feature = "default-collider",
+                    any(feature = "parry-f32", feature = "parry-f64")
+                ))]
+                debug_render_colliders,
+                debug_render_contacts,
+                // TODO: Refactor joints to allow iterating over all of them without generics
+                debug_render_constraint::<FixedJoint, 2>,
+                debug_render_constraint::<PrismaticJoint, 2>,
+                debug_render_constraint::<DistanceJoint, 2>,
+                debug_render_constraint::<RevoluteJoint, 2>,
+                #[cfg(feature = "3d")]
+                debug_render_constraint::<SphericalJoint, 2>,
+                debug_render_raycasts,
+                #[cfg(all(
+                    feature = "default-collider",
+                    any(feature = "parry-f32", feature = "parry-f64")
+                ))]
+                debug_render_shapecasts,
+                debug_render_islands.run_if(resource_exists::<PhysicsIslands>),
             )
-            .add_systems(
-                self.schedule,
-                change_mesh_visibility.after(PhysicsSet::StepSimulation),
-            );
+                .after(PhysicsSet::StepSimulation)
+                .run_if(|store: Res<GizmoConfigStore>| store.config::<PhysicsGizmos>().0.enabled),
+        )
+        .add_systems(
+            self.schedule,
+            change_mesh_visibility.after(PhysicsSet::StepSimulation),
+        );
     }
 }
 

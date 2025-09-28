@@ -115,13 +115,6 @@ where
         #[cfg(feature = "parallel")]
         app.init_resource::<ThreadLocalContactStatusBits>();
 
-        app.register_type::<(
-            NarrowPhaseConfig,
-            DefaultFriction,
-            DefaultRestitution,
-            CollisionEventsEnabled,
-        )>();
-
         app.add_message::<CollisionStart>()
             .add_message::<CollisionEnd>();
 

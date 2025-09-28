@@ -22,8 +22,6 @@ pub struct PhysicsDiagnosticsUiPlugin;
 
 impl Plugin for PhysicsDiagnosticsUiPlugin {
     fn build(&self, app: &mut App) {
-        app.register_type::<PhysicsDiagnosticsUiSettings>();
-
         app.init_resource::<PhysicsDiagnosticsUiSettings>();
 
         app.add_systems(Startup, setup_diagnostics_ui).add_systems(

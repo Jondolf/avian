@@ -249,8 +249,6 @@ pub struct CcdPlugin;
 
 impl Plugin for CcdPlugin {
     fn build(&self, app: &mut App) {
-        app.register_type::<SweptCcd>().register_type::<SweepMode>();
-
         // Get the `PhysicsSchedule`, and panic if it doesn't exist.
         let physics = app
             .get_schedule_mut(PhysicsSchedule)

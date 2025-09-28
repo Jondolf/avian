@@ -57,6 +57,9 @@ impl Default for PhysicsSchedulePlugin {
 
 impl Plugin for PhysicsSchedulePlugin {
     fn build(&self, app: &mut App) {
+        // Register types with generics.
+        app.register_type::<Time<Physics>>();
+
         app.init_resource::<Time<Physics>>()
             .insert_resource(Time::new_with(Substeps))
             .init_resource::<SubstepCount>()

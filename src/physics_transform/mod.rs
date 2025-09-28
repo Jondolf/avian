@@ -66,8 +66,7 @@ impl Default for PhysicsTransformPlugin {
 
 impl Plugin for PhysicsTransformPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<PhysicsTransformConfig>()
-            .register_type::<PhysicsTransformConfig>();
+        app.init_resource::<PhysicsTransformConfig>();
 
         if app
             .world()
