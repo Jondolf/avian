@@ -7,7 +7,8 @@ use bevy::{
     ecs::{
         entity::Entity,
         entity_disabling::Disabled,
-        observer::Trigger,
+        lifecycle::{Insert, Replace},
+        observer::On,
         query::{Changed, Has, Or, With, Without},
         resource::Resource,
         schedule::{
@@ -18,7 +19,7 @@ use bevy::{
             Command, Commands, Local, ParamSet, Query, Res, ResMut, SystemChangeTick, SystemState,
             lifetimeless::{SQuery, SResMut},
         },
-        world::{Mut, OnInsert, OnReplace, Ref, World},
+        world::{Mut, Ref, World},
     },
     log::warn,
     prelude::{Deref, DerefMut},
@@ -72,11 +73,11 @@ impl Plugin for IslandSleepingPlugin {
 }
 
 fn wake_on_replace_rigid_body(
-    trigger: Trigger<OnReplace, RigidBody>,
+    trigger: On<Replace, RigidBody>,
     mut commands: Commands,
     query: Query<&BodyIslandNode>,
 ) {
-    let Ok(body_island) = query.get(trigger.target()) else {
+    let Ok(body_island) = query.get(trigger.entity) else {
         return;
     };
 
@@ -84,19 +85,19 @@ fn wake_on_replace_rigid_body(
 }
 
 fn wake_on_enable_rigid_body(
-    trigger: Trigger<OnInsert, BodyIslandNode>,
+    trigger: On<Insert, BodyIslandNode>,
     mut commands: Commands,
     mut query: Query<
         (&BodyIslandNode, &mut SleepTimer, Has<Sleeping>),
         Or<(With<Disabled>, Without<Disabled>)>,
     >,
 ) {
-    let Ok((body_island, mut sleep_timer, is_sleeping)) = query.get_mut(trigger.target()) else {
+    let Ok((body_island, mut sleep_timer, is_sleeping)) = query.get_mut(trigger.entity) else {
         return;
     };
 
     if is_sleeping {
-        commands.entity(trigger.target()).try_remove::<Sleeping>();
+        commands.entity(trigger.entity).try_remove::<Sleeping>();
     }
 
     // Reset the sleep timer and wake up the island.

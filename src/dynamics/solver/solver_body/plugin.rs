@@ -124,23 +124,23 @@ impl Plugin for SolverBodyPlugin {
 }
 
 fn on_insert_rigid_body(
-    trigger: Trigger<OnInsert, RigidBody>,
+    trigger: On<Insert, RigidBody>,
     bodies: Query<(&RigidBody, Has<SolverBody>), RigidBodyActiveFilter>,
     mut commands: Commands,
 ) {
-    let Ok((rb, has_solver_body)) = bodies.get(trigger.target()) else {
+    let Ok((rb, has_solver_body)) = bodies.get(trigger.entity) else {
         return;
     };
 
     if rb.is_static() && has_solver_body {
         // Remove the solver body if the rigid body is static.
         commands
-            .entity(trigger.target())
+            .entity(trigger.entity)
             .try_remove::<(SolverBody, SolverBodyInertia)>();
     } else if !rb.is_static() && !has_solver_body {
         // Create a new solver body if the rigid body is dynamic or kinematic.
         commands
-            .entity(trigger.target())
+            .entity(trigger.entity)
             .try_insert((SolverBody::default(), SolverBodyInertia::default()));
     }
 }
