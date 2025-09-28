@@ -1,7 +1,4 @@
-use avian2d::{
-    math::*,
-    prelude::{NarrowPhaseSet, *},
-};
+use avian2d::{math::*, prelude::*};
 use bevy::{ecs::query::Has, prelude::*};
 
 pub struct CharacterControllerPlugin;
@@ -27,7 +24,7 @@ impl Plugin for CharacterControllerPlugin {
                 // NOTE: The collision implementation here is very basic and a bit buggy.
                 //       A collide-and-slide algorithm would likely work better.
                 PhysicsSchedule,
-                kinematic_controller_collisions.in_set(NarrowPhaseSet::Last),
+                kinematic_controller_collisions.in_set(NarrowPhaseSystems::Last),
             );
     }
 }
@@ -47,6 +44,7 @@ pub struct CharacterController;
 #[derive(Component)]
 #[component(storage = "SparseSet")]
 pub struct Grounded;
+
 /// The acceleration used for character movement.
 #[derive(Component)]
 pub struct MovementAcceleration(Scalar);

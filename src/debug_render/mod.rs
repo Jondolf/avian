@@ -146,12 +146,12 @@ impl Plugin for PhysicsDebugPlugin {
                 debug_render_shapecasts,
                 debug_render_islands.run_if(resource_exists::<PhysicsIslands>),
             )
-                .after(PhysicsSet::StepSimulation)
+                .after(PhysicsSystems::StepSimulation)
                 .run_if(|store: Res<GizmoConfigStore>| store.config::<PhysicsGizmos>().0.enabled),
         )
         .add_systems(
             self.schedule,
-            change_mesh_visibility.after(PhysicsSet::StepSimulation),
+            change_mesh_visibility.after(PhysicsSystems::StepSimulation),
         );
     }
 }

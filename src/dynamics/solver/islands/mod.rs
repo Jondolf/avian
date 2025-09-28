@@ -62,7 +62,8 @@ use crate::{
         solver_body::SolverBody,
     },
     prelude::{
-        ContactGraph, PhysicsSchedule, RigidBody, RigidBodyColliders, RigidBodyDisabled, SolverSet,
+        ContactGraph, PhysicsSchedule, RigidBody, RigidBodyColliders, RigidBodyDisabled,
+        SolverSystems,
     },
 };
 
@@ -150,7 +151,10 @@ impl Plugin for IslandPlugin {
             },
         );
 
-        app.add_systems(PhysicsSchedule, split_island.in_set(SolverSet::Finalize));
+        app.add_systems(
+            PhysicsSchedule,
+            split_island.in_set(SolverSystems::Finalize),
+        );
     }
 }
 

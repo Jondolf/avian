@@ -29,11 +29,11 @@ use bevy::{
 ///
 /// This plugin initializes and configures the following schedules and system sets:
 ///
-/// - [`PhysicsSet`]: High-level system sets for the main phases of the physics engine.
+/// - [`PhysicsSystems`]: High-level system sets for the main phases of the physics engine.
 ///   You can use these to schedule your own systems before or after physics is run without
 ///   having to worry about implementation details.
-/// - [`PhysicsSchedule`]: Responsible for advancing the simulation in [`PhysicsSet::StepSimulation`].
-/// - [`PhysicsStepSet`]: System sets for the steps of the actual physics simulation loop.
+/// - [`PhysicsSchedule`]: Responsible for advancing the simulation in [`PhysicsSystems::StepSimulation`].
+/// - [`PhysicsStepSystems`]: System sets for the steps of the actual physics simulation loop.
 pub struct PhysicsSchedulePlugin {
     schedule: Interned<dyn ScheduleLabel>,
 }
@@ -74,11 +74,11 @@ impl Plugin for PhysicsSchedulePlugin {
         app.configure_sets(
             schedule,
             (
-                PhysicsSet::First,
-                PhysicsSet::Prepare,
-                PhysicsSet::StepSimulation,
-                PhysicsSet::Writeback,
-                PhysicsSet::Last,
+                PhysicsSystems::First,
+                PhysicsSystems::Prepare,
+                PhysicsSystems::StepSimulation,
+                PhysicsSystems::Writeback,
+                PhysicsSystems::Last,
             )
                 .chain()
                 .before(TransformSystems::Propagate),
@@ -95,14 +95,14 @@ impl Plugin for PhysicsSchedulePlugin {
 
             schedule.configure_sets(
                 (
-                    PhysicsStepSet::First,
-                    PhysicsStepSet::BroadPhase,
-                    PhysicsStepSet::NarrowPhase,
-                    PhysicsStepSet::Solver,
-                    PhysicsStepSet::Sleeping,
-                    PhysicsStepSet::SpatialQuery,
-                    PhysicsStepSet::Finalize,
-                    PhysicsStepSet::Last,
+                    PhysicsStepSystems::First,
+                    PhysicsStepSystems::BroadPhase,
+                    PhysicsStepSystems::NarrowPhase,
+                    PhysicsStepSystems::Solver,
+                    PhysicsStepSystems::Sleeping,
+                    PhysicsStepSystems::SpatialQuery,
+                    PhysicsStepSystems::Finalize,
+                    PhysicsStepSystems::Last,
                 )
                     .chain(),
             );
@@ -110,12 +110,12 @@ impl Plugin for PhysicsSchedulePlugin {
 
         app.add_systems(
             schedule,
-            run_physics_schedule.in_set(PhysicsSet::StepSimulation),
+            run_physics_schedule.in_set(PhysicsSystems::StepSimulation),
         );
 
         app.add_systems(
             PhysicsSchedule,
-            update_last_physics_tick.after(PhysicsStepSet::Last),
+            update_last_physics_tick.after(PhysicsStepSystems::Last),
         );
     }
 }
@@ -129,9 +129,9 @@ impl Default for IsFirstRun {
     }
 }
 
-/// Responsible for advancing the physics simulation. This is run in [`PhysicsSet::StepSimulation`].
+/// Responsible for advancing the physics simulation. This is run in [`PhysicsSystems::StepSimulation`].
 ///
-/// See [`PhysicsStepSet`] for the system sets that are run in this schedule.
+/// See [`PhysicsStepSystems`] for the system sets that are run in this schedule.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
 pub struct PhysicsSchedule;
 
@@ -142,25 +142,25 @@ pub struct PhysicsSchedule;
 /// 1. `First`: Runs right before any of Avian's physics systems. Empty by default.
 /// 2. `Prepare`: Responsible for preparing data for the physics simulation, such as updating
 ///    physics transforms or mass properties.
-/// 3. `StepSimulation`: Responsible for advancing the simulation by running the steps in [`PhysicsStepSet`].
+/// 3. `StepSimulation`: Responsible for advancing the simulation by running the steps in [`PhysicsStepSystems`].
 /// 4. `Writeback`: Responsible for writing back the results of the physics simulation to other data,
 ///    such as updating [`Transform`] based on the new [`Position`] and [`Rotation`].
 /// 5. `Last`: Runs right after all of Avian's physics systems. Empty by default.
 ///
 /// # See Also
 ///
-/// - [`PhysicsSchedule`]: Responsible for advancing the simulation in [`PhysicsSet::StepSimulation`].
-/// - [`PhysicsStepSet`]: System sets for the steps of the actual physics simulation loop, like
+/// - [`PhysicsSchedule`]: Responsible for advancing the simulation in [`PhysicsSystems::StepSimulation`].
+/// - [`PhysicsStepSystems`]: System sets for the steps of the actual physics simulation loop, like
 ///   the broad phase and the substepping loop.
-/// - [`SubstepSchedule`]: Responsible for running the substepping loop in [`PhysicsStepSet::Solver`].
+/// - [`SubstepSchedule`]: Responsible for running the substepping loop in [`PhysicsStepSystems::Solver`].
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum PhysicsSet {
+pub enum PhysicsSystems {
     /// Runs right before any of Avian's physics systems. Empty by default.
     First,
     /// Responsible for preparing data for the physics simulation, such as updating
     /// physics transforms or mass properties.
     Prepare,
-    /// Responsible for advancing the simulation by running the steps in [`PhysicsStepSet`].
+    /// Responsible for advancing the simulation by running the steps in [`PhysicsStepSystems`].
     /// Systems in this set are run in the [`PhysicsSchedule`].
     StepSimulation,
     /// Responsible for writing back the results of the physics simulation to other data,
@@ -169,6 +169,10 @@ pub enum PhysicsSet {
     /// Runs right after all of Avian's physics systems. Empty by default.
     Last,
 }
+
+/// A deprecated alias for [`PhysicsSystems`].
+#[deprecated(since = "0.4.0", note = "Renamed to `PhysicsSystems`")]
+pub type PhysicsSet = PhysicsSystems;
 
 /// System sets for the main steps in the physics simulation loop. These are typically run in the [`PhysicsSchedule`].
 ///
@@ -180,7 +184,7 @@ pub enum PhysicsSet {
 /// 6. Spatial queries
 /// 7. Last
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum PhysicsStepSet {
+pub enum PhysicsStepSystems {
     /// Runs at the start of the [`PhysicsSchedule`].
     First,
     /// Responsible for finding pairs of entities with overlapping [`ColliderAabb`]
@@ -207,6 +211,10 @@ pub enum PhysicsStepSet {
     /// Runs at the end of the [`PhysicsSchedule`].
     Last,
 }
+
+/// A deprecated alias for [`PhysicsStepSystems`].
+#[deprecated(since = "0.4.0", note = "Renamed to `PhysicsStepSystems`")]
+pub type PhysicsStepSet = PhysicsStepSystems;
 
 /// A [`Tick`] corresponding to the end of the previous run of the [`PhysicsSchedule`].
 #[derive(Resource, Reflect, Default)]

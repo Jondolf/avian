@@ -7,8 +7,8 @@ use core::marker::PhantomData;
 #[cfg(feature = "collider-from-mesh")]
 use crate::collision::collider::cache::ColliderCache;
 use crate::{
-    collision::broad_phase::BroadPhaseSet,
-    physics_transform::{PhysicsTransformConfig, PhysicsTransformSet, init_physics_transform},
+    collision::broad_phase::BroadPhaseSystems,
+    physics_transform::{PhysicsTransformConfig, PhysicsTransformSystems, init_physics_transform},
     prelude::*,
 };
 #[cfg(all(feature = "bevy_scene", feature = "default-collider"))]
@@ -247,8 +247,8 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             self.schedule,
             (
                 update_collider_scale::<C>
-                    .in_set(PhysicsSet::Prepare)
-                    .after(PhysicsTransformSet::TransformToPosition),
+                    .in_set(PhysicsSystems::Prepare)
+                    .after(PhysicsTransformSystems::TransformToPosition),
                 update_collider_mass_properties::<C>
                     .in_set(MassPropertySystems::UpdateColliderMassProperties),
             )
@@ -263,9 +263,9 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
         // to have multiple collision backends at the same time.
         physics_schedule.add_systems(
             update_aabb::<C>
-                .in_set(PhysicsStepSet::BroadPhase)
-                .after(BroadPhaseSet::First)
-                .before(BroadPhaseSet::UpdateStructures)
+                .in_set(PhysicsStepSystems::BroadPhase)
+                .after(BroadPhaseSystems::First)
+                .before(BroadPhaseSystems::UpdateStructures)
                 .ambiguous_with_all(),
         );
 

@@ -207,7 +207,7 @@ impl Plugin for SpatialQueryPlugin {
                     .chain(),
             )
                 .chain()
-                .in_set(PhysicsStepSet::SpatialQuery),
+                .in_set(PhysicsStepSystems::SpatialQuery),
         );
     }
 

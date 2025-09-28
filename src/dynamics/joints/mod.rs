@@ -251,19 +251,23 @@ impl Plugin for JointPlugin {
 
         app.configure_sets(
             PhysicsSchedule,
-            JointSet::PrepareLocalFrames
-                .after(SolverSet::PrepareSolverBodies)
-                .before(SolverSet::PrepareJoints),
+            JointSystems::PrepareLocalFrames
+                .after(SolverSystems::PrepareSolverBodies)
+                .before(SolverSystems::PrepareJoints),
         );
     }
 }
 
 /// System sets for [joints](dynamics::joints).
 #[derive(SystemSet, Clone, Debug, Hash, PartialEq, Eq)]
-pub enum JointSet {
+pub enum JointSystems {
     /// A system set for preparing local [`JointFrame`]s.
     PrepareLocalFrames,
 }
+
+/// A deprecated alias for [`JointSystems`].
+#[deprecated(since = "0.4.0", note = "Renamed to `JointSystems`")]
+pub type JointSet = JointSystems;
 
 /// A trait for constraints between entities.
 pub trait EntityConstraint<const ENTITY_COUNT: usize>: MapEntities {

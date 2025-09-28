@@ -6,14 +6,14 @@ use bevy::{
 use super::{SolverBody, SolverBodyInertia};
 use crate::{
     AngularVelocity, LinearVelocity, PhysicsSchedule, Position, RigidBody, RigidBodyActiveFilter,
-    RigidBodyDisabled, Rotation, Sleeping, SolverSet, Vector,
+    RigidBodyDisabled, Rotation, Sleeping, SolverSystems, Vector,
     dynamics::solver::{SolverDiagnostics, solver_body::SolverBodyFlags},
     prelude::{ComputedAngularInertia, ComputedCenterOfMass, ComputedMass, Dominance, LockedAxes},
 };
 #[cfg(feature = "3d")]
 use crate::{
     MatExt,
-    dynamics::integrator::{IntegrationSet, integrate_positions},
+    dynamics::integrator::{IntegrationSystems, integrate_positions},
     prelude::SubstepSchedule,
 };
 
@@ -100,13 +100,13 @@ impl Plugin for SolverBodyPlugin {
             PhysicsSchedule,
             prepare_solver_bodies
                 .chain()
-                .in_set(SolverSet::PrepareSolverBodies),
+                .in_set(SolverSystems::PrepareSolverBodies),
         );
 
         // Write back solver body data to rigid bodies after the substepping loop.
         app.add_systems(
             PhysicsSchedule,
-            writeback_solver_bodies.in_set(SolverSet::Finalize),
+            writeback_solver_bodies.in_set(SolverSystems::Finalize),
         );
 
         // Update the world-space angular inertia of solver bodies right after position integration
@@ -115,7 +115,7 @@ impl Plugin for SolverBodyPlugin {
         app.add_systems(
             SubstepSchedule,
             update_solver_body_angular_inertia
-                .in_set(IntegrationSet::Position)
+                .in_set(IntegrationSystems::Position)
                 .after(integrate_positions),
         );
     }

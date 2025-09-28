@@ -26,7 +26,7 @@ fn main() {
         .add_systems(Startup, setup)
         .add_systems(
             FixedUpdate,
-            (center_gravity, rotate).in_set(PhysicsStepSet::First),
+            (center_gravity, rotate).in_set(PhysicsStepSystems::First),
         )
         .run();
 }

@@ -126,23 +126,23 @@ where
         app.configure_sets(
             self.schedule,
             (
-                NarrowPhaseSet::First,
-                NarrowPhaseSet::Update,
-                NarrowPhaseSet::Last,
+                NarrowPhaseSystems::First,
+                NarrowPhaseSystems::Update,
+                NarrowPhaseSystems::Last,
             )
                 .chain()
-                .in_set(PhysicsStepSet::NarrowPhase),
+                .in_set(PhysicsStepSystems::NarrowPhase),
         );
         app.configure_sets(
             self.schedule,
-            CollisionEventSystems.in_set(PhysicsStepSet::Finalize),
+            CollisionEventSystems.in_set(PhysicsStepSystems::Finalize),
         );
 
         // Perform narrow phase collision detection.
         app.add_systems(
             self.schedule,
             update_narrow_phase::<C, H>
-                .in_set(NarrowPhaseSet::Update)
+                .in_set(NarrowPhaseSystems::Update)
                 // Allowing ambiguities is required so that it's possible
                 // to have multiple collision backends at the same time.
                 .ambiguous_with_all(),
@@ -175,7 +175,7 @@ where
                     .in_set(CollisionEventSystems)
                     // TODO: Ideally we don't need to make this ambiguous, but currently it is
                     //       to avoid conflicts since the system has exclusive world access.
-                    .ambiguous_with(PhysicsStepSet::Finalize),
+                    .ambiguous_with(PhysicsStepSystems::Finalize),
             );
         }
 
@@ -190,7 +190,7 @@ where
 
 /// A system set for triggering the [`CollisionStart`] and [`CollisionEnd`] events.
 ///
-/// Runs in [`PhysicsStepSet::Finalize`], after the solver has run and contact impulses
+/// Runs in [`PhysicsStepSystems::Finalize`], after the solver has run and contact impulses
 /// have been computed and applied.
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct CollisionEventSystems;
@@ -254,9 +254,9 @@ impl Default for NarrowPhaseConfig {
     }
 }
 
-/// System sets for systems running in [`PhysicsStepSet::NarrowPhase`].
+/// System sets for systems running in [`PhysicsStepSystems::NarrowPhase`].
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum NarrowPhaseSet {
+pub enum NarrowPhaseSystems {
     /// Runs at the start of the narrow phase. Empty by default.
     First,
     /// Updates contacts in the [`ContactGraph`] and processes contact state changes.
@@ -264,6 +264,10 @@ pub enum NarrowPhaseSet {
     /// Runs at the end of the narrow phase. Empty by default.
     Last,
 }
+
+/// A deprecated alias for [`NarrowPhaseSystems`].
+#[deprecated(since = "0.4.0", note = "Renamed to `NarrowPhaseSystems`")]
+pub type NarrowPhaseSet = NarrowPhaseSystems;
 
 fn update_narrow_phase<C: AnyCollider, H: CollisionHooks + 'static>(
     mut narrow_phase: NarrowPhase<C>,

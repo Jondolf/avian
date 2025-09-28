@@ -33,7 +33,7 @@ fn main() {
     app.add_systems(
         PhysicsSchedule,
         prepare_xpbd_joint::<CenterDistanceConstraint>
-            .in_set(SolverSet::PreSubstep)
+            .in_set(SolverSystems::PreSubstep)
             .ambiguous_with_all(),
     );
 
@@ -42,7 +42,8 @@ fn main() {
         .get_schedule_mut(SubstepSchedule)
         .expect("add SubstepSchedule first");
     substeps.add_systems(
-        solve_xpbd_joint::<CenterDistanceConstraint>.in_set(XpbdSolverSet::SolveUserConstraints),
+        solve_xpbd_joint::<CenterDistanceConstraint>
+            .in_set(XpbdSolverSystems::SolveUserConstraints),
     );
 
     // Run the app

@@ -12,7 +12,7 @@ use crate::{
         },
     },
     prelude::{
-        ContactGraph, JointCollisionDisabled, JointDisabled, PhysicsSchedule, PhysicsStepSet,
+        ContactGraph, JointCollisionDisabled, JointDisabled, PhysicsSchedule, PhysicsStepSystems,
         RigidBodyColliders, WakeIslands,
     },
 };
@@ -110,8 +110,8 @@ impl<T: Component + EntityConstraint<2>> Plugin for JointGraphPlugin<T> {
         app.add_systems(
             PhysicsSchedule,
             on_change_joint_entities::<T>
-                .in_set(PhysicsStepSet::First)
-                .ambiguous_with(PhysicsStepSet::First),
+                .in_set(PhysicsStepSystems::First)
+                .ambiguous_with(PhysicsStepSystems::First),
         );
     }
 }

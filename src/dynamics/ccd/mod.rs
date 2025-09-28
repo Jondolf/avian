@@ -255,19 +255,23 @@ impl Plugin for CcdPlugin {
             .expect("add PhysicsSchedule first");
 
         physics.configure_sets(
-            SweptCcdSet
-                .after(SolverSet::PostSubstep)
-                .before(SolverSet::Restitution),
+            SweptCcdSystems
+                .after(SolverSystems::PostSubstep)
+                .before(SolverSystems::Restitution),
         );
 
         #[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
-        physics.add_systems(solve_swept_ccd.in_set(SweptCcdSet));
+        physics.add_systems(solve_swept_ccd.in_set(SweptCcdSystems));
     }
 }
 
 /// A system set for [Continuous Collision Detection](self) systems.
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct SweptCcdSet;
+pub struct SweptCcdSystems;
+
+/// A deprecated alias for [`SweptCcdSystems`].
+#[deprecated(since = "0.4.0", note = "Renamed to `SweptCcdSystems`")]
+pub type SweptCcdSet = SweptCcdSystems;
 
 /// The maximum distance at which [speculative contacts](self#speculative-collision)
 /// are generated for this entity. A value greater than zero helps prevent missing

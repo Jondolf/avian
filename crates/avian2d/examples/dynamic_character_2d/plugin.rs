@@ -34,6 +34,7 @@ pub struct CharacterController;
 #[derive(Component)]
 #[component(storage = "SparseSet")]
 pub struct Grounded;
+
 /// The acceleration used for character movement.
 #[derive(Component)]
 pub struct MovementAcceleration(Scalar);

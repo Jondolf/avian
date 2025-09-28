@@ -294,7 +294,7 @@ impl Plugin for PhysicsInterpolationPlugin {
         // Update previous velocity components for Hermite interpolation.
         app.add_systems(
             PhysicsSchedule,
-            update_previous_velocity.in_set(PhysicsStepSet::First),
+            update_previous_velocity.in_set(PhysicsStepSystems::First),
         );
     }
 }

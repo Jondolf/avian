@@ -67,7 +67,7 @@ impl Plugin for IslandSleepingPlugin {
             )
                 .chain()
                 .run_if(resource_exists::<PhysicsIslands>)
-                .in_set(PhysicsStepSet::Sleeping),
+                .in_set(PhysicsStepSystems::Sleeping),
         );
     }
 }

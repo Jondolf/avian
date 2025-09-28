@@ -131,29 +131,29 @@
 //! system that handles some of the background work for you.
 //!
 //! Add the `solve_xpbd_joint::<YourConstraint>` system to the [substepping schedule's](SubstepSchedule)
-//! [`XpbdSolverSet::SolveUserConstraints`] system set. It should look like this:
+//! [`XpbdSolverSystems::SolveUserConstraints`] system set. It should look like this:
 //!
 //! ```ignore
 //! // Prepare custom constraint
 //! app.add_systems(
 //!     PhysicsSchedule,
 //!     prepare_xpbd_joint::<CustomConstraint>
-//!         .in_set(SolverSet::PrepareJoints),
+//!         .in_set(SolverSystems::PrepareJoints),
 //! );
 //!
 //! // Solve custom constraint
 //! app.add_systems(
 //!     SubstepSchedule,
 //!     solve_xpbd_joint::<CustomConstraint>
-//!         .in_set(XpbdSolverSet::SolveUserConstraints),
+//!         .in_set(XpbdSolverSystems::SolveUserConstraints),
 //! );
 //!
 //! // Optional: Write back constraint forces to the `JointForces` component.
 //! app.add_systems(
 //!     PhysicsSchedule,
 //!     write_back_joint_forces::<CustomConstraint>
-//!         .in_set(SolverSet::Finalize)
-//!         .ambiguous_with(SolverSet::Finalize),
+//!         .in_set(SolverSystems::Finalize)
+//!         .ambiguous_with(SolverSystems::Finalize),
 //! );
 //! ```
 //!
@@ -279,7 +279,10 @@
 //! attachment position.
 
 mod plugin;
-pub use plugin::{XpbdSolverPlugin, XpbdSolverSet, prepare_xpbd_joint, solve_xpbd_joint};
+#[expect(deprecated)]
+pub use plugin::{
+    XpbdSolverPlugin, XpbdSolverSet, XpbdSolverSystems, prepare_xpbd_joint, solve_xpbd_joint,
+};
 
 pub mod joints;
 

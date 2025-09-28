@@ -30,7 +30,7 @@ use super::{
 ///
 /// Currently, the broad phase uses the [sweep and prune](https://en.wikipedia.org/wiki/Sweep_and_prune) algorithm.
 ///
-/// The broad phase systems run in [`PhysicsStepSet::BroadPhase`].
+/// The broad phase systems run in [`PhysicsStepSystems::BroadPhase`].
 ///
 /// [`CollisionHooks`] can be provided with generics to apply custom filtering for collision pairs.
 pub struct BroadPhasePlugin<H: CollisionHooks = ()>(PhantomData<H>);
@@ -51,13 +51,13 @@ where
         app.configure_sets(
             PhysicsSchedule,
             (
-                BroadPhaseSet::First,
-                BroadPhaseSet::UpdateStructures,
-                BroadPhaseSet::CollectCollisions,
-                BroadPhaseSet::Last,
+                BroadPhaseSystems::First,
+                BroadPhaseSystems::UpdateStructures,
+                BroadPhaseSystems::CollectCollisions,
+                BroadPhaseSystems::Last,
             )
                 .chain()
-                .in_set(PhysicsStepSet::BroadPhase),
+                .in_set(PhysicsStepSystems::BroadPhase),
         );
 
         let physics_schedule = app
@@ -67,11 +67,11 @@ where
         physics_schedule.add_systems(
             (update_aabb_intervals, add_new_aabb_intervals)
                 .chain()
-                .in_set(BroadPhaseSet::UpdateStructures),
+                .in_set(BroadPhaseSystems::UpdateStructures),
         );
 
         physics_schedule
-            .add_systems(collect_collision_pairs::<H>.in_set(BroadPhaseSet::CollectCollisions));
+            .add_systems(collect_collision_pairs::<H>.in_set(BroadPhaseSystems::CollectCollisions));
 
         // TODO: Deduplicate these observers.
         // Add colliders back to the broad phase when `Disabled` is removed.
@@ -154,9 +154,9 @@ where
     }
 }
 
-/// System sets for systems running in [`PhysicsStepSet::BroadPhase`].
+/// System sets for systems running in [`PhysicsStepSystems::BroadPhase`].
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum BroadPhaseSet {
+pub enum BroadPhaseSystems {
     /// Runs at the start of the broad phase. Empty by default.
     First,
     /// Updates acceleration structures and other data needed for broad phase collision detection.
@@ -167,6 +167,10 @@ pub enum BroadPhaseSet {
     /// Runs at the end of the broad phase. Empty by default.
     Last,
 }
+
+/// A deprecated alias for [`BroadPhaseSystems`].
+#[deprecated(since = "0.4.0", note = "Renamed to `BroadPhaseSystems`")]
+pub type BroadPhaseSet = BroadPhaseSystems;
 
 /// Entities with [`ColliderAabb`]s sorted along an axis by their extents.
 #[derive(Resource, Default)]

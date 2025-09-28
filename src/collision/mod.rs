@@ -78,7 +78,7 @@ pub use diagnostics::CollisionDiagnostics;
 
 /// Re-exports common types related to collision detection functionality.
 pub mod prelude {
-    pub use super::broad_phase::{BroadPhasePlugin, BroadPhaseSet};
+    pub use super::broad_phase::{BroadPhasePlugin, BroadPhaseSystems};
     #[cfg(all(feature = "collider-from-mesh", feature = "default-collider"))]
     pub use super::collider::ColliderCachePlugin;
     pub use super::collider::{
@@ -106,7 +106,10 @@ pub mod prelude {
         ContactPoint,
     };
     pub use super::hooks::{ActiveCollisionHooks, CollisionHooks};
-    pub use super::narrow_phase::{NarrowPhaseConfig, NarrowPhasePlugin, NarrowPhaseSet};
+    #[expect(deprecated)]
+    pub use super::narrow_phase::{
+        NarrowPhaseConfig, NarrowPhasePlugin, NarrowPhaseSet, NarrowPhaseSystems,
+    };
 }
 
 #[expect(unused_imports)]

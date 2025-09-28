@@ -1,6 +1,6 @@
 use crate::{
     dynamics::{
-        integrator::{self, IntegrationSet, VelocityIntegrationData},
+        integrator::{self, IntegrationSystems, VelocityIntegrationData},
         solver::{
             SolverDiagnostics,
             solver_body::{SolverBody, SolverBodyInertia},
@@ -23,16 +23,16 @@ impl Plugin for ForcePlugin {
         app.configure_sets(
             PhysicsSchedule,
             (
-                ForceSet::ApplyConstantForces
-                    .in_set(IntegrationSet::UpdateVelocityIncrements)
+                ForceSystems::ApplyConstantForces
+                    .in_set(IntegrationSystems::UpdateVelocityIncrements)
                     .before(integrator::pre_process_velocity_increments),
-                ForceSet::Clear.in_set(SolverSet::PostSubstep),
+                ForceSystems::Clear.in_set(SolverSystems::PostSubstep),
             ),
         );
         app.configure_sets(
             SubstepSchedule,
-            ForceSet::ApplyLocalAcceleration
-                .in_set(IntegrationSet::Velocity)
+            ForceSystems::ApplyLocalAcceleration
+                .in_set(IntegrationSystems::Velocity)
                 .before(integrator::integrate_velocities),
         );
 
@@ -52,27 +52,27 @@ impl Plugin for ForcePlugin {
                 apply_constant_local_angular_acceleration,
             )
                 .chain()
-                .in_set(ForceSet::ApplyConstantForces),
+                .in_set(ForceSystems::ApplyConstantForces),
         );
 
         // Apply local forces and accelerations.
         // This is done in the substepping loop, because the orientations of bodies can change between substeps.
         app.add_systems(
             SubstepSchedule,
-            apply_local_acceleration.in_set(ForceSet::ApplyLocalAcceleration),
+            apply_local_acceleration.in_set(ForceSystems::ApplyLocalAcceleration),
         );
 
         // Clear accumulated forces and accelerations.
         app.add_systems(
             PhysicsSchedule,
-            clear_accumulated_local_acceleration.in_set(ForceSet::Clear),
+            clear_accumulated_local_acceleration.in_set(ForceSystems::Clear),
         );
     }
 }
 
 /// System sets for managing and applying forces, torques, and accelerations for [rigid bodies](RigidBody).
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum ForceSet {
+pub enum ForceSystems {
     /// Adds [`ConstantForce`], [`ConstantTorque`], [`ConstantLinearAcceleration`], and [`ConstantAngularAcceleration`]
     #[cfg_attr(
         feature = "2d",
@@ -201,7 +201,7 @@ fn apply_constant_local_angular_acceleration(
 
 /// Applies [`AccumulatedLocalAcceleration`] to the linear and angular velocity of bodies.
 ///
-/// This should run in the substepping loop, just before [`IntegrationSet::Velocity`].
+/// This should run in the substepping loop, just before [`IntegrationSystems::Velocity`].
 fn apply_local_acceleration(
     mut bodies: Query<(&mut SolverBody, &AccumulatedLocalAcceleration, &Rotation)>,
     mut diagnostics: ResMut<SolverDiagnostics>,
