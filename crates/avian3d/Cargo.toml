@@ -111,6 +111,7 @@ examples_common_3d = { path = "../examples_common_3d" }
 bevy = { version = "0.17.0-rc", default-features = false, features = [
     "bevy_gltf",
     "animation",
+    "debug",
 ] }
 bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy.git", features = [
     "approx",
