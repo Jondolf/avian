@@ -85,7 +85,7 @@ where
                     Or<(With<Disabled>, Without<Disabled>)>,
                 ),
             >,
-             rbs: Query<&RigidBody>,
+             rbs: Query<(&RigidBody, Has<RigidBodyDisabled>)>,
              mut intervals: ResMut<AabbIntervals>| {
                 let entity = trigger.entity;
 
@@ -118,7 +118,7 @@ where
         app.add_observer(
             |trigger: On<Remove, ColliderDisabled>,
              query: Query<AabbIntervalQueryData>,
-             rbs: Query<&RigidBody>,
+             rbs: Query<(&RigidBody, Has<RigidBodyDisabled>)>,
              mut intervals: ResMut<AabbIntervals>| {
                 let entity = trigger.entity;
 
@@ -186,10 +186,10 @@ bitflags::bitflags! {
     pub struct AabbIntervalFlags: u8 {
         /// Set if the body is sleeping or static.
         const IS_INACTIVE = 1 << 0;
-        /// Set if the collider is a sensor.
-        const IS_SENSOR = 1 << 1;
         /// Set if collision events are enabled for this entity.
-        const CONTACT_EVENTS = 1 << 2;
+        const CONTACT_EVENTS = 1 << 1;
+        /// Set if the collider should generate contact constraints.
+        const GENERATE_CONSTRAINTS = 1 << 2;
         /// Set if [`CollisionHooks::filter_pairs`] should be called for this entity.
         const CUSTOM_FILTER = 1 << 3;
         /// Set if [`CollisionHooks::modify_contacts`] should be called for this entity.
@@ -220,7 +220,7 @@ fn update_aabb_intervals(
         ),
         Without<ColliderDisabled>,
     >,
-    rbs: Query<&RigidBody>,
+    rbs: Query<(&RigidBody, Has<RigidBodyDisabled>)>,
     mut intervals: ResMut<AabbIntervals>,
 ) {
     intervals
@@ -249,13 +249,16 @@ fn update_aabb_intervals(
                 );
                 *layers = *new_layers;
 
-                let is_static = new_collider_of.is_some_and(|collider_of| {
-                    rbs.get(collider_of.body).is_ok_and(RigidBody::is_static)
-                });
+                let rb = new_collider_of.and_then(|collider_of| rbs.get(collider_of.body).ok());
+                let is_static = rb.is_some_and(|(body, _)| body.is_static());
+                let is_disabled = rb.is_some_and(|(_, is_disabled)| is_disabled);
 
                 flags.set(AabbIntervalFlags::IS_INACTIVE, is_static || is_sleeping);
-                flags.set(AabbIntervalFlags::IS_SENSOR, is_sensor);
                 flags.set(AabbIntervalFlags::CONTACT_EVENTS, events_enabled);
+                flags.set(
+                    AabbIntervalFlags::GENERATE_CONSTRAINTS,
+                    !is_sensor && !is_disabled,
+                );
                 flags.set(
                     AabbIntervalFlags::CUSTOM_FILTER,
                     hooks.is_some_and(|h| h.contains(ActiveCollisionHooks::FILTER_PAIRS)),
@@ -288,7 +291,7 @@ type AabbIntervalQueryData = (
 #[allow(clippy::type_complexity)]
 fn add_new_aabb_intervals(
     added_aabbs: Query<AabbIntervalQueryData, (Added<ColliderAabb>, Without<ColliderDisabled>)>,
-    rbs: Query<&RigidBody>,
+    rbs: Query<(&RigidBody, Has<RigidBodyDisabled>)>,
     mut intervals: ResMut<AabbIntervals>,
 ) {
     let aabbs = added_aabbs.iter().map(
@@ -309,19 +312,21 @@ fn add_new_aabb_intervals(
 
 fn init_aabb_interval_flags(
     collider_of: Option<&ColliderOf>,
-    rbs: &Query<&RigidBody>,
+    rbs: &Query<(&RigidBody, Has<RigidBodyDisabled>)>,
     is_sensor: bool,
     events_enabled: bool,
     hooks: Option<&ActiveCollisionHooks>,
 ) -> AabbIntervalFlags {
     let mut flags = AabbIntervalFlags::empty();
-    flags.set(
-        AabbIntervalFlags::IS_INACTIVE,
-        collider_of
-            .is_some_and(|collider_of| rbs.get(collider_of.body).is_ok_and(RigidBody::is_static)),
-    );
-    flags.set(AabbIntervalFlags::IS_SENSOR, is_sensor);
+    let rb = collider_of.and_then(|collider_of| rbs.get(collider_of.body).ok());
+    let is_static = rb.is_some_and(|(body, _)| body.is_static());
+    let is_body_disabled = rb.is_some_and(|(_, is_disabled)| is_disabled);
+    flags.set(AabbIntervalFlags::IS_INACTIVE, is_static);
     flags.set(AabbIntervalFlags::CONTACT_EVENTS, events_enabled);
+    flags.set(
+        AabbIntervalFlags::GENERATE_CONSTRAINTS,
+        !is_sensor && !is_body_disabled,
+    );
     flags.set(
         AabbIntervalFlags::CUSTOM_FILTER,
         hooks.is_some_and(|h| h.contains(ActiveCollisionHooks::FILTER_PAIRS)),
@@ -451,8 +456,10 @@ fn sweep_and_prune<H: CollisionHooks>(
                             .contains(AabbIntervalFlags::MODIFY_CONTACTS),
                     );
                     contact_pair.flags.set(
-                        ContactPairFlags::SENSOR,
-                        flags1.union(*flags2).contains(AabbIntervalFlags::IS_SENSOR),
+                        ContactPairFlags::GENERATE_CONSTRAINTS,
+                        flags1
+                            .union(*flags2)
+                            .contains(AabbIntervalFlags::GENERATE_CONSTRAINTS),
                     );
                 })
                 .unwrap_or_else(|| {

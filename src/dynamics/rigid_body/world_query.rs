@@ -23,7 +23,6 @@ pub struct RigidBodyQuery {
     pub restitution: Option<&'static Restitution>,
     pub locked_axes: Option<&'static LockedAxes>,
     pub dominance: Option<&'static Dominance>,
-    pub time_sleeping: Option<&'static mut TimeSleeping>,
     pub is_sleeping: Has<Sleeping>,
     pub is_sensor: Has<Sensor>,
 }

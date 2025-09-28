@@ -10,7 +10,13 @@ mod gizmos;
 pub use configuration::*;
 pub use gizmos::*;
 
-use crate::{dynamics::joints::EntityConstraint, prelude::*};
+use crate::{
+    dynamics::{
+        joints::EntityConstraint,
+        solver::islands::{BodyIslandNode, PhysicsIslands},
+    },
+    prelude::*,
+};
 use bevy::{
     ecs::{
         intern::Interned,
@@ -34,6 +40,7 @@ use bevy::{
 /// - [Joints](dynamics::joints)
 /// - [`RayCaster`]
 /// - [`ShapeCaster`]
+/// - [Simulation islands](dynamics::solver::islands)
 /// - Changing the visibility of entities to only show debug rendering
 ///
 /// By default, [AABBs](ColliderAabb) and [contacts](ContactPair) are not debug rendered.
@@ -139,6 +146,7 @@ impl Plugin for PhysicsDebugPlugin {
                         any(feature = "parry-f32", feature = "parry-f64")
                     ))]
                     debug_render_shapecasts,
+                    debug_render_islands.run_if(resource_exists::<PhysicsIslands>),
                 )
                     .after(PhysicsSet::StepSimulation)
                     .run_if(|store: Res<GizmoConfigStore>| {
@@ -459,6 +467,71 @@ fn debug_render_shapecasts(
             normal_color,
             length_unit.0,
         );
+    }
+}
+
+fn debug_render_islands(
+    islands: Res<PhysicsIslands>,
+    bodies: Query<(&RigidBodyColliders, &BodyIslandNode)>,
+    aabbs: Query<&ColliderAabb>,
+    mut gizmos: Gizmos<PhysicsGizmos>,
+    store: Res<GizmoConfigStore>,
+) {
+    let config = store.config::<PhysicsGizmos>().1;
+
+    for island in islands.iter() {
+        // If the island is empty, skip rendering
+        if island.body_count == 0 {
+            continue;
+        }
+
+        let mut body = island.head_body;
+        let mut aabb: Option<ColliderAabb> = None;
+
+        // Compute the island's AABB by merging the AABBs of all bodies in the island.
+        while let Some(next_body) = body {
+            if let Ok((colliders, body_island)) = bodies.get(next_body) {
+                for collider in colliders.iter() {
+                    if let Ok(collider_aabb) = aabbs.get(collider) {
+                        aabb =
+                            Some(aabb.map_or(*collider_aabb, |aabb| aabb.merged(*collider_aabb)));
+                    }
+                }
+                body = body_island.next;
+            }
+        }
+
+        let Some(aabb) = aabb else {
+            continue;
+        };
+
+        // Render the island's AABB.
+        if let Some(mut color) = config.island_color {
+            // If the island is sleeping, multiply the color by the sleeping color multiplier
+            if island.is_sleeping {
+                let hsla = Hsla::from(color).to_vec4();
+                if let Some(mul) = config.sleeping_color_multiplier {
+                    color = Hsla::from_vec4(hsla * Vec4::from_array(mul)).into();
+                }
+            }
+
+            #[cfg(feature = "2d")]
+            {
+                gizmos.cuboid(
+                    Transform::from_scale(Vector::from(aabb.size()).extend(0.0).f32())
+                        .with_translation(Vector::from(aabb.center()).extend(0.0).f32()),
+                    color,
+                );
+            }
+            #[cfg(feature = "3d")]
+            {
+                gizmos.cuboid(
+                    Transform::from_scale(Vector::from(aabb.size()).f32())
+                        .with_translation(Vector::from(aabb.center()).f32()),
+                    color,
+                );
+            }
+        }
     }
 }
 

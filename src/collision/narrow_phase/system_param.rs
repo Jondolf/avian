@@ -4,11 +4,16 @@ use core::cell::RefCell;
 use crate::{
     collision::contact_types::{ContactEdgeFlags, ContactId},
     data_structures::{bit_vec::BitVec, pair_key::PairKey},
-    dynamics::solver::constraint_graph::ConstraintGraph,
+    dynamics::solver::{
+        constraint_graph::ConstraintGraph,
+        islands::{BodyIslandNode, IslandId, PhysicsIslands, WakeIslands},
+        joint_graph::JointGraph,
+    },
     prelude::*,
 };
 use bevy::{
     ecs::{
+        entity_disabling::Disabled,
         query::QueryData,
         system::{SystemParam, SystemParamItem, lifetimeless::Read},
     },
@@ -31,6 +36,7 @@ struct ColliderQuery<C: AnyCollider> {
     restitution: Option<Read<Restitution>>,
     collision_margin: Option<Read<CollisionMargin>>,
     speculative_margin: Option<Read<SpeculativeMargin>>,
+    is_sensor: Has<Sensor>,
 }
 
 #[derive(QueryData)]
@@ -64,8 +70,12 @@ pub struct NarrowPhase<'w, 's, C: AnyCollider> {
     collider_query: Query<'w, 's, ColliderQuery<C>, Without<ColliderDisabled>>,
     colliding_entities_query: Query<'w, 's, &'static mut CollidingEntities>,
     body_query: Query<'w, 's, RigidBodyQuery, Without<RigidBodyDisabled>>,
+    body_islands:
+        Query<'w, 's, &'static mut BodyIslandNode, Or<(With<Disabled>, Without<Disabled>)>>,
     pub contact_graph: ResMut<'w, ContactGraph>,
+    pub joint_graph: ResMut<'w, JointGraph>,
     pub constraint_graph: ResMut<'w, ConstraintGraph>,
+    pub islands: Option<ResMut<'w, PhysicsIslands>>,
     contact_status_bits: ResMut<'w, ContactStatusBits>,
     #[cfg(feature = "parallel")]
     thread_local_contact_status_bits: ResMut<'w, ThreadLocalContactStatusBits>,
@@ -122,6 +132,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         // Update contacts for all contact pairs.
         self.update_contacts::<H>(delta_secs, hooks, context, commands);
 
+        let mut islands_to_wake: Vec<IslandId> = Vec::with_capacity(128);
+
         // Process contact status changes, iterating over set bits serially to maintain determinism.
         //
         // Iterating over set bits is done efficiently with the "count trailing zeros" method:
@@ -164,10 +176,12 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         contact_pair.collider2.index(),
                     );
 
-                    // Remove the contact pair from the constraint graph.
-                    if !contact_pair.is_sensor()
+                    if contact_pair.generates_constraints()
                         && let (Some(body1), Some(body2)) = (contact_pair.body1, contact_pair.body2)
                     {
+                        let has_island = contact_edge.island.is_some();
+
+                        // Remove the contact pair from the constraint graph.
                         for _ in 0..contact_edge.constraint_handles.len() {
                             self.constraint_graph.pop_manifold(
                                 &mut self.contact_graph.edges,
@@ -176,9 +190,19 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                                 body2,
                             );
                         }
+
+                        // Unlink the contact pair from its island.
+                        if has_island && let Some(islands) = &mut self.islands {
+                            islands.remove_contact(
+                                contact_id,
+                                &mut self.body_islands,
+                                &mut self.contact_graph.edges,
+                                &self.joint_graph,
+                            );
+                        }
                     }
 
-                    // Remove the contact pair from the contact graph.
+                    // Remove the contact edge from the contact graph.
                     self.contact_graph.remove_edge_by_id(&pair_key, contact_id);
                 } else if contact_pair.collision_started() {
                     // Send collision started event.
@@ -196,17 +220,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         contact_pair.collider2,
                     );
 
-                    // Wake up the bodies.
-                    // TODO: When we have simulation islands, this will be more efficient.
-                    commands.command_scope(|mut commands| {
-                        commands.queue(WakeUpBody(
-                            contact_pair.body1.unwrap_or(contact_pair.collider1),
-                        ));
-                        commands.queue(WakeUpBody(
-                            contact_pair.body2.unwrap_or(contact_pair.collider2),
-                        ));
-                    });
-
                     debug_assert!(
                         !contact_pair.manifolds.is_empty(),
                         "Manifolds should not be empty when colliders start touching"
@@ -217,11 +230,28 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         .flags
                         .set(ContactPairFlags::STARTED_TOUCHING, false);
 
-                    // Add the contact pair to the constraint graph.
-                    if !contact_pair.is_sensor() {
+                    if contact_pair.generates_constraints() {
+                        // Add the contact pair to the constraint graph.
                         for _ in contact_pair.manifolds.iter() {
                             self.constraint_graph
                                 .push_manifold(contact_edge, contact_pair);
+                        }
+
+                        // Link the contact pair to an island.
+                        if let Some(islands) = &mut self.islands {
+                            let island = islands.add_contact(
+                                contact_id,
+                                &mut self.body_islands,
+                                &mut self.contact_graph,
+                                &mut self.joint_graph,
+                            );
+
+                            if let Some(island) = island
+                                && island.is_sleeping
+                            {
+                                // Wake up the island if it was previously sleeping.
+                                islands_to_wake.push(island.id);
+                            }
                         }
                     }
                 } else if contact_pair
@@ -243,17 +273,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         contact_pair.collider2,
                     );
 
-                    // Wake up the bodies.
-                    // TODO: When we have simulation islands, this will be more efficient.
-                    commands.command_scope(|mut commands| {
-                        commands.queue(WakeUpBody(
-                            contact_pair.body1.unwrap_or(contact_pair.collider1),
-                        ));
-                        commands.queue(WakeUpBody(
-                            contact_pair.body2.unwrap_or(contact_pair.collider2),
-                        ));
-                    });
-
                     debug_assert!(
                         contact_pair.manifolds.is_empty(),
                         "Manifolds should be empty when colliders stopped touching"
@@ -265,7 +284,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         .set(ContactPairFlags::STOPPED_TOUCHING, false);
 
                     // Remove the contact pair from the constraint graph.
-                    if !contact_pair.is_sensor()
+                    if contact_pair.generates_constraints()
+                        && !contact_edge.constraint_handles.is_empty()
                         && let (Some(body1), Some(body2)) = (contact_pair.body1, contact_pair.body2)
                     {
                         for _ in 0..contact_edge.constraint_handles.len() {
@@ -276,9 +296,57 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                                 body2,
                             );
                         }
+
+                        // Unlink the contact pair from its island.
+                        if let Some(islands) = &mut self.islands {
+                            let island = islands.remove_contact(
+                                contact_id,
+                                &mut self.body_islands,
+                                &mut self.contact_graph.edges,
+                                &self.joint_graph,
+                            );
+
+                            // TODO: Do we need this?
+                            if island.is_sleeping {
+                                // Wake up the island if it was previously sleeping.
+                                islands_to_wake.push(island.id);
+                            }
+                        }
                     }
                 } else if contact_pair.is_touching()
-                    && !contact_pair.is_sensor()
+                    && contact_pair
+                        .flags
+                        .contains(ContactPairFlags::STARTED_GENERATING_CONSTRAINTS)
+                {
+                    // The contact pair should start generating constraints.
+                    contact_pair
+                        .flags
+                        .set(ContactPairFlags::STARTED_GENERATING_CONSTRAINTS, false);
+
+                    // Add the contact pair to the constraint graph.
+                    for _ in contact_pair.manifolds.iter() {
+                        self.constraint_graph
+                            .push_manifold(contact_edge, contact_pair);
+                    }
+
+                    // Link the contact pair to an island.
+                    if let Some(islands) = &mut self.islands {
+                        let island = islands.add_contact(
+                            contact_id,
+                            &mut self.body_islands,
+                            &mut self.contact_graph,
+                            &mut self.joint_graph,
+                        );
+
+                        if let Some(island) = island
+                            && island.is_sleeping
+                        {
+                            // Wake up the island if it was previously sleeping.
+                            islands_to_wake.push(island.id);
+                        }
+                    }
+                } else if contact_pair.is_touching()
+                    && contact_pair.generates_constraints()
                     && contact_pair.manifold_count_change > 0
                 {
                     // The contact pair is still touching, but the manifold count has increased.
@@ -289,7 +357,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     }
                     contact_pair.manifold_count_change = 0;
                 } else if contact_pair.is_touching()
-                    && !contact_pair.is_sensor()
+                    && contact_pair.generates_constraints()
                     && contact_pair.manifold_count_change < 0
                 {
                     // The contact pair is still touching, but the manifold count has decreased.
@@ -312,6 +380,16 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 // Clear the least significant set bit.
                 bits &= bits - 1;
             }
+        }
+
+        if !islands_to_wake.is_empty() {
+            islands_to_wake.sort_unstable();
+            islands_to_wake.dedup();
+
+            // Wake up the islands that were previously sleeping.
+            commands.command_scope(|mut commands| {
+                commands.queue(WakeIslands(islands_to_wake));
+            });
         }
     }
 
@@ -495,6 +573,24 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 // when processing status changes for the constraint graph.
                 contacts.flags.set(ContactPairFlags::STATIC1, is_static1);
                 contacts.flags.set(ContactPairFlags::STATIC2, is_static2);
+
+                // If either collider is a sensor or either body is disabled, no constraints should be generated.
+                let is_disabled = body1_bundle.is_none()
+                    || body2_bundle.is_none()
+                    || collider1.is_sensor
+                    || collider2.is_sensor;
+
+                if !is_disabled && !contacts.generates_constraints() {
+                    // This can happen when a sensor is removed, or when a collider is attached to a body.
+                    contacts
+                        .flags
+                        .set(ContactPairFlags::STARTED_GENERATING_CONSTRAINTS, true);
+                    status_change_bits.set(contact_id);
+                }
+
+                contacts
+                    .flags
+                    .set(ContactPairFlags::GENERATE_CONSTRAINTS, !is_disabled);
 
                 // Get combined friction and restitution coefficients of the colliders
                 // or the bodies they are attached to. Fall back to the global defaults.

@@ -452,7 +452,7 @@ fn warn_invalid_mass(
 
 #[cfg(test)]
 #[cfg(all(feature = "2d", feature = "default-collider"))]
-#[expect(clippy::unnecessary_cast)]
+#[allow(clippy::unnecessary_cast)]
 mod tests {
     use approx::assert_relative_eq;
 

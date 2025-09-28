@@ -7,6 +7,7 @@ pub use plugin::*;
 
 pub mod constraint_graph;
 pub mod contact;
+pub mod islands;
 pub mod joint_graph;
 pub mod schedule;
 pub mod softness_parameters;
@@ -36,8 +37,9 @@ use bevy::{app::PluginGroupBuilder, prelude::*};
 /// | [`IntegratorPlugin`]              | Handles motion caused by velocity, and applies external forces and gravity.                                                                                |
 /// | [`SolverPlugin`]                  | Manages and solves contacts, [joints](dynamics::joints), and other constraints.                                                                            |
 /// | [`CcdPlugin`]                     | Performs sweep-based [Continuous Collision Detection](dynamics::ccd) for bodies with the [`SweptCcd`] component.                                           |
-/// | [`SleepingPlugin`]                | Manages sleeping and waking for bodies, automatically deactivating them to save computational resources.                                                   |
-/// | [`JointGraphPlugin`]              | Manages the [`JointGraph`](joint_graph::JointGraph) for each joint type.                                                                                                            |
+/// | [`IslandPlugin`]                  | Manages [simulation islands](dynamics::solver::islands) for sleeping and waking.                                                                           |
+/// | [`IslandSleepingPlugin`]          | Manages sleeping and waking of [simulation islands](dynamics::solver::islands).                                                                            |
+/// | [`JointGraphPlugin`]              | Manages the [`JointGraph`](joint_graph::JointGraph) for each joint type.                                                                                   |
 /// | [`XpbdSolverPlugin`]              | Solves joints using Extended Position-Based Dynamics (XPBD). Requires the `xpbd_joints` feature.                                                           |
 ///
 /// Refer to the documentation of the plugins for more information about their responsibilities and implementations.
@@ -64,7 +66,8 @@ impl PluginGroup for SolverPlugins {
             .add(IntegratorPlugin::default())
             .add(SolverPlugin::new_with_length_unit(self.length_unit))
             .add(CcdPlugin)
-            .add(SleepingPlugin)
+            .add(IslandPlugin)
+            .add(IslandSleepingPlugin)
             .add(JointGraphPlugin::<FixedJoint>::default())
             .add(JointGraphPlugin::<RevoluteJoint>::default())
             .add(JointGraphPlugin::<PrismaticJoint>::default())
