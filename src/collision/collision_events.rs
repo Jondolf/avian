@@ -69,6 +69,12 @@
 #![cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
 //! # use bevy::prelude::*;
 //! #
+//! # #[derive(Component)]
+//! # struct Player;
+//! #
+//! # #[derive(Component)]
+//! # struct PressurePlate;
+//! #
 //! fn setup_pressure_plates(mut commands: Commands) {
 //!     commands.spawn((
 //!         PressurePlate,
@@ -105,7 +111,8 @@ use bevy::prelude::*;
 /// Below is an example of observing the [`CollisionStart`] event using an [observer](Observer).
 ///
 /// ```
-/// use avian3d::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
 ///
 /// #[derive(Component)]
@@ -141,6 +148,10 @@ use bevy::prelude::*;
 /// This can be more efficient for processing large numbers of collisions.
 ///
 /// ```
+#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+/// # use bevy::prelude::*;
+/// #
 /// fn print_started_collisions(mut collision_reader: MessageReader<CollisionStart>) {
 ///     for event in collision_reader.read() {
 ///         println!("{} and {} started colliding", event.collider1, event.collider2);
@@ -228,6 +239,10 @@ pub type OnCollisionStart = CollisionStart;
 /// This can be more efficient for processing large numbers of collisions.
 ///
 /// ```
+#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+/// # use bevy::prelude::*;
+/// #
 /// fn print_ended_collisions(mut collision_reader: MessageReader<CollisionEnd>) {
 ///     for event in collision_reader.read() {
 ///         println!("{} and {} stopped colliding", event.collider1, event.collider2);
