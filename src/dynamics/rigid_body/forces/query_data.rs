@@ -115,7 +115,7 @@ pub struct Forces {
     locked_axes: Option<Read<LockedAxes>>,
     integration: Write<VelocityIntegrationData>,
     accumulated_local_acceleration: Write<AccumulatedLocalAcceleration>,
-    sleep_timer: Write<SleepTimer>,
+    sleep_timer: Option<Write<SleepTimer>>,
     is_sleeping: Has<Sleeping>,
 }
 
@@ -141,7 +141,7 @@ impl ForcesItem<'_, '_> {
             locked_axes: self.locked_axes,
             integration: self.integration.reborrow(),
             accumulated_local_acceleration: self.accumulated_local_acceleration.reborrow(),
-            sleep_timer: self.sleep_timer.reborrow(),
+            sleep_timer: self.sleep_timer.as_mut().map(|s| s.reborrow()),
             is_sleeping: self.is_sleeping,
         }
     }
@@ -598,7 +598,9 @@ impl RigidBodyForcesInternal for ForcesItem<'_, '_> {
     #[inline]
     fn try_wake_up(&mut self) -> bool {
         // Wake up the body. Return `true` to indicate that the body is awake.
-        self.sleep_timer.0 = 0.0;
+        if let Some(sleep_timer) = &mut self.sleep_timer {
+            sleep_timer.0 = 0.0;
+        }
         true
     }
 }
