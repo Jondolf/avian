@@ -265,10 +265,6 @@ pub enum JointSystems {
     PrepareLocalFrames,
 }
 
-/// A deprecated alias for [`JointSystems`].
-#[deprecated(since = "0.4.0", note = "Renamed to `JointSystems`")]
-pub type JointSet = JointSystems;
-
 /// A trait for constraints between entities.
 pub trait EntityConstraint<const ENTITY_COUNT: usize>: MapEntities {
     /// The entities participating in the constraint.

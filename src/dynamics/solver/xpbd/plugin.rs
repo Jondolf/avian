@@ -121,10 +121,6 @@ pub enum XpbdSolverSystems {
     VelocityProjection,
 }
 
-/// A deprecated alias for [`XpbdSolverSystems`].
-#[deprecated(since = "0.4.0", note = "Renamed to `XpbdSolverSystems`")]
-pub type XpbdSolverSet = XpbdSolverSystems;
-
 /// Iterates through the XPBD joints of a given type and solves them.
 pub fn prepare_xpbd_joint<
     C: Component<Mutability = Mutable> + EntityConstraint<2> + XpbdConstraint<2>,

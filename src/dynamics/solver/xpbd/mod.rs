@@ -279,10 +279,7 @@
 //! attachment position.
 
 mod plugin;
-#[expect(deprecated)]
-pub use plugin::{
-    XpbdSolverPlugin, XpbdSolverSet, XpbdSolverSystems, prepare_xpbd_joint, solve_xpbd_joint,
-};
+pub use plugin::{XpbdSolverPlugin, XpbdSolverSystems, prepare_xpbd_joint, solve_xpbd_joint};
 
 pub mod joints;
 
