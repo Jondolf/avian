@@ -519,7 +519,7 @@ mod tests {
     use super::*;
     #[cfg(feature = "bevy_scene")]
     use bevy::scene::ScenePlugin;
-    use bevy::{ecs::query::QueryData, render::mesh::MeshPlugin};
+    use bevy::{ecs::query::QueryData, mesh::MeshPlugin};
 
     #[test]
     fn collider_constructor_requires_no_mesh_on_primitive() {
@@ -819,8 +819,7 @@ mod tests {
             ScenePlugin,
             MeshPlugin,
             PhysicsPlugins::default(),
-        ))
-        .init_resource::<Assets<Mesh>>();
+        ));
 
         app
     }

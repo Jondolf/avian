@@ -505,7 +505,7 @@ mod tests {
     use approx::assert_relative_eq;
 
     use crate::prelude::*;
-    use bevy::{prelude::*, render::mesh::MeshPlugin, time::TimeUpdateStrategy};
+    use bevy::{mesh::MeshPlugin, prelude::*, time::TimeUpdateStrategy};
 
     fn create_app() -> App {
         let mut app = App::new();
@@ -518,8 +518,7 @@ mod tests {
             #[cfg(feature = "bevy_scene")]
             bevy::scene::ScenePlugin,
             MeshPlugin,
-        ))
-        .init_resource::<Assets<Mesh>>();
+        ));
         app
     }
 
