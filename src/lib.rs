@@ -344,7 +344,7 @@
 //! #
 //! app.add_systems(
 //!     PostUpdate,
-//!     camera_follow_player.before(TransformSystem::TransformPropagate),
+//!     camera_follow_player.before(TransformSystems::TransformPropagate),
 //! );
 //! #
 //! # fn camera_follow_player() {}

@@ -124,7 +124,8 @@ use bevy::prelude::*;
 /// fn setup_pressure_plates(mut commands: Commands) {
 ///     commands.spawn((
 ///         PressurePlate,
-///         Collider::cuboid(1.0, 0.1, 1.0),
+#[cfg_attr(feature = "2d", doc = "        Collider::rectangle(1.0, 1.0),")]
+#[cfg_attr(feature = "3d", doc = "        Collider::cuboid(1.0, 0.1, 1.0),")]
 ///         Sensor,
 ///         // Enable collision events for this entity.
 ///         CollisionEventsEnabled,
