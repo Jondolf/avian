@@ -806,7 +806,7 @@ impl CompositeShape for QueryPipelineAsCompositeShape<'_> {
     fn map_part_at(
         &self,
         shape_id: u32,
-        f: &mut dyn FnMut(Option<&Isometry<f32>>, &dyn Shape, Option<&dyn NormalConstraints>),
+        f: &mut dyn FnMut(Option<&Isometry<Scalar>>, &dyn Shape, Option<&dyn NormalConstraints>),
     ) {
         self.map_untyped_part_at(shape_id, f);
     }
@@ -824,7 +824,7 @@ impl TypedCompositeShape for QueryPipelineAsCompositeShape<'_> {
         &self,
         shape_id: u32,
         mut f: impl FnMut(
-            Option<&Isometry<f32>>,
+            Option<&Isometry<Scalar>>,
             &Self::PartShape,
             Option<&Self::PartNormalConstraints>,
         ) -> T,
@@ -845,7 +845,7 @@ impl TypedCompositeShape for QueryPipelineAsCompositeShape<'_> {
     fn map_untyped_part_at<T>(
         &self,
         shape_id: u32,
-        mut f: impl FnMut(Option<&Isometry<f32>>, &dyn Shape, Option<&dyn NormalConstraints>) -> T,
+        mut f: impl FnMut(Option<&Isometry<Scalar>>, &dyn Shape, Option<&dyn NormalConstraints>) -> T,
     ) -> Option<T> {
         let proxy = self.pipeline.proxies.get(shape_id as usize)?;
 
