@@ -1,58 +1,21 @@
 //! Collision events for detecting when colliders start or stop touching.
 //!
-//! Depending on your use case, you may want to use either buffered [`Message`]s read
-//! using a [`MessageReader`], or observable [`Event`]s triggered for specific entities.
-//! Avian provides both options using separate event types.
+//! Avian provides two collision event types:
 //!
-//! Note that collision events are only written or triggered for entities that have
-//! the [`CollisionEventsEnabled`] component.
+//! - [`CollisionStart`]: Triggered when two colliders start touching.
+//! - [`CollisionEnd`]: Triggered when two colliders stop touching.
 //!
-//! # Buffered Events
+//! Depending on your use case, you may want to read them as [`Message`]s with a [`MessageReader`],
+//! or observe them as [`Event`]s with an [observer](Observer). Avian supports both options.
 //!
-//! Avian provides two different [`Message`] types for buffered collision events:
+//! # Reading Collision Events
 //!
-//! - [`CollisionStarted`]
-//! - [`CollisionEnded`]
-//!
-//! These events are written when two colliders start or stop touching, and can be read
-//! using a [`MessageReader`]. This can be useful for efficiently processing large numbers
-//! of collision events between pairs of entities, such as for detecting bullet hits
-//! or playing impact sounds when two objects collide.
-//!
-//! The events are only written if one of the entities has the [`CollisionEventsEnabled`] component.
+//! To enable collision events for a collider entity, add the [`CollisionEventsEnabled`] component.
 //!
 //! ```
 #![cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
 #![cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 //! use bevy::prelude::*;
-//!
-//! fn print_started_collisions(mut collision_reader: MessageReader<CollisionStarted>) {
-//!     for CollisionStarted(entity1, entity2) in collision_reader.read() {
-//!         println!("{entity1} and {entity2} started colliding");
-//!     }
-//! }
-//! ```
-//!
-//! # Observable Events
-//!
-//! Avian provides two different [`Event`] types for observable collision events:
-//!
-//! - [`CollisionStart`]
-//! - [`CollisionEnd`]
-//!
-//! These events are triggered for [observers](Observer) when two colliders start or stop touching.
-//! This makes them good for entity-specific collision scenarios, such as for detecting when a player
-//! steps on a pressure plate or enters a trigger volume.
-//!
-//! The events are only triggered if the target entity has the [`CollisionEventsEnabled`] component.
-//!
-//! ```
-#![cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
-#![cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
-//! use bevy::prelude::*;
-//!
-//! #[derive(Component)]
-//! struct Player;
 //!
 //! #[derive(Component)]
 //! struct PressurePlate;
@@ -65,101 +28,81 @@
 //!         Sensor,
 //!         // Enable collision events for this entity.
 //!         CollisionEventsEnabled,
+//!     ));
+//! }
+//! ```
+//!
+//! The [`CollisionStart`] and [`CollisionEnd`] events will now be both written as a [`Message`]
+//! and triggered as an [`Event`] when the entity starts or stops touching another collider.
+//! It is up to you to decide which event processing method is best suited for your use case.
+//!
+//! ## Collision `Message`
+//!
+//! Reading collision events as [`Message`]s with a [`MessageReader`] can be very efficient
+//! for processing large numbers of collisions between pairs of entities, such as for detecting
+//! bullet hits or playing impact sounds when two objects collide.
+//!
+//! The events are only written if one of the entities has the [`CollisionEventsEnabled`] component.
+//!
+//! ```
+#![cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#![cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+//! # use bevy::prelude::*;
+//! #
+//! fn print_started_collisions(mut collision_reader: MessageReader<CollisionStarted>) {
+//!     for event in collision_reader.read() {
+//!         println!("{} and {} started colliding", event.collider1, event.collider2);
+//!     }
+//! }
+//! ```
+//!
+//! ## Collision `Event`
+//!
+//! Observing collision events as [`Event`]s with an [observer](Observer) can be very useful
+//! for entity-specific collision scenarios, such as for detecting when a player steps on
+//! a pressure plate or enters a trigger volume.
+//!
+//! The events are only triggered if the target entity has the [`CollisionEventsEnabled`] component.
+//!
+//! ```
+#![cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#![cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+//! # use bevy::prelude::*;
+//! #
+//! fn setup_pressure_plates(mut commands: Commands) {
+//!     commands.spawn((
+//!         PressurePlate,
+#![cfg_attr(feature = "2d", doc = "        Collider::rectangle(1.0, 1.0),")]
+#![cfg_attr(feature = "3d", doc = "        Collider::cuboid(1.0, 0.1, 1.0),")]
+//!         Sensor,
+//!         // Enable collision events for this entity.
+//!         CollisionEventsEnabled,
 //!     ))
-//!     .observe(|trigger: On<CollisionStart>, player_query: Query<&Player>| {
-//!         let pressure_plate = trigger.entity;
-//!         let other_entity = trigger.collider;
-//!         if player_query.contains(other_entity) {
-//!             println!("Player {other_entity} stepped on pressure plate {pressure_plate}");
-//!         }
-//!     });
+//!     .observe(on_player_stepped_on_plate);
+//! }
+//!
+//! fn on_player_stepped_on_plate(event: On<CollisionStart>, player_query: Query<&Player>) {
+//!     // `colider1` and `body1` refer to the event target and its body.
+//!     // `collider2` and `body2` refer to the other collider and its body.
+//!     let pressure_plate = event.collider1;
+//!     let other_entity = event.collider2;
+//!
+//!     if player_query.contains(other_entity) {
+//!         println!("Player {other_entity} stepped on pressure plate {pressure_plate}");
+//!     }
 //! }
 //! ```
 
 use bevy::prelude::*;
 
-/// A [`Message`] for a [collision event](super#collision-events) that is written when two colliders start touching.
+/// A [collision event](self) that is triggered when two colliders start touching.
 ///
-/// The event is only written if one of the entities has the [`CollisionEventsEnabled`] component.
-///
-/// Unlike [`CollisionStart`], this event is *not* triggered for observers.
-/// Instead, you must use a [`MessageReader`] to read the event in a system.
-/// This makes it good for efficiently processing large numbers of collision events
-/// between pairs of entities.
+/// The event can be read using a [`MessageReader`] or observed using an [observer](Observer).
+/// It is only triggered for entities with the [`CollisionEventsEnabled`] component.
 ///
 /// # Example
 ///
-/// ```
-#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
-/// use bevy::prelude::*;
-///
-/// fn print_started_collisions(mut collision_reader: MessageReader<CollisionStarted>) {
-///     for CollisionStarted(entity1, entity2) in collision_reader.read() {
-///         println!("{entity1} and {entity2} started colliding");
-///     }
-/// }
-/// ```
-///
-/// # Scheduling
-///
-/// The [`CollisionStarted`] event is written in the [`NarrowPhaseSet::Update`] system set,
-/// but can be read at any time.
-///
-/// [`NarrowPhaseSet::Update`]: super::narrow_phase::NarrowPhaseSet::Update
-#[derive(Message, Clone, Copy, Debug, PartialEq)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-pub struct CollisionStarted(pub Entity, pub Entity);
-
-/// A [`Message`] for a [collision event](super#collision-events) that is written when two colliders stop touching.
-///
-/// The event is only written if one of the entities has the [`CollisionEventsEnabled`] component.
-///
-/// Unlike [`CollisionEnd`], this event is *not* triggered for observers.
-/// Instead, you must use a [`MessageReader`] to read the event in a system.
-/// This makes it good for efficiently processing large numbers of collision events
-/// between pairs of entities.
-///
-/// # Example
-///
-/// ```
-#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
-/// use bevy::prelude::*;
-///
-/// fn print_ended_collisions(mut collision_reader: MessageReader<CollisionEnded>) {
-///     for CollisionEnded(entity1, entity2) in collision_reader.read() {
-///         println!("{entity1} and {entity2} stopped colliding");
-///     }
-/// }
-/// ```
-///
-/// # Scheduling
-///
-/// The [`CollisionEnded`] event is written in the [`NarrowPhaseSet::Update`] system set,
-/// but can be read at any time.
-///
-/// Note that if one of the colliders was removed or the bounding boxes of the colliders stopped
-/// overlapping, the [`ContactPair`] between the entities was also removed, and the contact data
-/// will not be available through [`Collisions`].
-///
-/// [`NarrowPhaseSet::Update`]: super::narrow_phase::NarrowPhaseSet::Update
-/// [`ContactPair`]: super::ContactPair
-/// [`Collisions`]: super::Collisions
-#[derive(Message, Clone, Copy, Debug, PartialEq)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-pub struct CollisionEnded(pub Entity, pub Entity);
-
-/// A [collision event](super#collision-events) that is triggered for [observers](Observer)
-/// when two colliders start touching.
-///
-/// The event is only triggered if the target entity has the [`CollisionEventsEnabled`] component.
-///
-/// Unlike [`CollisionStarted`], this event can *not* be read using a [`MessageReader`].
-/// Instead, you must use an [observer](Observer). This makes it good for entity-specific
-/// collision listeners.
-///
-/// # Example
+/// Below is an example of observing the [`CollisionStart`] event using an [observer](Observer).
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -181,13 +124,29 @@ pub struct CollisionEnded(pub Entity, pub Entity);
 ///         // Enable collision events for this entity.
 ///         CollisionEventsEnabled,
 ///     ))
-///     .observe(|trigger: On<CollisionStart>, player_query: Query<&Player>| {
-///         let pressure_plate = trigger.entity;
-///         let other_entity = trigger.collider;
-///         if player_query.contains(other_entity) {
-///             println!("Player {other_entity} stepped on pressure plate {pressure_plate}");
-///         }
-///     });
+///     .observe(on_player_stepped_on_plate);
+/// }
+///
+/// fn on_player_stepped_on_plate(event: On<CollisionStart>, player_query: Query<&Player>) {
+///     // `colider1` and `body1` refer to the event target and its body.
+///     // `collider2` and `body2` refer to the other collider and its body.
+///     let pressure_plate = event.collider1;
+///     let other_entity = event.collider2;
+///
+///     if player_query.contains(other_entity) {
+///         println!("Player {other_entity} stepped on pressure plate {pressure_plate}");
+///     }
+/// }
+/// ```
+///
+/// The event can also be read as a [`Message`] using a [`MessageReader`].
+/// This can be more efficient for processing large numbers of collisions.
+///
+/// ```
+/// fn print_started_collisions(mut collision_reader: MessageReader<CollisionStarted>) {
+///     for event in collision_reader.read() {
+///         println!("{} and {} started colliding", event.collider1, event.collider2);
+///     }
 /// }
 /// ```
 ///
@@ -223,16 +182,14 @@ pub struct CollisionStart {
 #[deprecated(since = "0.4.0", note = "Renamed to `CollisionStart`")]
 pub type OnCollisionStart = CollisionStart;
 
-/// A [collision event](super#collision-events) that is triggered for [observers](Observer)
-/// when two colliders stop touching.
+/// A [collision event](self) that is triggered when two colliders stop touching.
 ///
-/// The event is only triggered if the target entity has the [`CollisionEventsEnabled`] component.
-///
-/// Unlike [`CollisionEnded`], this event can *not* be read using a [`MessageReader`].
-/// Instead, you must use an [observer](Observer). This makes it good for entity-specific
-/// collision listeners.
+/// The event can be read using a [`MessageReader`] or observed using an [observer](Observer).
+/// It is only triggered for entities with the [`CollisionEventsEnabled`] component.
 ///
 /// # Example
+///
+/// Below is an example of observing the [`CollisionEnd`] event using an [observer](Observer).
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -254,13 +211,29 @@ pub type OnCollisionStart = CollisionStart;
 ///         // Enable collision events for this entity.
 ///         CollisionEventsEnabled,
 ///     ))
-///     .observe(|trigger: On<CollisionEnd>, player_query: Query<&Player>| {
-///         let pressure_plate = trigger.entity;
-///         let other_entity = trigger.collider;
-///         if player_query.contains(other_entity) {
-///             println!("Player {other_entity} stepped off of pressure plate {pressure_plate}");
-///         }
-///     });
+///     .observe(on_player_stepped_off_plate);
+/// }
+///
+/// fn on_player_stepped_off_plate(event: On<CollisionEnd>, player_query: Query<&Player>) {
+///     // `colider1` and `body1` refer to the event target and its body.
+///     // `collider2` and `body2` refer to the other collider and its body.
+///     let pressure_plate = event.collider1;
+///     let other_entity = event.collider2;
+///
+///     if player_query.contains(other_entity) {
+///         println!("Player {other_entity} stepped off pressure plate {pressure_plate}");
+///     }
+/// }
+/// ```
+///
+/// The event can also be read as a [`Message`] using a [`MessageReader`].
+/// This can be more efficient for processing large numbers of collisions.
+///
+/// ```
+/// fn print_ended_collisions(mut collision_reader: MessageReader<CollisionEnded>) {
+///     for event in collision_reader.read() {
+///         println!("{} and {} stopped colliding", event.collider1, event.collider2);
+///     }
 /// }
 /// ```
 ///
@@ -303,9 +276,6 @@ pub struct CollisionEnd {
 pub type OnCollisionEnd = CollisionEnd;
 
 /// A marker component that enables [collision events](self) for an entity.
-///
-/// This enables both the buffered [`CollisionStarted`] and [`CollisionEnded`] events,
-/// as well as the observable [`CollisionStart`] and [`CollisionEnd`] events.
 #[derive(Component, Clone, Copy, Debug, Default, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]

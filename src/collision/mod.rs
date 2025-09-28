@@ -32,28 +32,25 @@
 //!
 //! # Collision Events
 //!
-//! Collision events can be used for detecting when colliders start or stop touching.
+//! [Collision events](collision_events) can be used for detecting when colliders start or stop touching.
 //!
-//! Avian provides two buffered collision event types that can be read using an [`MessageReader`](bevy::ecs::event::MessageReader):
+//! Avian provides two collision event types:
 //!
-//! - [`CollisionStarted`]
-//! - [`CollisionEnded`]
+//! - [`CollisionStart`]: Triggered when two colliders start touching.
+//! - [`CollisionEnd`]: Triggered when two colliders stop touching.
 //!
-//! These events are good for efficiently processing large numbers of collision events between pairs of entities,
-//! such as for detecting bullet hits or playing impact sounds when two objects collide.
-//!
-//! Avian also provides two collision event types that are triggered for observers:
-//!
-//! - [`CollisionStart`]
-//! - [`CollisionEnd`]
-//!
-//! These events are good for entity-specific collision scenarios, such as for detecting when a player
-//! steps on a pressure plate or enters a trigger volume.
+//! Depending on your use case, you may want to read them as [`Message`]s with a [`MessageReader`],
+//! or observe them as [`Event`]s with an [observer]. Avian supports both options.
 //!
 //! Collision events are only sent or triggered for entities that have the [`CollisionEventsEnabled`] component.
 //!
 //! See the documentation of the event types and the [`collision_events`] module
 //! for more information and usage examples.
+//!
+//! [`Message`]: bevy::ecs::message::Message
+//! [`MessageReader`]: bevy::ecs::message::MessageReader
+//! [`Event`]: bevy::ecs::event::Event
+//! [observer]: bevy::ecs::observer::Observer
 //!
 //! # Contact Filtering and Modification
 //!
@@ -102,8 +99,7 @@ pub mod prelude {
     };
     #[expect(deprecated)]
     pub use super::collision_events::{
-        CollisionEnd, CollisionEnded, CollisionEventsEnabled, CollisionStart, CollisionStarted,
-        OnCollisionEnd, OnCollisionStart,
+        CollisionEnd, CollisionEventsEnabled, CollisionStart, OnCollisionEnd, OnCollisionStart,
     };
     pub use super::contact_types::{
         Collisions, ContactEdge, ContactGraph, ContactManifold, ContactPair, ContactPairFlags,

@@ -233,15 +233,12 @@ fn update_velocity_text(
     Ok(())
 }
 
-fn log_events(
-    mut started: MessageReader<CollisionStarted>,
-    mut ended: MessageReader<CollisionEnded>,
-) {
+fn log_events(mut started: MessageReader<CollisionStart>, mut ended: MessageReader<CollisionEnd>) {
     // print out the started and ended events
     for event in started.read() {
-        println!("CollisionStarted: {event:?}");
+        println!("CollisionStart: {event:?}");
     }
     for event in ended.read() {
-        println!("CollisionEnded: {event:?}");
+        println!("CollisionEnd: {event:?}");
     }
 }

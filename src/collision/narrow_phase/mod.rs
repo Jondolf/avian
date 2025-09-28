@@ -42,7 +42,7 @@ use super::{CollisionDiagnostics, contact_types::ContactEdgeFlags};
 /// and computes updated contact points and normals in a parallel loop.
 ///
 /// Afterwards, the narrow phase removes contact pairs whose AABBs no longer overlap,
-/// and sends collision events for colliders that started or stopped touching.
+/// and writes collision events for colliders that started or stopped touching.
 /// This is done in a fast serial loop to preserve determinism.
 ///
 /// Finally, a [`ContactConstraint`] is generated for each contact pair that is touching
@@ -122,8 +122,8 @@ where
             CollisionEventsEnabled,
         )>();
 
-        app.add_message::<CollisionStarted>()
-            .add_message::<CollisionEnded>();
+        app.add_message::<CollisionStart>()
+            .add_message::<CollisionEnd>();
 
         if self.generate_constraints {
             app.init_resource::<ContactConstraints>();
@@ -274,8 +274,8 @@ pub enum NarrowPhaseSet {
 
 fn update_narrow_phase<C: AnyCollider, H: CollisionHooks + 'static>(
     mut narrow_phase: NarrowPhase<C>,
-    mut collision_started_writer: MessageWriter<CollisionStarted>,
-    mut collision_ended_writer: MessageWriter<CollisionEnded>,
+    mut collision_started_writer: MessageWriter<CollisionStart>,
+    mut collision_ended_writer: MessageWriter<CollisionEnd>,
     time: Res<Time>,
     hooks: StaticSystemParam<H>,
     context: StaticSystemParam<C::Context>,
@@ -301,9 +301,9 @@ fn update_narrow_phase<C: AnyCollider, H: CollisionHooks + 'static>(
 
 #[derive(SystemParam)]
 struct TriggerCollisionEventsContext<'w, 's> {
-    query: Query<'w, 's, (Option<&'static ColliderOf>, Has<CollisionEventsEnabled>)>,
-    started: MessageReader<'w, 's, CollisionStarted>,
-    ended: MessageReader<'w, 's, CollisionEnded>,
+    query: Query<'w, 's, Has<CollisionEventsEnabled>>,
+    started: MessageReader<'w, 's, CollisionStart>,
+    ended: MessageReader<'w, 's, CollisionEnd>,
 }
 
 /// Triggers [`CollisionStart`] and [`CollisionEnd`] events for colliders
@@ -320,64 +320,52 @@ fn trigger_collision_events(
 
     // Collect `CollisionStart` events.
     for event in state.started.read() {
-        let Ok(
-            [
-                (collider_of1, events_enabled1),
-                (collider_of2, events_enabled2),
-            ],
-        ) = state.query.get_many([event.0, event.1])
+        let Ok([events_enabled1, events_enabled2]) =
+            state.query.get_many([event.collider1, event.collider2])
         else {
             continue;
         };
-        let body1 = collider_of1.map(|c| c.body);
-        let body2 = collider_of2.map(|c| c.body);
 
         if events_enabled1 {
             started.push(CollisionStart {
-                collider1: event.0,
-                collider2: event.1,
-                body1,
-                body2,
+                collider1: event.collider1,
+                collider2: event.collider2,
+                body1: event.body1,
+                body2: event.body2,
             });
         }
         if events_enabled2 {
             started.push(CollisionStart {
-                collider1: event.1,
-                collider2: event.0,
-                body1: body2,
-                body2: body1,
+                collider1: event.collider2,
+                collider2: event.collider1,
+                body1: event.body2,
+                body2: event.body1,
             });
         }
     }
 
     // Collect `CollisionEnd` events.
     for event in state.ended.read() {
-        let Ok(
-            [
-                (collider_of1, events_enabled1),
-                (collider_of2, events_enabled2),
-            ],
-        ) = state.query.get_many([event.0, event.1])
+        let Ok([events_enabled1, events_enabled2]) =
+            state.query.get_many([event.collider1, event.collider2])
         else {
             continue;
         };
-        let body1 = collider_of1.map(|c| c.body);
-        let body2 = collider_of2.map(|c| c.body);
 
         if events_enabled1 {
             ended.push(CollisionEnd {
-                collider1: event.0,
-                collider2: event.1,
-                body1,
-                body2,
+                collider1: event.collider1,
+                collider2: event.collider2,
+                body1: event.body1,
+                body2: event.body2,
             });
         }
         if events_enabled2 {
             ended.push(CollisionEnd {
-                collider1: event.1,
-                collider2: event.0,
-                body1: body2,
-                body2: body1,
+                collider1: event.collider2,
+                collider2: event.collider1,
+                body1: event.body2,
+                body2: event.body1,
             });
         }
     }
@@ -410,7 +398,7 @@ fn trigger_collision_events(
 /// Removes a collider from the [`ContactGraph`].
 ///
 /// Also removes the collider from the [`CollidingEntities`] of the other entity,
-/// wakes up the other body, and sends a [`CollisionEnded`] event.
+/// wakes up the other body, and writes a [`CollisionEnd`] event.
 fn remove_collider(
     entity: Entity,
     contact_graph: &mut ContactGraph,
@@ -422,7 +410,7 @@ fn remove_collider(
         &mut CollidingEntities,
         Or<(With<Disabled>, Without<Disabled>)>,
     >,
-    message_writer: &mut MessageWriter<CollisionEnded>,
+    message_writer: &mut MessageWriter<CollisionEnd>,
 ) {
     // TODO: Wake up the island of the other bodies.
     contact_graph.remove_collider_with(entity, |contact_graph, contact_id| {
@@ -439,10 +427,12 @@ fn remove_collider(
             .flags
             .contains(ContactEdgeFlags::CONTACT_EVENTS)
         {
-            message_writer.write(CollisionEnded(
-                contact_edge.collider1,
-                contact_edge.collider2,
-            ));
+            message_writer.write(CollisionEnd {
+                collider1: contact_edge.collider1,
+                collider2: contact_edge.collider2,
+                body1: contact_edge.body1,
+                body2: contact_edge.body2,
+            });
         }
 
         // Remove the entity from the `CollidingEntities` of the other entity.
@@ -480,7 +470,7 @@ fn remove_body_on<E: EntityEvent, B: Bundle>(
         &mut CollidingEntities,
         Or<(With<Disabled>, Without<Disabled>)>,
     >,
-    mut message_writer: MessageWriter<CollisionEnded>,
+    mut message_writer: MessageWriter<CollisionEnd>,
     mut body_islands: Query<&mut BodyIslandNode, Or<(With<Disabled>, Without<Disabled>)>>,
     mut islands: Option<ResMut<PhysicsIslands>>,
     mut constraint_graph: ResMut<ConstraintGraph>,
@@ -515,7 +505,7 @@ fn remove_body_on<E: EntityEvent, B: Bundle>(
 /// Removes colliders from the [`ContactGraph`] when the given trigger is activated.
 ///
 /// Also removes the collider from the [`CollidingEntities`] of the other entity,
-/// wakes up the other body, and sends a [`CollisionEnded`] event.
+/// wakes up the other body, and writes a [`CollisionEnd`] event.
 fn remove_collider_on<E: EntityEvent, B: Bundle>(
     trigger: On<E, B>,
     mut contact_graph: ResMut<ContactGraph>,
@@ -526,7 +516,7 @@ fn remove_collider_on<E: EntityEvent, B: Bundle>(
     // TODO: Change this hack to include disabled entities with `Allows<T>` for 0.17
     mut query: Query<&mut CollidingEntities, Or<(With<Disabled>, Without<Disabled>)>>,
     collider_of: Query<&ColliderOf, Or<(With<Disabled>, Without<Disabled>)>>,
-    mut message_writer: MessageWriter<CollisionEnded>,
+    mut message_writer: MessageWriter<CollisionEnd>,
     mut commands: Commands,
 ) {
     let entity = trigger.event_target();
@@ -570,7 +560,7 @@ fn on_body_remove_rigid_body_disabled(
         &mut CollidingEntities,
         Or<(With<Disabled>, Without<Disabled>)>,
     >,
-    mut message_writer: MessageWriter<CollisionEnded>,
+    mut message_writer: MessageWriter<CollisionEnd>,
 ) {
     let Ok(colliders) = body_collider_query.get(trigger.entity) else {
         return;
@@ -604,7 +594,7 @@ fn on_disable_body(
         &mut CollidingEntities,
         Or<(With<Disabled>, Without<Disabled>)>,
     >,
-    mut message_writer: MessageWriter<CollisionEnded>,
+    mut message_writer: MessageWriter<CollisionEnd>,
 ) {
     let Ok(colliders) = body_collider_query.get(trigger.entity) else {
         return;
@@ -640,7 +630,7 @@ fn on_add_sensor(
         &mut CollidingEntities,
         Or<(With<Disabled>, Without<Disabled>)>,
     >,
-    mut message_writer: MessageWriter<CollisionEnded>,
+    mut message_writer: MessageWriter<CollisionEnd>,
 ) {
     remove_collider(
         trigger.entity,
@@ -667,7 +657,7 @@ fn on_remove_sensor(
         &mut CollidingEntities,
         Or<(With<Disabled>, Without<Disabled>)>,
     >,
-    mut message_writer: MessageWriter<CollisionEnded>,
+    mut message_writer: MessageWriter<CollisionEnd>,
 ) {
     remove_collider(
         trigger.entity,

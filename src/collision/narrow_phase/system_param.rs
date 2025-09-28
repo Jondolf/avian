@@ -113,8 +113,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     /// - Removes [`ContactManifold`]s from the [`ConstraintGraph`] when they are destroyed.
     pub fn update<H: CollisionHooks>(
         &mut self,
-        collision_started_writer: &mut MessageWriter<CollisionStarted>,
-        collision_ended_writer: &mut MessageWriter<CollisionEnded>,
+        collision_started_writer: &mut MessageWriter<CollisionStart>,
+        collision_ended_writer: &mut MessageWriter<CollisionEnd>,
         delta_secs: Scalar,
         hooks: &SystemParamItem<H>,
         context: &SystemParamItem<C::Context>,
@@ -158,10 +158,12 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         .flags
                         .contains(ContactEdgeFlags::TOUCHING | ContactEdgeFlags::CONTACT_EVENTS);
                     if send_event {
-                        collision_ended_writer.write(CollisionEnded(
-                            contact_pair.collider1,
-                            contact_pair.collider2,
-                        ));
+                        collision_ended_writer.write(CollisionEnd {
+                            collider1: contact_pair.collider1,
+                            collider2: contact_pair.collider2,
+                            body1: contact_pair.body1,
+                            body2: contact_pair.body2,
+                        });
                     }
 
                     // Remove from `CollidingEntities`.
@@ -207,10 +209,12 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 } else if contact_pair.collision_started() {
                     // Send collision started event.
                     if contact_edge.events_enabled() {
-                        collision_started_writer.write(CollisionStarted(
-                            contact_pair.collider1,
-                            contact_pair.collider2,
-                        ));
+                        collision_started_writer.write(CollisionStart {
+                            collider1: contact_pair.collider1,
+                            collider2: contact_pair.collider2,
+                            body1: contact_pair.body1,
+                            body2: contact_pair.body2,
+                        });
                     }
 
                     // Add to `CollidingEntities`.
@@ -260,10 +264,12 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 {
                     // Send collision ended event.
                     if contact_edge.events_enabled() {
-                        collision_ended_writer.write(CollisionEnded(
-                            contact_pair.collider1,
-                            contact_pair.collider2,
-                        ));
+                        collision_ended_writer.write(CollisionEnd {
+                            collider1: contact_pair.collider1,
+                            collider2: contact_pair.collider2,
+                            body1: contact_pair.body1,
+                            body2: contact_pair.body2,
+                        });
                     }
 
                     // Remove from `CollidingEntities`.
