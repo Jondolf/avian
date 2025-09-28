@@ -204,7 +204,7 @@ fn on_add_joint(mut world: DeferredWorld, ctx: HookContext) {
         // Joint already exists, remove the old one.
         world.commands().entity(entity).remove_by_id(old_joint);
 
-        #[cfg(debug_assertions)]
+        #[cfg(feature = "validate")]
         {
             use disqualified::ShortName;
 
