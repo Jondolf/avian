@@ -18,6 +18,7 @@ use crate::{
     prelude::*,
 };
 use bevy::{
+    camera::visibility::VisibilitySystems,
     ecs::{
         intern::Interned,
         query::Has,
@@ -84,26 +85,7 @@ use bevy::{
 ///     ));
 /// }
 /// ```
-pub struct PhysicsDebugPlugin {
-    schedule: Interned<dyn ScheduleLabel>,
-}
-
-impl PhysicsDebugPlugin {
-    /// Creates a [`PhysicsDebugPlugin`] with the schedule that is used for running the [`PhysicsSchedule`].
-    ///
-    /// The default schedule is `FixedPostUpdate`.
-    pub fn new(schedule: impl ScheduleLabel) -> Self {
-        Self {
-            schedule: schedule.intern(),
-        }
-    }
-}
-
-impl Default for PhysicsDebugPlugin {
-    fn default() -> Self {
-        Self::new(PostUpdate)
-    }
-}
+pub struct PhysicsDebugPlugin;
 
 impl Plugin for PhysicsDebugPlugin {
     fn build(&self, app: &mut App) {
@@ -150,8 +132,8 @@ impl Plugin for PhysicsDebugPlugin {
                 .run_if(|store: Res<GizmoConfigStore>| store.config::<PhysicsGizmos>().0.enabled),
         )
         .add_systems(
-            self.schedule,
-            change_mesh_visibility.after(PhysicsSystems::StepSimulation),
+            PostUpdate,
+            change_mesh_visibility.before(VisibilitySystems::CalculateBounds),
         );
     }
 }
