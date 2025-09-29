@@ -121,7 +121,7 @@ impl Plugin for PhysicsDebugPlugin {
         }
 
         app.add_systems(
-            self.schedule,
+            PostUpdate,
             (
                 debug_render_axes,
                 debug_render_aabbs,
@@ -146,7 +146,7 @@ impl Plugin for PhysicsDebugPlugin {
                 debug_render_shapecasts,
                 debug_render_islands.run_if(resource_exists::<PhysicsIslands>),
             )
-                .after(PhysicsSystems::StepSimulation)
+                .after(TransformSystems::Propagate)
                 .run_if(|store: Res<GizmoConfigStore>| store.config::<PhysicsGizmos>().0.enabled),
         )
         .add_systems(
@@ -159,8 +159,7 @@ impl Plugin for PhysicsDebugPlugin {
 #[allow(clippy::type_complexity)]
 fn debug_render_axes(
     bodies: Query<(
-        &Position,
-        &Rotation,
+        &GlobalTransform,
         &ComputedCenterOfMass,
         Has<Sleeping>,
         Option<&DebugRender>,
@@ -170,7 +169,10 @@ fn debug_render_axes(
     length_unit: Res<PhysicsLengthUnit>,
 ) {
     let config = store.config::<PhysicsGizmos>().1;
-    for (pos, rot, local_com, sleeping, render_config) in &bodies {
+    for (transform, local_com, sleeping, render_config) in &bodies {
+        let pos = Position::from(transform);
+        let rot = Rotation::from(transform);
+
         // If the body is sleeping, the colors will be multiplied by the sleeping color multiplier
         if let Some(mut lengths) = render_config.map_or(config.axis_lengths, |c| c.axis_lengths) {
             lengths *= length_unit.0;
@@ -274,8 +276,7 @@ fn debug_render_colliders(
     mut colliders: Query<(
         Entity,
         &Collider,
-        &Position,
-        &Rotation,
+        &GlobalTransform,
         Option<&ColliderOf>,
         Option<&DebugRender>,
     )>,
@@ -284,7 +285,9 @@ fn debug_render_colliders(
     store: Res<GizmoConfigStore>,
 ) {
     let config = store.config::<PhysicsGizmos>().1;
-    for (entity, collider, position, rotation, collider_rb, render_config) in &mut colliders {
+    for (entity, collider, transform, collider_rb, render_config) in &mut colliders {
+        let position = Position::from(transform);
+        let rotation = Rotation::from(transform);
         if let Some(mut color) = render_config.map_or(config.collider_color, |c| c.collider_color) {
             let collider_rb = collider_rb.map_or(entity, |c| c.body);
 
@@ -297,7 +300,7 @@ fn debug_render_colliders(
                     color = Hsla::from_vec4(hsla * Vec4::from_array(mul)).into();
                 }
             }
-            gizmos.draw_collider(collider, *position, *rotation, color);
+            gizmos.draw_collider(collider, position, rotation, color);
         }
     }
 }
@@ -379,7 +382,7 @@ pub trait DebugRenderConstraint<const N: usize>: EntityConstraint<N> {
 
 /// A system that renders all constraints that implement the [`DebugRenderConstraint`] trait.
 pub fn debug_render_constraint<T: Component + DebugRenderConstraint<N>, const N: usize>(
-    bodies: Query<(&Position, &Rotation)>,
+    bodies: Query<&GlobalTransform>,
     constraints: Query<&T>,
     mut gizmos: Gizmos<PhysicsGizmos>,
     store: Res<GizmoConfigStore>,
@@ -390,13 +393,13 @@ pub fn debug_render_constraint<T: Component + DebugRenderConstraint<N>, const N:
         if let Ok(bodies) = bodies.get_many(constraint.entities()) {
             let positions: [Vector; N] = bodies
                 .iter()
-                .map(|(pos, _)| pos.0)
+                .map(|transform| Position::from(**transform).0)
                 .collect::<Vec<_>>()
                 .try_into()
                 .unwrap();
             let rotations: [Rotation; N] = bodies
                 .iter()
-                .map(|(_, rot)| **rot)
+                .map(|transform| Rotation::from(**transform))
                 .collect::<Vec<_>>()
                 .try_into()
                 .unwrap();
