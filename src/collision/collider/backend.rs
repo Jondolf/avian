@@ -339,8 +339,6 @@ fn init_collider_constructors(
         let collider = Collider::try_from_constructor(constructor.clone());
 
         if let Some(collider) = collider {
-            use crate::collision::collider::constructor::ColliderConstructorReady;
-
             commands.entity(entity).insert(collider);
             commands.trigger(ColliderConstructorReady { entity })
         } else {
