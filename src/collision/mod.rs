@@ -94,7 +94,8 @@ pub mod prelude {
         any(feature = "parry-f32", feature = "parry-f64")
     ))]
     pub use super::collider::{
-        Collider, ColliderConstructor, ColliderConstructorHierarchy, FillMode, TrimeshFlags,
+        Collider, ColliderConstructor, ColliderConstructorHierarchy,
+        ColliderConstructorHierarchyReady, ColliderConstructorReady, FillMode, TrimeshFlags,
         VhacdParameters,
     };
     #[expect(deprecated)]

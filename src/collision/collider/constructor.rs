@@ -131,6 +131,22 @@ pub struct ColliderConstructorHierarchy {
     pub config: HashMap<String, Option<ColliderConstructorHierarchyConfig>>,
 }
 
+/// Emitted when a [`ColliderConstructor`] successfully inserted a [`Collider`].
+#[derive(EntityEvent, Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+pub struct ColliderConstructorReady {
+    /// The entity that held the [`ColliderConstructor`] had a [`Collider`] inserted.
+    pub entity: Entity,
+}
+
+/// Emitted when a [`ColliderConstructorHierarchy`] finished inserting all its [`Collider`]s.
+#[derive(EntityEvent, Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+pub struct ColliderConstructorHierarchyReady {
+    /// The entity that held the [`ColliderConstructorHierarchy`].
+    pub entity: Entity,
+}
+
 impl ColliderConstructorHierarchy {
     /// Creates a new [`ColliderConstructorHierarchy`] with the default [`ColliderConstructor`] used for
     /// generating colliders set to the given `default_constructor`.
