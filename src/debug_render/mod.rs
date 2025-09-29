@@ -85,6 +85,7 @@ use bevy::{
 ///     ));
 /// }
 /// ```
+#[derive(Default)]
 pub struct PhysicsDebugPlugin;
 
 impl Plugin for PhysicsDebugPlugin {
