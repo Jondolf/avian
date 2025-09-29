@@ -115,6 +115,7 @@ bevy = { version = "0.17.0-rc", default-features = false, features = [
     "bevy_gltf",
     "animation",
     "debug",
+    "reflect_auto_register"
 ] }
 bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy.git", features = [
     "approx",
