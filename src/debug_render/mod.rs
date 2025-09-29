@@ -20,9 +20,7 @@ use crate::{
 use bevy::{
     camera::visibility::VisibilitySystems,
     ecs::{
-        intern::Interned,
         query::Has,
-        schedule::ScheduleLabel,
         system::{StaticSystemParam, SystemParam, SystemParamItem},
     },
     prelude::*,
