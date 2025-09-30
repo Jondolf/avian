@@ -723,6 +723,7 @@ mod tests {
         ignore = "The plugin setup requires access to the GPU, which is not available in the linux test environment"
     )]
     fn collider_constructor_hierarchy_inserts_correct_configs_on_scene() {
+        use bevy::gltf::GltfMeshName;
         use parry::shape::ShapeType;
 
         #[derive(Resource)]
@@ -774,7 +775,7 @@ mod tests {
         // Check densities
         let densities: HashMap<_, _> = app
             .world_mut()
-            .query::<(&Name, &ColliderDensity)>()
+            .query::<(&GltfMeshName, &ColliderDensity)>()
             .iter(app.world())
             .map(|(name, density)| (name.to_string(), density.0))
             .collect();
@@ -786,7 +787,7 @@ mod tests {
         // Check collider shape types
         let colliders: HashMap<_, _> = app
             .world_mut()
-            .query::<(&Name, &Collider)>()
+            .query::<(&GltfMeshName, &Collider)>()
             .iter(app.world())
             .map(|(name, collider)| (name.to_string(), collider))
             .collect();
