@@ -21,7 +21,7 @@ use bevy::{
         },
         world::{DeferredWorld, Mut, OnInsert, OnReplace, Ref, World},
     },
-    log::{info, warn},
+    log::warn,
     prelude::{Deref, DerefMut},
     time::Time,
 };
@@ -99,8 +99,6 @@ fn sleep_on_add_sleeping(mut world: DeferredWorld, ctx: HookContext) {
     {
         return;
     }
-
-    info!("Sleeping body {:?} in island {:?}", ctx.entity, island_id);
 
     world.commands().queue(SleepBody(ctx.entity));
 }
