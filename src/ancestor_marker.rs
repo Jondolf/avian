@@ -9,25 +9,28 @@ use bevy::prelude::*;
 ///
 /// One use case is speeding up transform propagation: we only need to propagate
 /// down trees that have a certain type of entity, like a collider or a rigid body.
-pub struct AncestorMarkerPlugin<C: Component>(PhantomData<C>);
+pub struct AncestorMarkerPlugin<C: Component + TypePath>(PhantomData<C>);
 
-impl<C: Component> Default for AncestorMarkerPlugin<C> {
+impl<C: Component + TypePath> Default for AncestorMarkerPlugin<C> {
     fn default() -> Self {
         Self(PhantomData)
     }
 }
 
-impl<C: Component> Plugin for AncestorMarkerPlugin<C> {
+impl<C: Component + TypePath> Plugin for AncestorMarkerPlugin<C> {
     fn build(&self, app: &mut App) {
+        // Register types with generics.
+        app.register_type::<AncestorMarker<C>>();
+
         // Add `AncestorMarker<C>` for the ancestors of colliders that are inserted as children,
         // until an ancestor that has other `AncestorMarker<C>` entities as children is encountered.
         app.add_observer(
-            |trigger: Trigger<OnInsert, (ChildOf, C)>,
+            |insert: On<Insert, (ChildOf, C)>,
              mut commands: Commands,
              collider_query: Query<&C>,
              parent_query: Query<&ChildOf>,
              ancestor_query: Query<(), With<AncestorMarker<C>>>| {
-                let entity = trigger.target();
+                let entity = insert.entity;
                 if collider_query.contains(entity) {
                     add_ancestor_markers(
                         entity,
@@ -44,7 +47,7 @@ impl<C: Component> Plugin for AncestorMarkerPlugin<C> {
         // until an ancestor that has other `AncestorMarker<C>` entities as children is encountered.
         #[allow(clippy::type_complexity)]
         app.add_observer(
-            |trigger: Trigger<OnReplace, (ChildOf, C)>,
+            |insert: On<Replace, (ChildOf, C)>,
             mut commands: Commands,
             collider_query: Query<&C>,
             child_query: Query<&Children>,
@@ -53,7 +56,7 @@ impl<C: Component> Plugin for AncestorMarkerPlugin<C> {
                 (Entity, Has<C>),
                 Or<(With<AncestorMarker<C>>, With<C>)>
             >| {
-                let entity = trigger.target();
+                let entity = insert.entity;
                 if collider_query.contains(entity) {
                     remove_ancestor_markers(entity, &mut commands, &parent_query, &child_query, &ancestor_query, false);
                 }
@@ -175,7 +178,7 @@ fn remove_ancestor_markers<C: Component>(
 mod tests {
     use super::*;
 
-    #[derive(Component)]
+    #[derive(Component, Reflect)]
     struct C;
 
     #[test]

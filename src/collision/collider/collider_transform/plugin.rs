@@ -1,6 +1,6 @@
 use crate::{
     ancestor_marker::{AncestorMarker, AncestorMarkerPlugin},
-    physics_transform::PhysicsTransformSet,
+    physics_transform::PhysicsTransformSystems,
     prelude::*,
 };
 use bevy::{
@@ -49,7 +49,7 @@ impl Plugin for ColliderTransformPlugin {
         // Only traverses trees with `AncestorMarker<ColliderMarker>`.
         app.add_systems(
             self.schedule,
-            propagate_collider_transforms.in_set(PhysicsTransformSet::Propagate),
+            propagate_collider_transforms.in_set(PhysicsTransformSystems::Propagate),
         );
 
         let physics_schedule = app
@@ -58,7 +58,8 @@ impl Plugin for ColliderTransformPlugin {
 
         // Update child collider positions before narrow phase collision detection.
         // Only traverses trees with `AncestorMarker<ColliderMarker>`.
-        physics_schedule.add_systems(update_child_collider_position.in_set(PhysicsStepSet::First));
+        physics_schedule
+            .add_systems(update_child_collider_position.in_set(PhysicsStepSystems::First));
     }
 }
 

@@ -21,7 +21,6 @@ fn main() {
         .add_plugins((
             DefaultPlugins,
             ExampleCommonPlugin,
-            PhysicsDebugPlugin::default(),
             PhysicsPlugins::default()
                 // Specify a units-per-meter scaling factor, 1 meter = 20 pixels.
                 // The unit allows the engine to tune its parameters for the scale of the world, improving stability.

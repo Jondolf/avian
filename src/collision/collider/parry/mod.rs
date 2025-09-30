@@ -12,7 +12,7 @@ pub use primitives2d::{EllipseColliderShape, RegularPolygonColliderShape};
 
 use crate::{make_isometry, prelude::*};
 #[cfg(feature = "collider-from-mesh")]
-use bevy::render::mesh::{Indices, VertexAttributeValues};
+use bevy::mesh::{Indices, VertexAttributeValues};
 use bevy::{log, prelude::*};
 use contact_query::UnsupportedShape;
 use itertools::Either;

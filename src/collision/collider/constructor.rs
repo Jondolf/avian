@@ -519,7 +519,7 @@ mod tests {
     use super::*;
     #[cfg(feature = "bevy_scene")]
     use bevy::scene::ScenePlugin;
-    use bevy::{ecs::query::QueryData, render::mesh::MeshPlugin};
+    use bevy::{ecs::query::QueryData, mesh::MeshPlugin};
 
     #[test]
     fn collider_constructor_requires_no_mesh_on_primitive() {
@@ -723,6 +723,7 @@ mod tests {
         ignore = "The plugin setup requires access to the GPU, which is not available in the linux test environment"
     )]
     fn collider_constructor_hierarchy_inserts_correct_configs_on_scene() {
+        use bevy::gltf::GltfMeshName;
         use parry::shape::ShapeType;
 
         #[derive(Resource)]
@@ -731,7 +732,7 @@ mod tests {
         let mut app = create_gltf_test_app();
 
         app.add_observer(
-            |_trigger: Trigger<bevy::scene::SceneInstanceReady>, mut commands: Commands| {
+            |_trigger: On<bevy::scene::SceneInstanceReady>, mut commands: Commands| {
                 commands.insert_resource(SceneReady);
             },
         );
@@ -747,10 +748,10 @@ mod tests {
                 SceneRoot(scene_handle),
                 ColliderConstructorHierarchy::new(ColliderConstructor::ConvexDecompositionFromMesh)
                     // Use a primitive collider for the left arm.
-                    .with_constructor_for_name("armL_mesh", PRIMITIVE_COLLIDER)
-                    .with_density_for_name("armL_mesh", 2.0)
+                    .with_constructor_for_name("armL_mesh.ferris_material", PRIMITIVE_COLLIDER)
+                    .with_density_for_name("armL_mesh.ferris_material", 2.0)
                     // Remove the right arm. Don't worry, crabs can regrow lost limbs!
-                    .without_constructor_for_name("armR_mesh"),
+                    .without_constructor_for_name("armR_mesh.ferris_material"),
                 RigidBody::Dynamic,
             ))
             .id();
@@ -774,7 +775,7 @@ mod tests {
         // Check densities
         let densities: HashMap<_, _> = app
             .world_mut()
-            .query::<(&Name, &ColliderDensity)>()
+            .query::<(&GltfMeshName, &ColliderDensity)>()
             .iter(app.world())
             .map(|(name, density)| (name.to_string(), density.0))
             .collect();
@@ -786,7 +787,7 @@ mod tests {
         // Check collider shape types
         let colliders: HashMap<_, _> = app
             .world_mut()
-            .query::<(&Name, &Collider)>()
+            .query::<(&GltfMeshName, &Collider)>()
             .iter(app.world())
             .map(|(name, collider)| (name.to_string(), collider))
             .collect();
@@ -819,8 +820,7 @@ mod tests {
             ScenePlugin,
             MeshPlugin,
             PhysicsPlugins::default(),
-        ))
-        .init_resource::<Assets<Mesh>>();
+        ));
 
         app
     }

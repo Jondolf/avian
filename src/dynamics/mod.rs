@@ -85,7 +85,7 @@ pub mod prelude {
             forces::{
                 ConstantAngularAcceleration, ConstantForce, ConstantLinearAcceleration,
                 ConstantLocalForce, ConstantLocalLinearAcceleration, ConstantTorque, ForcePlugin,
-                ForceSet, Forces, RigidBodyForces,
+                ForceSystems, Forces, RigidBodyForces,
             },
             mass_properties::{
                 MassPropertiesExt, MassPropertyHelper, MassPropertyPlugin,
@@ -111,7 +111,9 @@ pub mod prelude {
                 IslandPlugin, IslandSleepingPlugin, SleepBody, SleepIslands, WakeBody, WakeIslands,
                 WakeUpBody,
             },
-            schedule::{SolverSchedulePlugin, SolverSet, SubstepCount, SubstepSchedule},
+            schedule::{
+                SolverSchedulePlugin, SolverSet, SolverSystems, SubstepCount, SubstepSchedule,
+            },
             solver_body::SolverBodyPlugin,
         },
     };

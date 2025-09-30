@@ -1,13 +1,13 @@
 use crate::prelude::*;
 use bevy::{
     ecs::{
-        component::HookContext,
         entity::{EntityMapper, MapEntities},
+        lifecycle::HookContext,
         world::DeferredWorld,
     },
     prelude::*,
 };
-use parry::query::{ShapeCastOptions, details::TOICompositeShapeShapeBestFirstVisitor};
+use parry::{query::ShapeCastOptions, shape::CompositeShapeRef};
 
 /// A component used for [shapecasting](spatial_query#shapecasting).
 ///
@@ -349,6 +349,13 @@ impl ShapeCaster {
 
         hits.clear();
 
+        let shape_cast_options = ShapeCastOptions {
+            max_time_of_impact: self.max_distance,
+            target_distance: self.target_distance,
+            stop_at_penetration: !self.ignore_origin_penetration,
+            compute_impact_geometry_on_penetration: self.compute_contact_on_penetration,
+        };
+
         let shape_rotation: Rotation;
         #[cfg(feature = "2d")]
         {
@@ -363,35 +370,29 @@ impl ShapeCaster {
         let shape_direction = self.global_direction().adjust_precision().into();
 
         while hits.len() < self.max_hits as usize {
-            let pipeline_shape = query_pipeline.as_composite_shape(&query_filter);
-            let mut visitor = TOICompositeShapeShapeBestFirstVisitor::new(
-                &*query_pipeline.dispatcher,
-                &shape_isometry,
-                &shape_direction,
-                &pipeline_shape,
-                &**self.shape.shape_scaled(),
-                ShapeCastOptions {
-                    max_time_of_impact: self.max_distance,
-                    stop_at_penetration: !self.ignore_origin_penetration,
-                    ..default()
-                },
-            );
+            let composite = query_pipeline.as_composite_shape(&query_filter);
+            let pipeline_shape = CompositeShapeRef(&composite);
 
-            if let Some(hit) =
-                query_pipeline
-                    .qbvh
-                    .traverse_best_first(&mut visitor)
-                    .map(|(_, (index, hit))| ShapeHitData {
-                        entity: query_pipeline.proxies[index as usize].entity,
-                        distance: hit.time_of_impact,
-                        point1: hit.witness1.into(),
-                        point2: hit.witness2.into(),
-                        normal1: hit.normal1.into(),
-                        normal2: hit.normal2.into(),
-                    })
-            {
-                hits.push(hit);
+            let hit = pipeline_shape
+                .cast_shape(
+                    query_pipeline.dispatcher.as_ref(),
+                    &shape_isometry,
+                    &shape_direction,
+                    self.shape.shape_scaled().as_ref(),
+                    shape_cast_options,
+                )
+                .map(|(index, hit)| ShapeHitData {
+                    entity: query_pipeline.proxies[index as usize].entity,
+                    distance: hit.time_of_impact,
+                    point1: hit.witness1.into(),
+                    point2: hit.witness2.into(),
+                    normal1: hit.normal1.into(),
+                    normal2: hit.normal2.into(),
+                });
+
+            if let Some(hit) = hit {
                 query_filter.excluded_entities.insert(hit.entity);
+                hits.push(hit);
             } else {
                 return;
             }

@@ -27,7 +27,7 @@ pub struct RigidBodyQuery {
     pub is_sensor: Has<Sensor>,
 }
 
-impl RigidBodyQueryItem<'_> {
+impl RigidBodyQueryItem<'_, '_> {
     /// Computes the velocity at the given `point` relative to the center of the body.
     pub fn velocity_at_point(&self, point: Vector) -> Vector {
         #[cfg(feature = "2d")]
@@ -95,7 +95,7 @@ impl RigidBodyQueryItem<'_> {
     }
 }
 
-impl RigidBodyQueryReadOnlyItem<'_> {
+impl RigidBodyQueryReadOnlyItem<'_, '_> {
     /// Computes the velocity at the given `point` relative to the center of mass.
     pub fn velocity_at_point(&self, point: Vector) -> Vector {
         #[cfg(feature = "2d")]

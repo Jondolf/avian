@@ -196,7 +196,7 @@
 //! For example, [`MassPropertyHelper::total_mass_properties`] computes the total mass properties of an entity,
 //! taking into account the mass properties of descendants and colliders.
 
-use crate::physics_transform::PhysicsTransformSet;
+use crate::physics_transform::PhysicsTransformSystems;
 use crate::prelude::*;
 use bevy::{
     ecs::{intern::Interned, schedule::ScheduleLabel},
@@ -276,37 +276,22 @@ impl Default for MassPropertyPlugin {
 
 impl Plugin for MassPropertyPlugin {
     fn build(&self, app: &mut App) {
-        app.register_type::<(
-            Mass,
-            AngularInertia,
-            CenterOfMass,
-            ComputedMass,
-            ComputedAngularInertia,
-            ComputedCenterOfMass,
-            ColliderDensity,
-            ColliderMassProperties,
-            NoAutoMass,
-            NoAutoAngularInertia,
-            NoAutoCenterOfMass,
-        )>();
-
         // TODO: We probably don't need this since we have the observer.
         // Force mass property computation for new rigid bodies.
         app.register_required_components::<RigidBody, RecomputeMassProperties>();
 
         // Compute mass properties for new rigid bodies at spawn.
         app.add_observer(
-            |trigger: Trigger<OnAdd, RigidBody>, mut mass_helper: MassPropertyHelper| {
-                mass_helper.update_mass_properties(trigger.target());
+            |trigger: On<Add, RigidBody>, mut mass_helper: MassPropertyHelper| {
+                mass_helper.update_mass_properties(trigger.entity);
             },
         );
 
         // Update the mass properties of rigid bodies when colliders added or removed.
         // TODO: Avoid duplicating work with the above observer.
         app.add_observer(
-            |trigger: Trigger<OnInsert, RigidBodyColliders>,
-             mut mass_helper: MassPropertyHelper| {
-                mass_helper.update_mass_properties(trigger.target());
+            |trigger: On<Insert, RigidBodyColliders>, mut mass_helper: MassPropertyHelper| {
+                mass_helper.update_mass_properties(trigger.entity);
             },
         );
 
@@ -319,8 +304,8 @@ impl Plugin for MassPropertyPlugin {
                 MassPropertySystems::UpdateComputedMassProperties,
             )
                 .chain()
-                .in_set(PhysicsSet::Prepare)
-                .after(PhysicsTransformSet::TransformToPosition),
+                .in_set(PhysicsSystems::Prepare)
+                .after(PhysicsTransformSystems::TransformToPosition),
         );
 
         // Queue mass property recomputation when mass properties are changed.

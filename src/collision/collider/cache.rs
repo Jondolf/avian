@@ -42,7 +42,7 @@ impl ColliderCache {
 }
 
 fn clear_unused_colliders(
-    mut asset_events: EventReader<AssetEvent<Mesh>>,
+    mut asset_events: MessageReader<AssetEvent<Mesh>>,
     mut collider_cache: ResMut<ColliderCache>,
 ) {
     for event in asset_events.read() {

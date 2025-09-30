@@ -12,16 +12,14 @@ use crate::{
         },
     },
     prelude::{
-        ContactGraph, JointCollisionDisabled, JointDisabled, PhysicsSchedule, PhysicsStepSet,
+        ContactGraph, JointCollisionDisabled, JointDisabled, PhysicsSchedule, PhysicsStepSystems,
         RigidBodyColliders, WakeIslands,
     },
 };
 use bevy::{
     ecs::{
-        component::{ComponentId, HookContext},
-        entity_disabling::Disabled,
-        query::QueryFilter,
-        world::DeferredWorld,
+        component::ComponentId, entity_disabling::Disabled, lifecycle::HookContext,
+        query::QueryFilter, world::DeferredWorld,
     },
     prelude::*,
 };
@@ -78,15 +76,15 @@ impl<T: Component + EntityConstraint<2>> Plugin for JointGraphPlugin<T> {
 
         // Add the joint to the joint graph when it is added and the joint is not disabled.
         app.add_observer(
-            add_joint_to_graph::<T, OnAdd, T, (With<JointComponentId>, Without<JointDisabled>)>,
+            add_joint_to_graph::<T, Add, T, (With<JointComponentId>, Without<JointDisabled>)>,
         );
 
         // Remove the joint from the joint graph when it is removed.
-        app.add_observer(remove_joint_from_graph::<OnRemove, T>);
+        app.add_observer(remove_joint_from_graph::<Remove, T>);
 
         if !already_initialized {
             // Remove the joint from the joint graph when it is disabled.
-            app.add_observer(remove_joint_from_graph::<OnAdd, (Disabled, JointDisabled)>);
+            app.add_observer(remove_joint_from_graph::<Add, (Disabled, JointDisabled)>);
 
             // Remove contacts between bodies when the `JointCollisionDisabled` component is added.
             app.add_observer(on_disable_joint_collision);
@@ -96,7 +94,7 @@ impl<T: Component + EntityConstraint<2>> Plugin for JointGraphPlugin<T> {
         app.add_observer(
             add_joint_to_graph::<
                 T,
-                OnRemove,
+                Remove,
                 Disabled,
                 (
                     With<JointComponentId>,
@@ -107,19 +105,24 @@ impl<T: Component + EntityConstraint<2>> Plugin for JointGraphPlugin<T> {
         );
 
         // Add the joint back to the joint graph when `JointDisabled` is removed.
-        app.add_observer(add_joint_to_graph::<T, OnRemove, JointDisabled, With<JointComponentId>>);
+        app.add_observer(add_joint_to_graph::<T, Remove, JointDisabled, With<JointComponentId>>);
 
         app.add_systems(
             PhysicsSchedule,
             on_change_joint_entities::<T>
-                .in_set(PhysicsStepSet::First)
-                .ambiguous_with(PhysicsStepSet::First),
+                .in_set(PhysicsStepSystems::First)
+                .ambiguous_with(PhysicsStepSystems::First),
         );
     }
 }
 
-fn add_joint_to_graph<T: Component + EntityConstraint<2>, E: Event, B: Bundle, F: QueryFilter>(
-    trigger: Trigger<E, B>,
+fn add_joint_to_graph<
+    T: Component + EntityConstraint<2>,
+    E: EntityEvent,
+    B: Bundle,
+    F: QueryFilter,
+>(
+    trigger: On<E, B>,
     query: Query<(&T, Has<JointCollisionDisabled>), F>,
     mut commands: Commands,
     mut body_islands: Query<&mut BodyIslandNode, Or<(With<Disabled>, Without<Disabled>)>>,
@@ -127,7 +130,7 @@ fn add_joint_to_graph<T: Component + EntityConstraint<2>, E: Event, B: Bundle, F
     mut joint_graph: ResMut<JointGraph>,
     mut islands: Option<ResMut<PhysicsIslands>>,
 ) {
-    let entity = trigger.target();
+    let entity = trigger.event_target();
 
     let Ok((joint, collision_disabled)) = query.get(entity) else {
         return;
@@ -157,15 +160,15 @@ fn add_joint_to_graph<T: Component + EntityConstraint<2>, E: Event, B: Bundle, F
     }
 }
 
-fn remove_joint_from_graph<E: Event, B: Bundle>(
-    trigger: Trigger<E, B>,
+fn remove_joint_from_graph<E: EntityEvent, B: Bundle>(
+    trigger: On<E, B>,
     mut commands: Commands,
     mut body_islands: Query<&mut BodyIslandNode, Or<(With<Disabled>, Without<Disabled>)>>,
     contact_graph: ResMut<ContactGraph>,
     mut joint_graph: ResMut<JointGraph>,
     mut islands: Option<ResMut<PhysicsIslands>>,
 ) {
-    let entity = trigger.target();
+    let entity = trigger.event_target();
 
     let Some(joint) = joint_graph.get(entity) else {
         return;
@@ -210,8 +213,10 @@ fn on_add_joint(mut world: DeferredWorld, ctx: HookContext) {
 
             // Log a warning about the joint replacement in case it was not intentional.
             let components = world.components();
-            let old_joint_name = ShortName(components.get_info(old_joint).unwrap().name());
-            let new_joint_name = ShortName(components.get_info(component_id).unwrap().name());
+            let old_joint_shortname = components.get_info(old_joint).unwrap().name();
+            let old_joint_name = ShortName(&old_joint_shortname);
+            let new_joint_shortname = components.get_info(component_id).unwrap().name();
+            let new_joint_name = ShortName(&new_joint_shortname);
 
             warn!(
                 "{old_joint_name} was replaced with {new_joint_name} on entity {entity}. An entity can only hold one joint type at a time."
@@ -240,13 +245,13 @@ fn on_remove_joint(mut world: DeferredWorld, ctx: HookContext) {
 }
 
 fn on_disable_joint_collision(
-    trigger: Trigger<OnAdd, JointCollisionDisabled>,
+    trigger: On<Add, JointCollisionDisabled>,
     query: Query<&RigidBodyColliders>,
     joint_graph: Res<JointGraph>,
     mut contact_graph: ResMut<ContactGraph>,
     mut constraint_graph: ResMut<ConstraintGraph>,
 ) {
-    let entity = trigger.target();
+    let entity = trigger.entity;
 
     // Iterate through each collider of the body with fewer colliders,
     // find contacts with the other body, and remove them.

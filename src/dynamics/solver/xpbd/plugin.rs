@@ -5,7 +5,7 @@ use crate::{
     dynamics::{
         joints::EntityConstraint,
         solver::{
-            schedule::SubstepSolverSet,
+            schedule::SubstepSolverSystems,
             solver_body::{SolverBody, SolverBodyInertia},
             xpbd::{XpbdConstraint, XpbdConstraintSolverData},
         },
@@ -30,13 +30,13 @@ impl Plugin for XpbdSolverPlugin {
         app.configure_sets(
             SubstepSchedule,
             (
-                XpbdSolverSet::SolveConstraints,
-                XpbdSolverSet::SolveUserConstraints,
-                XpbdSolverSet::VelocityProjection,
+                XpbdSolverSystems::SolveConstraints,
+                XpbdSolverSystems::SolveUserConstraints,
+                XpbdSolverSystems::VelocityProjection,
             )
                 .chain()
-                .after(SubstepSolverSet::Relax)
-                .before(SubstepSolverSet::Damping),
+                .after(SubstepSolverSystems::Relax)
+                .before(SubstepSolverSystems::Damping),
         );
 
         // Prepare joints before the substepping loop.
@@ -51,7 +51,7 @@ impl Plugin for XpbdSolverPlugin {
                 prepare_xpbd_joint::<DistanceJoint>,
             )
                 .chain()
-                .in_set(SolverSet::PrepareJoints),
+                .in_set(SolverSystems::PrepareJoints),
         );
 
         // Solve joints with XPBD.
@@ -82,7 +82,7 @@ impl Plugin for XpbdSolverPlugin {
                 solve_xpbd_joint::<DistanceJoint>,
             )
                 .chain()
-                .in_set(XpbdSolverSet::SolveConstraints),
+                .in_set(XpbdSolverSystems::SolveConstraints),
         );
 
         // Perform XPBD velocity updates after constraint solving.
@@ -90,7 +90,7 @@ impl Plugin for XpbdSolverPlugin {
             SubstepSchedule,
             (project_linear_velocity, project_angular_velocity)
                 .chain()
-                .in_set(XpbdSolverSet::VelocityProjection),
+                .in_set(XpbdSolverSystems::VelocityProjection),
         );
 
         // Write back the forces applied by the XPBD joints.
@@ -105,14 +105,14 @@ impl Plugin for XpbdSolverPlugin {
                 writeback_joint_forces::<DistanceJoint>,
             )
                 .chain()
-                .in_set(SolverSet::Finalize),
+                .in_set(SolverSystems::Finalize),
         );
     }
 }
 
 /// System sets for the XPBD constraint solver in the [`SubstepSchedule`].
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum XpbdSolverSet {
+pub enum XpbdSolverSystems {
     /// Solves constraints using Extended Position-Based Dynamics (XPBD).
     SolveConstraints,
     /// A system set for user constraints.

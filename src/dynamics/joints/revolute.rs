@@ -1,5 +1,5 @@
 use crate::{
-    dynamics::joints::{EntityConstraint, JointSet},
+    dynamics::joints::{EntityConstraint, JointSystems},
     prelude::*,
 };
 use bevy::{
@@ -347,10 +347,9 @@ impl MapEntities for RevoluteJoint {
 }
 
 pub(super) fn plugin(app: &mut App) {
-    app.register_type::<RevoluteJoint>();
     app.add_systems(
         PhysicsSchedule,
-        update_local_frames.in_set(JointSet::PrepareLocalFrames),
+        update_local_frames.in_set(JointSystems::PrepareLocalFrames),
     );
 }
 

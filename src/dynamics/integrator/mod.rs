@@ -20,7 +20,7 @@ use super::solver::solver_body::SolverBody;
 /// Currently, only the [semi-implicit (symplectic) Euler](https://en.wikipedia.org/wiki/Semi-implicit_Euler_method)
 /// integration scheme is supported. It is the standard for game physics, being stable, efficient, and sufficiently accurate.
 ///
-/// See [`IntegrationSet`] for the system sets used by this plugin.
+/// See [`IntegrationSystems`] for the system sets used by this plugin.
 pub struct IntegratorPlugin {
     schedule: Interned<dyn ScheduleLabel>,
 }
@@ -52,26 +52,27 @@ impl Plugin for IntegratorPlugin {
         app.configure_sets(
             PhysicsSchedule,
             (
-                IntegrationSet::UpdateVelocityIncrements
-                    .in_set(SolverSet::PreSubstep)
-                    .before(IntegrationSet::Velocity),
-                IntegrationSet::ClearVelocityIncrements
-                    .in_set(SolverSet::PostSubstep)
-                    .after(IntegrationSet::Velocity),
+                IntegrationSystems::UpdateVelocityIncrements
+                    .in_set(SolverSystems::PreSubstep)
+                    .before(IntegrationSystems::Velocity),
+                IntegrationSystems::ClearVelocityIncrements
+                    .in_set(SolverSystems::PostSubstep)
+                    .after(IntegrationSystems::Velocity),
             ),
         );
 
         app.add_systems(
             PhysicsSchedule,
             (
-                pre_process_velocity_increments.in_set(IntegrationSet::UpdateVelocityIncrements),
-                clear_velocity_increments.in_set(IntegrationSet::ClearVelocityIncrements),
+                pre_process_velocity_increments
+                    .in_set(IntegrationSystems::UpdateVelocityIncrements),
+                clear_velocity_increments.in_set(IntegrationSystems::ClearVelocityIncrements),
             ),
         );
 
         app.configure_sets(
             self.schedule.intern(),
-            (IntegrationSet::Velocity, IntegrationSet::Position).chain(),
+            (IntegrationSystems::Velocity, IntegrationSystems::Position).chain(),
         );
 
         app.add_systems(
@@ -79,8 +80,8 @@ impl Plugin for IntegratorPlugin {
             (
                 (integrate_velocities, clamp_velocities)
                     .chain()
-                    .in_set(IntegrationSet::Velocity),
-                integrate_positions.in_set(IntegrationSet::Position),
+                    .in_set(IntegrationSystems::Velocity),
+                integrate_positions.in_set(IntegrationSystems::Position),
             ),
         );
     }
@@ -89,25 +90,29 @@ impl Plugin for IntegratorPlugin {
 /// System sets for position and velocity integration,
 /// applying forces and moving bodies based on velocity.
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum IntegrationSet {
+pub enum IntegrationSystems {
     /// Applies gravity and locked axes to the linear and angular velocity increments of bodies,
     /// and multiplies them by the substep delta time to get the final per-substep increments.
     ///
-    /// Runs in the [`PhysicsSchedule`], in [`SolverSet::PreSubstep`].
+    /// Runs in the [`PhysicsSchedule`], in [`SolverSystems::PreSubstep`].
     UpdateVelocityIncrements,
     /// Applies velocity increments to the linear and angular velocities of bodies.
     ///
-    /// Typically runs in the [`SubstepSchedule`], in [`IntegrationSet::Velocity`].
+    /// Typically runs in the [`SubstepSchedule`], in [`IntegrationSystems::Velocity`].
     Velocity,
     /// Moves bodies based on their current velocities and the physics time step.
     ///
-    /// Typically runs in the [`SubstepSchedule`], in [`IntegrationSet::Position`].
+    /// Typically runs in the [`SubstepSchedule`], in [`IntegrationSystems::Position`].
     Position,
     /// Clears the velocity increments of bodies after the substepping loop.
     ///
-    /// Runs in the [`PhysicsSchedule`], in [`SolverSet::PostSubstep`].
+    /// Runs in the [`PhysicsSchedule`], in [`SolverSystems::PostSubstep`].
     ClearVelocityIncrements,
 }
+
+/// A deprecated alias for [`IntegrationSystems`].
+#[deprecated(since = "0.4.0", note = "Renamed to `IntegrationSystems`")]
+pub type IntegrationSet = IntegrationSystems;
 
 /// A resource for the global gravitational acceleration.
 ///
@@ -183,12 +188,12 @@ impl Gravity {
 pub struct VelocityIntegrationData {
     /// The linear velocity increment to be applied to the body at each substep.
     ///
-    /// **Note:** This is treated as linear acceleration until [`IntegrationSet::UpdateVelocityIncrements`].
+    /// **Note:** This is treated as linear acceleration until [`IntegrationSystems::UpdateVelocityIncrements`].
     /// where it is multiplied by the time step to get the corresponding velocity increment.
     pub linear_increment: Vector,
     /// The angular velocity increment to be applied to the body at each substep.
     ///
-    /// **Note:** This is treated as angular acceleration until [`IntegrationSet::UpdateVelocityIncrements`].
+    /// **Note:** This is treated as angular acceleration until [`IntegrationSystems::UpdateVelocityIncrements`].
     /// where it is multiplied by the time step to get the corresponding velocity increment.
     pub angular_increment: AngularVector,
     /// The right-hand side of the linear damping equation,
@@ -505,7 +510,7 @@ mod tests {
     use approx::assert_relative_eq;
 
     use crate::prelude::*;
-    use bevy::{prelude::*, render::mesh::MeshPlugin, time::TimeUpdateStrategy};
+    use bevy::{mesh::MeshPlugin, prelude::*, time::TimeUpdateStrategy};
 
     fn create_app() -> App {
         let mut app = App::new();
@@ -518,8 +523,7 @@ mod tests {
             #[cfg(feature = "bevy_scene")]
             bevy::scene::ScenePlugin,
             MeshPlugin,
-        ))
-        .init_resource::<Assets<Mesh>>();
+        ));
         app
     }
 

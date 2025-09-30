@@ -123,13 +123,13 @@ pub struct Forces {
 /// Returned by [`ForcesItem::non_waking`].
 ///
 /// See the documentation of [`Forces`] for more information on how to apply forces in Avian.
-pub struct NonWakingForcesItem<'a>(pub ForcesItem<'a>);
+pub struct NonWakingForcesItem<'w, 's>(pub ForcesItem<'w, 's>);
 
-impl ForcesItem<'_> {
+impl ForcesItem<'_, '_> {
     /// Reborrows `self` as a new instance of [`ForcesItem`].
     #[inline]
     #[must_use]
-    pub fn reborrow(&mut self) -> ForcesItem<'_> {
+    pub fn reborrow(&mut self) -> ForcesItem<'_, '_> {
         ForcesItem {
             position: self.position,
             rotation: self.rotation,
@@ -150,22 +150,22 @@ impl ForcesItem<'_> {
     /// without waking up the body if it is sleeping.
     #[inline]
     #[must_use]
-    pub fn non_waking(&mut self) -> NonWakingForcesItem<'_> {
+    pub fn non_waking(&mut self) -> NonWakingForcesItem<'_, '_> {
         NonWakingForcesItem(self.reborrow())
     }
 }
 
-impl<'a> NonWakingForcesItem<'a> {
+impl<'w, 's> NonWakingForcesItem<'w, 's> {
     /// Returns a [`ForcesItem`] that will wake up the body when applying forces, impulses, or accelerations.
     #[inline]
     #[must_use]
-    pub fn waking(self) -> ForcesItem<'a> {
+    pub fn waking(self) -> ForcesItem<'w, 's> {
         self.0
     }
 }
 
-impl RigidBodyForces for ForcesItem<'_> {}
-impl RigidBodyForces for NonWakingForcesItem<'_> {}
+impl RigidBodyForces for ForcesItem<'_, '_> {}
+impl RigidBodyForces for NonWakingForcesItem<'_, '_> {}
 
 /// A trait for applying forces, impulses, and accelerations to a dynamic [rigid body](RigidBody).
 ///
@@ -531,7 +531,7 @@ trait RigidBodyForcesInternal {
     fn try_wake_up(&mut self) -> bool;
 }
 
-impl RigidBodyForcesInternal for ForcesItem<'_> {
+impl RigidBodyForcesInternal for ForcesItem<'_, '_> {
     #[inline]
     fn rotation(&self) -> &Rotation {
         self.rotation
@@ -605,7 +605,7 @@ impl RigidBodyForcesInternal for ForcesItem<'_> {
     }
 }
 
-impl RigidBodyForcesInternal for NonWakingForcesItem<'_> {
+impl RigidBodyForcesInternal for NonWakingForcesItem<'_, '_> {
     #[inline]
     fn rotation(&self) -> &Rotation {
         self.0.rotation()

@@ -50,7 +50,7 @@ pub use sleeping::{
 };
 
 use bevy::{
-    ecs::{component::HookContext, entity_disabling::Disabled, world::DeferredWorld},
+    ecs::{entity_disabling::Disabled, lifecycle::HookContext, world::DeferredWorld},
     prelude::*,
 };
 use slab::Slab;
@@ -62,7 +62,8 @@ use crate::{
         solver_body::SolverBody,
     },
     prelude::{
-        ContactGraph, PhysicsSchedule, RigidBody, RigidBodyColliders, RigidBodyDisabled, SolverSet,
+        ContactGraph, PhysicsSchedule, RigidBody, RigidBodyColliders, RigidBodyDisabled,
+        SolverSystems,
     },
 };
 
@@ -81,21 +82,21 @@ impl Plugin for IslandPlugin {
         // Add `BodyIslandNode` for each dynamic and kinematic rigid body
         // when the associated rigid body is enabled.
         app.add_observer(
-            |trigger: Trigger<OnReplace, RigidBodyDisabled>,
+            |trigger: On<Replace, RigidBodyDisabled>,
              rb_query: Query<&RigidBody>,
              mut commands: Commands| {
-                let Ok(rb) = rb_query.get(trigger.target()) else {
+                let Ok(rb) = rb_query.get(trigger.entity) else {
                     return;
                 };
                 if rb.is_dynamic() || rb.is_kinematic() {
                     commands
-                        .entity(trigger.target())
+                        .entity(trigger.entity)
                         .insert(BodyIslandNode::default());
                 }
             },
         );
         app.add_observer(
-            |trigger: Trigger<OnReplace, Disabled>,
+            |trigger: On<Replace, Disabled>,
              rb_query: Query<
                 &RigidBody,
                 (
@@ -106,12 +107,12 @@ impl Plugin for IslandPlugin {
                 ),
             >,
              mut commands: Commands| {
-                let Ok(rb) = rb_query.get(trigger.target()) else {
+                let Ok(rb) = rb_query.get(trigger.entity) else {
                     return;
                 };
                 if rb.is_dynamic() || rb.is_kinematic() {
                     commands
-                        .entity(trigger.target())
+                        .entity(trigger.entity)
                         .insert(BodyIslandNode::default());
                 }
             },
@@ -122,39 +123,38 @@ impl Plugin for IslandPlugin {
         // 1. `RigidBody` is removed.
         // 2. `Disabled` or `RigidBodyDisabled` is added to the body.
         // 3. The body becomes `RigidBody::Static`.
+        app.add_observer(|trigger: On<Remove, RigidBody>, mut commands: Commands| {
+            commands
+                .entity(trigger.entity)
+                .try_remove::<BodyIslandNode>();
+        });
         app.add_observer(
-            |trigger: Trigger<OnRemove, RigidBody>, mut commands: Commands| {
-                commands
-                    .entity(trigger.target())
-                    .try_remove::<BodyIslandNode>();
-            },
-        );
-        app.add_observer(
-            |trigger: Trigger<OnInsert, (Disabled, RigidBodyDisabled)>,
+            |trigger: On<Insert, (Disabled, RigidBodyDisabled)>,
              query: Query<&RigidBody, Or<(With<Disabled>, Without<Disabled>)>>,
              mut commands: Commands| {
-                if query.contains(trigger.target()) {
+                if query.contains(trigger.entity) {
                     commands
-                        .entity(trigger.target())
+                        .entity(trigger.entity)
                         .try_remove::<BodyIslandNode>();
                 }
             },
         );
         app.add_observer(
-            |trigger: Trigger<OnInsert, RigidBody>,
-             query: Query<&RigidBody>,
-             mut commands: Commands| {
-                if let Ok(rb) = query.get(trigger.target())
+            |trigger: On<Insert, RigidBody>, query: Query<&RigidBody>, mut commands: Commands| {
+                if let Ok(rb) = query.get(trigger.entity)
                     && rb.is_static()
                 {
                     commands
-                        .entity(trigger.target())
+                        .entity(trigger.entity)
                         .try_remove::<BodyIslandNode>();
                 }
             },
         );
 
-        app.add_systems(PhysicsSchedule, split_island.in_set(SolverSet::Finalize));
+        app.add_systems(
+            PhysicsSchedule,
+            split_island.in_set(SolverSystems::Finalize),
+        );
     }
 }
 

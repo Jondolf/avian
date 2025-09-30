@@ -1,5 +1,5 @@
 use crate::{
-    dynamics::joints::{EntityConstraint, JointSet},
+    dynamics::joints::{EntityConstraint, JointSystems},
     prelude::*,
 };
 use bevy::{
@@ -167,10 +167,9 @@ impl MapEntities for DistanceJoint {
 }
 
 pub(super) fn plugin(app: &mut App) {
-    app.register_type::<DistanceJoint>();
     app.add_systems(
         PhysicsSchedule,
-        update_local_anchors.in_set(JointSet::PrepareLocalFrames),
+        update_local_anchors.in_set(JointSystems::PrepareLocalFrames),
     );
 }
 

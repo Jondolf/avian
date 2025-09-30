@@ -58,7 +58,7 @@ bevy_picking = ["bevy/bevy_picking"]
 serialize = [
     "dep:serde",
     "bevy/serialize",
-    "glam_matrix_extensions/serde",
+    "glam_matrix_extras/serde",
     "bevy_heavy/serialize",
     "bevy_transform_interpolation/serialize",
     "parry3d?/serde-serialize",
@@ -84,23 +84,23 @@ bench = false
 
 [dependencies]
 avian_derive = { path = "../avian_derive", version = "0.2" }
-bevy = { version = "0.16", default-features = false, features = [
+bevy = { version = "0.17.0-rc", default-features = false, features = [
     "std",
     "bevy_log",
 ] }
-bevy_math = { version = "0.16", features = ["approx"] }
-glam_matrix_extensions = { git = "https://github.com/Jondolf/glam_matrix_extensions", rev = "3dcfc3b", features = [
+bevy_math = { version = "0.17.0-rc", features = ["approx"] }
+glam_matrix_extras = { git = "https://github.com/Jondolf/glam_matrix_extras", features = [
     "bevy_reflect",
 ] }
-bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy.git", rev = "8a7412a" }
-bevy_transform_interpolation = { version = "0.2" }
+bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy" }
+bevy_transform_interpolation = { git = "https://github.com/Jondolf/bevy_transform_interpolation" }
 libm = { version = "0.2", optional = true }
 approx = "0.5"
-parry3d = { version = "0.21", optional = true }
-parry3d-f64 = { version = "0.21", optional = true }
-nalgebra = { version = "0.33", features = ["convert-glam029"], optional = true }
+parry3d = { version = "0.24", optional = true }
+parry3d-f64 = { version = "0.24", optional = true }
+nalgebra = { version = "0.34", features = ["convert-glam030"], optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
-derive_more = "1"
+derive_more = "2"
 thiserror = "2"
 smallvec = "1.15"
 slab = "0.4"
@@ -111,11 +111,13 @@ disqualified = { version = "1.0" }
 
 [dev-dependencies]
 examples_common_3d = { path = "../examples_common_3d" }
-bevy = { version = "0.16", default-features = false, features = [
+bevy = { version = "0.17.0-rc", default-features = false, features = [
     "bevy_gltf",
     "animation",
+    "debug",
+    "reflect_auto_register",
 ] }
-bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy", rev = "8a7412a", features = [
+bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy", features = [
     "approx",
 ] }
 criterion = { version = "0.5", features = ["html_reports"] }

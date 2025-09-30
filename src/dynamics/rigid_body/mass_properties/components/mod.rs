@@ -2,14 +2,14 @@
 
 use crate::prelude::*;
 use bevy::{
-    ecs::{component::HookContext, world::DeferredWorld},
+    ecs::{lifecycle::HookContext, world::DeferredWorld},
     prelude::*,
 };
 #[cfg(feature = "3d")]
 use bevy_heavy::AngularInertiaTensor;
 use derive_more::From;
 #[cfg(feature = "3d")]
-use glam_matrix_extensions::{MatConversionError, SymmetricMat3};
+use glam_matrix_extras::{MatConversionError, SymmetricMat3};
 
 mod collider;
 pub use collider::*;

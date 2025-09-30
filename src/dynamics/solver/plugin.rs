@@ -7,7 +7,7 @@ use crate::{
                 COLOR_OVERFLOW_INDEX, ConstraintGraph, ContactManifoldHandle, GraphColor,
             },
             contact::ContactConstraint,
-            schedule::SubstepSolverSet,
+            schedule::SubstepSolverSystems,
             softness_parameters::{SoftnessCoefficients, SoftnessParameters},
             solver_body::{SolverBody, SolverBodyInertia},
         },
@@ -50,18 +50,18 @@ use core::cmp::Ordering;
 ///
 /// Below are the main steps of the `SolverPlugin`.
 ///
-/// 1. [Prepare solver bodies](SolverSet::PrepareSolverBodies)
-/// 2. [Prepare joint constraints](SolverSet::PrepareJoints)
-/// 3. [Prepare contact constraints](SolverSet::PrepareContactConstraints)
+/// 1. [Prepare solver bodies](SolverSystems::PrepareSolverBodies)
+/// 2. [Prepare joint constraints](SolverSystems::PrepareJoints)
+/// 3. [Prepare contact constraints](SolverSystems::PrepareContactConstraints)
 /// 4. Substepping loop (runs the [`SubstepSchedule`] [`SubstepCount`] times)
-///     1. [Integrate velocities](crate::dynamics::integrator::IntegrationSet::Velocity)
-///     2. [Warm start](SubstepSolverSet::WarmStart)
-///     3. [Solve constraints with bias](SubstepSolverSet::SolveConstraints)
-///     4. [Integrate positions](crate::dynamics::integrator::IntegrationSet::Position)
-///     5. [Solve constraints without bias to relax velocities](SubstepSolverSet::Relax)
-/// 5. [Apply restitution](SolverSet::Restitution)
-/// 6. [Write back solver body data to rigid bodies](SolverSet::Finalize)
-/// 7. [Store contact impulses for next frame's warm starting](SolverSet::StoreContactImpulses)
+///     1. [Integrate velocities](crate::dynamics::integrator::IntegrationSystems::Velocity)
+///     2. [Warm start](SubstepSolverSystems::WarmStart)
+///     3. [Solve constraints with bias](SubstepSolverSystems::SolveConstraints)
+///     4. [Integrate positions](crate::dynamics::integrator::IntegrationSystems::Position)
+///     5. [Solve constraints without bias to relax velocities](SubstepSolverSystems::Relax)
+/// 5. [Apply restitution](SolverSystems::Restitution)
+/// 6. [Write back solver body data to rigid bodies](SolverSystems::Finalize)
+/// 7. [Store contact impulses for next frame's warm starting](SolverSystems::StoreContactImpulses)
 ///
 /// If the `xpbd_joints` feature is enabled, the [`XpbdSolverPlugin`] can also be added to solve joints
 /// using Extended Position-Based Dynamics (XPBD).
@@ -105,17 +105,18 @@ impl Plugin for SolverPlugin {
             .get_schedule_mut(PhysicsSchedule)
             .expect("add PhysicsSchedule first");
 
-        physics.add_systems(update_contact_softness.before(PhysicsStepSet::NarrowPhase));
+        physics.add_systems(update_contact_softness.before(PhysicsStepSystems::NarrowPhase));
 
         // Prepare contact constraints before the substepping loop.
-        physics
-            .add_systems(prepare_contact_constraints.in_set(SolverSet::PrepareContactConstraints));
+        physics.add_systems(
+            prepare_contact_constraints.in_set(SolverSystems::PrepareContactConstraints),
+        );
 
         // Apply restitution.
-        physics.add_systems(solve_restitution.in_set(SolverSet::Restitution));
+        physics.add_systems(solve_restitution.in_set(SolverSystems::Restitution));
 
         // Store the current contact impulses for the next frame's warm starting.
-        physics.add_systems(store_contact_impulses.in_set(SolverSet::StoreContactImpulses));
+        physics.add_systems(store_contact_impulses.in_set(SolverSystems::StoreContactImpulses));
 
         // Get the `SubstepSchedule`, and panic if it doesn't exist.
         let substeps = app
@@ -125,14 +126,14 @@ impl Plugin for SolverPlugin {
         // Warm start the impulses.
         // This applies the impulses stored from the previous substep,
         // which improves convergence.
-        substeps.add_systems(warm_start.in_set(SubstepSolverSet::WarmStart));
+        substeps.add_systems(warm_start.in_set(SubstepSolverSystems::WarmStart));
 
         // Solve velocities using a position bias.
-        substeps.add_systems(solve_contacts::<true>.in_set(SubstepSolverSet::SolveConstraints));
+        substeps.add_systems(solve_contacts::<true>.in_set(SubstepSolverSystems::SolveConstraints));
 
         // Relax biased velocities and impulses.
         // This reduces overshooting caused by warm starting.
-        substeps.add_systems(solve_contacts::<false>.in_set(SubstepSolverSet::Relax));
+        substeps.add_systems(solve_contacts::<false>.in_set(SubstepSolverSystems::Relax));
 
         // Perform constraint damping.
         substeps.add_systems(
@@ -145,7 +146,7 @@ impl Plugin for SolverPlugin {
                 joint_damping::<DistanceJoint>,
             )
                 .chain()
-                .in_set(SubstepSolverSet::Damping),
+                .in_set(SubstepSolverSystems::Damping),
         );
     }
 
@@ -249,7 +250,7 @@ pub struct SolverConfig {
     pub max_overlap_solve_speed: Scalar,
 
     /// The coefficient in the `[0, 1]` range applied to
-    /// [warm start](SubstepSolverSet::WarmStart) impulses.
+    /// [warm start](SubstepSolverSystems::WarmStart) impulses.
     ///
     /// Warm starting uses the impulses from the previous frame as the initial
     /// solution for the current frame. This helps the solver reach the desired
@@ -448,7 +449,7 @@ fn prepare_contact_constraints(
 
 /// Warm starts the solver by applying the impulses from the previous frame or substep.
 ///
-/// See [`SubstepSolverSet::WarmStart`] for more information.
+/// See [`SubstepSolverSystems::WarmStart`] for more information.
 fn warm_start(
     bodies: Query<(&mut SolverBody, &SolverBodyInertia)>,
     mut constraint_graph: ResMut<ConstraintGraph>,
@@ -522,9 +523,9 @@ fn warm_start_internal(
 /// If `use_bias` is `true`, the impulses will be boosted to account for overlap.
 /// The solver should often be run twice per frame or substep: first with the bias,
 /// and then without it to *relax* the velocities and reduce overshooting caused by
-/// [warm starting](SubstepSolverSet::WarmStart).
+/// [warm starting](SubstepSolverSystems::WarmStart).
 ///
-/// See [`SubstepSolverSet::SolveConstraints`] and [`SubstepSolverSet::Relax`] for more information.
+/// See [`SubstepSolverSystems::SolveConstraints`] and [`SubstepSolverSystems::Relax`] for more information.
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
 fn solve_contacts<const USE_BIAS: bool>(
@@ -717,7 +718,7 @@ fn solve_restitution_internal(
 }
 
 /// Copies contact impulses from [`ContactConstraints`] to the contacts in the [`ContactGraph`].
-/// They will be used for [warm starting](SubstepSolverSet::WarmStart).
+/// They will be used for [warm starting](SubstepSolverSystems::WarmStart).
 fn store_contact_impulses(
     mut contact_graph: ResMut<ContactGraph>,
     mut constraint_graph: ResMut<ConstraintGraph>,

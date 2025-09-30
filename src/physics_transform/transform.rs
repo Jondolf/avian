@@ -4,7 +4,7 @@
 
 use crate::{physics_transform::PhysicsTransformConfig, prelude::*};
 use bevy::{
-    ecs::{component::HookContext, world::DeferredWorld},
+    ecs::{lifecycle::HookContext, world::DeferredWorld},
     math::DQuat,
     prelude::*,
 };

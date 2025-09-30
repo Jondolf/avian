@@ -5,8 +5,9 @@
 use bevy::{ecs::query::QueryData, prelude::*};
 use bevy_transform_interpolation::{VelocitySource, prelude::*};
 
+#[expect(deprecated)]
 pub use bevy_transform_interpolation::{
-    TransformEasingSet,
+    TransformEasingSet, TransformEasingSystems,
     prelude::{
         NoRotationEasing, NoScaleEasing, NoTransformEasing, NoTranslationEasing,
         RotationExtrapolation, RotationHermiteEasing, RotationInterpolation, ScaleInterpolation,
@@ -293,7 +294,7 @@ impl Plugin for PhysicsInterpolationPlugin {
         // Update previous velocity components for Hermite interpolation.
         app.add_systems(
             PhysicsSchedule,
-            update_previous_velocity.in_set(PhysicsStepSet::First),
+            update_previous_velocity.in_set(PhysicsStepSystems::First),
         );
     }
 }

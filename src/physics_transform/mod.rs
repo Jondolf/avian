@@ -66,8 +66,7 @@ impl Default for PhysicsTransformPlugin {
 
 impl Plugin for PhysicsTransformPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<PhysicsTransformConfig>()
-            .register_type::<PhysicsTransformConfig>();
+        app.init_resource::<PhysicsTransformConfig>();
 
         if app
             .world()
@@ -82,11 +81,11 @@ impl Plugin for PhysicsTransformPlugin {
         app.configure_sets(
             self.schedule,
             (
-                PhysicsTransformSet::Propagate,
-                PhysicsTransformSet::TransformToPosition,
+                PhysicsTransformSystems::Propagate,
+                PhysicsTransformSystems::TransformToPosition,
             )
                 .chain()
-                .in_set(PhysicsSet::Prepare),
+                .in_set(PhysicsSystems::Prepare),
         );
         app.add_systems(
             self.schedule,
@@ -96,25 +95,25 @@ impl Plugin for PhysicsTransformPlugin {
                 sync_simple_transforms,
             )
                 .chain()
-                .in_set(PhysicsTransformSet::Propagate)
+                .in_set(PhysicsTransformSystems::Propagate)
                 .run_if(|config: Res<PhysicsTransformConfig>| config.propagate_before_physics),
         );
         app.add_systems(
             self.schedule,
             transform_to_position
-                .in_set(PhysicsTransformSet::TransformToPosition)
+                .in_set(PhysicsTransformSystems::TransformToPosition)
                 .run_if(|config: Res<PhysicsTransformConfig>| config.transform_to_position),
         );
 
         // Run position-to-transform synchronization after physics.
         app.configure_sets(
             self.schedule,
-            PhysicsTransformSet::PositionToTransform.in_set(PhysicsSet::Writeback),
+            PhysicsTransformSystems::PositionToTransform.in_set(PhysicsSystems::Writeback),
         );
         app.add_systems(
             self.schedule,
             position_to_transform
-                .in_set(PhysicsTransformSet::PositionToTransform)
+                .in_set(PhysicsTransformSystems::PositionToTransform)
                 .run_if(|config: Res<PhysicsTransformConfig>| config.position_to_transform),
         );
     }
@@ -130,14 +129,14 @@ pub struct PhysicsTransformConfig {
     /// Default: `true`
     pub propagate_before_physics: bool,
     /// Updates [`Position`] and [`Rotation`] based on [`Transform`] changes
-    /// in [`PhysicsTransformSet::TransformToPosition`],
+    /// in [`PhysicsTransformSystems::TransformToPosition`],
     ///
     /// This allows using transforms for moving and positioning bodies,
     ///
     /// Default: `true`
     pub transform_to_position: bool,
     /// Updates [`Transform`] based on [`Position`] and [`Rotation`] changes
-    /// in [`PhysicsTransformSet::PositionToTransform`],
+    /// in [`PhysicsTransformSystems::PositionToTransform`],
     ///
     /// Default: `true`
     pub position_to_transform: bool,
@@ -162,7 +161,7 @@ impl Default for PhysicsTransformConfig {
 
 /// System sets for managing physics transforms.
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum PhysicsTransformSet {
+pub enum PhysicsTransformSystems {
     /// Propagates [`Transform`] before physics simulation.
     Propagate,
     /// Updates [`Position`] and [`Rotation`] based on [`Transform`] changes before physics simulation.
@@ -170,6 +169,10 @@ pub enum PhysicsTransformSet {
     /// Updates [`Transform`] based on [`Position`] and [`Rotation`] changes after physics simulation.
     PositionToTransform,
 }
+
+/// A deprecated alias for [`PhysicsTransformSystems`].
+#[deprecated(since = "0.4.0", note = "Renamed to `PhysicsTransformSystems`")]
+pub type PhysicsTransformSet = PhysicsTransformSystems;
 
 /// Copies [`GlobalTransform`] changes to [`Position`] and [`Rotation`].
 /// This allows users to use transforms for moving and positioning bodies and colliders.

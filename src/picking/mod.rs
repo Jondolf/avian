@@ -22,7 +22,7 @@ use crate::{
 use bevy::{
     ecs::entity::hash_set::EntityHashSet,
     picking::{
-        PickSet,
+        PickingSystems,
         backend::{HitData, PointerHits, ray::RayMap},
     },
     prelude::*,
@@ -63,12 +63,7 @@ pub struct PhysicsPickingPlugin;
 impl Plugin for PhysicsPickingPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PhysicsPickingSettings>()
-            .add_systems(PreUpdate, update_hits.in_set(PickSet::Backend))
-            .register_type::<(
-                PhysicsPickingSettings,
-                PhysicsPickable,
-                PhysicsPickingFilter,
-            )>();
+            .add_systems(PreUpdate, update_hits.in_set(PickingSystems::Backend));
     }
 
     fn finish(&self, app: &mut App) {
@@ -153,7 +148,7 @@ pub fn update_hits(
     marked_targets: Query<&PhysicsPickable>,
     backend_settings: Res<PhysicsPickingSettings>,
     spatial_query: SpatialQuery,
-    mut output_events: EventWriter<PointerHits>,
+    mut output_events: MessageWriter<PointerHits>,
     mut diagnostics: ResMut<PhysicsPickingDiagnostics>,
 ) {
     let start_time = crate::utils::Instant::now();

@@ -2,7 +2,7 @@ use core::f32::consts::FRAC_PI_2;
 use core::time::Duration;
 
 use approx::assert_relative_eq;
-use bevy::{prelude::*, render::mesh::MeshPlugin, time::TimeUpdateStrategy};
+use bevy::{mesh::MeshPlugin, prelude::*, time::TimeUpdateStrategy};
 use bevy_math::FloatPow;
 
 use crate::prelude::*;
@@ -20,8 +20,7 @@ fn create_app() -> App {
         #[cfg(feature = "bevy_scene")]
         bevy::scene::ScenePlugin,
         MeshPlugin,
-    ))
-    .init_resource::<Assets<Mesh>>();
+    ));
 
     // Use 20 substeps.
     app.insert_resource(SubstepCount(20));

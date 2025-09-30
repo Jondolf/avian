@@ -78,7 +78,7 @@ pub(crate) use path_macro::impl_diagnostic_paths;
 #[cfg(feature = "bevy_diagnostic")]
 pub use total::{PhysicsTotalDiagnostics, PhysicsTotalDiagnosticsPlugin};
 
-use crate::{PhysicsStepSet, schedule::PhysicsSchedule};
+use crate::{PhysicsStepSystems, schedule::PhysicsSchedule};
 use bevy::{
     diagnostic::DiagnosticPath,
     prelude::{App, IntoScheduleConfigs, ResMut, Resource, SystemSet},
@@ -110,8 +110,8 @@ impl Plugin for PhysicsDiagnosticsPlugin {
         app.configure_sets(
             PhysicsSchedule,
             (
-                PhysicsDiagnosticsSystems::Reset.before(PhysicsStepSet::First),
-                PhysicsDiagnosticsSystems::WriteDiagnostics.after(PhysicsStepSet::Last),
+                PhysicsDiagnosticsSystems::Reset.before(PhysicsStepSystems::First),
+                PhysicsDiagnosticsSystems::WriteDiagnostics.after(PhysicsStepSystems::Last),
             ),
         );
     }
@@ -178,7 +178,7 @@ impl AppDiagnosticsExt for App {
         // Make sure the system set exists, even if `PhysicsDiagnosticsPlugin` is not added.
         self.configure_sets(
             PhysicsSchedule,
-            PhysicsDiagnosticsSystems::Reset.before(PhysicsStepSet::First),
+            PhysicsDiagnosticsSystems::Reset.before(PhysicsStepSystems::First),
         );
 
         // Add a system to reset the resource, even if `PhysicsDiagnosticsPlugin` is not added.

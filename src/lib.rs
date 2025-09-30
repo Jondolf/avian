@@ -206,10 +206,10 @@
 //! ## Scheduling
 //!
 //! - [Schedules and sets](PhysicsSchedulePlugin#schedules-and-sets)
-//!     - [`PhysicsSet`]
-//!     - [`PhysicsSchedule`] and [`PhysicsStepSet`]
+//!     - [`PhysicsSystems`]
+//!     - [`PhysicsSchedule`] and [`PhysicsStepSystems`]
 //!     - [`SubstepSchedule`]
-//!     - [`SolverSet`] and [`SubstepSolverSet`](dynamics::solver::schedule::SubstepSolverSet)
+//!     - [`SolverSystems`] and [`SubstepSolverSystems`](dynamics::solver::schedule::SubstepSolverSystems)
 //!     - Many more internal system sets
 //! - [Configure the schedule used for running physics](PhysicsPlugins#custom-schedule)
 //! - [Pausing, resuming and stepping physics](Physics#pausing-resuming-and-stepping-physics)
@@ -345,7 +345,7 @@
 //! #
 //! app.add_systems(
 //!     PostUpdate,
-//!     camera_follow_player.before(TransformSystem::TransformPropagate),
+//!     camera_follow_player.before(TransformSystems::Propagate),
 //! );
 //! #
 //! # fn camera_follow_player() {}
@@ -396,7 +396,7 @@
 //! - Only rigid bodies have rotation, particles typically don't (although we don't make a distinction yet).
 //!
 //! In external projects however, using [`Position`] and [`Rotation`] is only necessary when you
-//! need to manage positions within [`PhysicsSet::StepSimulation`]. Elsewhere, you should be able to use `Transform`.
+//! need to manage positions within [`PhysicsSystems::StepSimulation`]. Elsewhere, you should be able to use `Transform`.
 //!
 //! There is also a possibility that we will revisit this if/when Bevy has a `Transform2d` component.
 //! Using `Transform` feels more idiomatic and simple, so it would be nice if it could be used directly
@@ -501,9 +501,6 @@ pub mod spatial_query;
 
 pub mod data_structures;
 
-mod type_registration;
-pub use type_registration::PhysicsTypeRegistrationPlugin;
-
 // TODO: Where should this go?
 pub(crate) mod ancestor_marker;
 
@@ -521,6 +518,7 @@ pub mod prelude {
     pub use crate::picking::{
         PhysicsPickable, PhysicsPickingFilter, PhysicsPickingPlugin, PhysicsPickingSettings,
     };
+    #[expect(deprecated)]
     pub use crate::{
         PhysicsPlugins,
         collision::prelude::*,
@@ -529,10 +527,9 @@ pub mod prelude {
         physics_transform::{PhysicsTransformHelper, PhysicsTransformPlugin, Position, Rotation},
         schedule::{
             Physics, PhysicsSchedule, PhysicsSchedulePlugin, PhysicsSet, PhysicsStepSet,
-            PhysicsTime, Substeps,
+            PhysicsStepSystems, PhysicsSystems, PhysicsTime, Substeps,
         },
         spatial_query::{self, *},
-        type_registration::PhysicsTypeRegistrationPlugin,
     };
     pub(crate) use crate::{
         diagnostics::AppDiagnosticsExt,
@@ -565,7 +562,6 @@ use prelude::*;
 /// | Plugin                            | Description                                                                                                                                                |
 /// | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 /// | [`PhysicsSchedulePlugin`]         | Sets up the physics engine by initializing the necessary schedules, sets and resources.                                                                    |
-/// | [`PhysicsTypeRegistrationPlugin`] | Registers physics types to the `TypeRegistry` resource in `bevy_reflect`.                                                                                  |
 /// | [`ColliderBackendPlugin`]         | Handles generic collider backend logic, like initializing colliders and AABBs and updating related components.                                             |
 /// | [`ColliderHierarchyPlugin`]       | Manages [`ColliderOf`] relationships based on the entity hierarchy.                                                                                        |
 /// | [`ColliderTransformPlugin`]       | Propagates and updates transforms for colliders.
@@ -650,7 +646,7 @@ use prelude::*;
 ///
 /// First, create a new plugin. If you want to run your systems in the engine's schedules, get either the [`PhysicsSchedule`]
 /// or the [`SubstepSchedule`]. Then you can add your systems to that schedule and control system ordering with system sets like
-/// [`PhysicsStepSet`], [`SolverSet`], or [`SubstepSolverSet`](dynamics::solver::schedule::SubstepSolverSet).
+/// [`PhysicsStepSystems`], [`SolverSystems`], or [`SubstepSolverSystems`](dynamics::solver::schedule::SubstepSolverSystems).
 ///
 /// Here we will create a custom broad phase plugin that will replace the default [`BroadPhasePlugin`]:
 ///
@@ -669,7 +665,7 @@ use prelude::*;
 ///             .expect("add PhysicsSchedule first");
 ///
 ///         // Add the system into the broad phase system set
-///         physics_schedule.add_systems(collect_collision_pairs.in_set(PhysicsStepSet::BroadPhase));
+///         physics_schedule.add_systems(collect_collision_pairs.in_set(PhysicsStepSystems::BroadPhase));
 ///     }
 /// }
 ///
@@ -789,7 +785,6 @@ impl PluginGroup for PhysicsPlugins {
     fn build(self) -> PluginGroupBuilder {
         let builder = PluginGroupBuilder::start::<Self>()
             .add(PhysicsSchedulePlugin::new(self.schedule))
-            .add(PhysicsTypeRegistrationPlugin)
             .add(MassPropertyPlugin::new(self.schedule))
             .add(ForcePlugin)
             .add(ColliderHierarchyPlugin)

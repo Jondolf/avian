@@ -23,7 +23,7 @@ use crate::{
     prelude::{forces::AccumulatedLocalAcceleration, *},
 };
 use bevy::{
-    ecs::{component::HookContext, world::DeferredWorld},
+    ecs::{lifecycle::HookContext, world::DeferredWorld},
     prelude::*,
 };
 use derive_more::From;

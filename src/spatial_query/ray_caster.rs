@@ -1,8 +1,8 @@
 use crate::prelude::*;
 use bevy::{
     ecs::{
-        component::HookContext,
         entity::{EntityMapper, MapEntities},
+        lifecycle::HookContext,
         world::DeferredWorld,
     },
     prelude::*,
@@ -11,9 +11,7 @@ use bevy::{
     feature = "default-collider",
     any(feature = "parry-f32", feature = "parry-f64")
 ))]
-use parry::query::{
-    details::RayCompositeShapeToiAndNormalBestFirstVisitor, visitors::RayIntersectionsVisitor,
-};
+use parry::{partitioning::BvhNode, query::RayCast};
 
 /// A component used for [raycasting](spatial_query#raycasting).
 ///
@@ -264,60 +262,45 @@ impl RayCaster {
         hits.clear();
 
         if self.max_hits == 1 {
-            let pipeline_shape = query_pipeline.as_composite_shape(&self.query_filter);
-            let ray = parry::query::Ray::new(
-                self.global_origin().into(),
-                self.global_direction().adjust_precision().into(),
-            );
-            let mut visitor = RayCompositeShapeToiAndNormalBestFirstVisitor::new(
-                &pipeline_shape,
-                &ray,
+            query_pipeline.cast_ray(
+                self.global_origin(),
+                self.global_direction(),
                 self.max_distance,
                 self.solid,
+                &self.query_filter,
             );
-
-            if let Some(hit) =
-                query_pipeline
-                    .qbvh
-                    .traverse_best_first(&mut visitor)
-                    .map(|(_, (index, hit))| RayHitData {
-                        entity: query_pipeline.proxies[index as usize].entity,
-                        distance: hit.time_of_impact,
-                        normal: hit.normal.into(),
-                    })
-            {
-                hits.push(hit);
-            }
         } else {
             let ray = parry::query::Ray::new(
                 self.global_origin().into(),
                 self.global_direction().adjust_precision().into(),
             );
 
-            let mut leaf_callback = &mut |index: &u32| {
-                if let Some(proxy) = query_pipeline.proxies.get(*index as usize)
-                    && self.query_filter.test(proxy.entity, proxy.layers)
-                    && let Some(hit) = proxy.collider.shape_scaled().cast_ray_and_get_normal(
+            let found_hits = query_pipeline
+                .bvh
+                .leaves(|node: &BvhNode| node.aabb().intersects_local_ray(&ray, self.max_distance))
+                .filter_map(|leaf| {
+                    let proxy = query_pipeline.proxies.get(leaf as usize)?;
+
+                    if !self.query_filter.test(proxy.entity, proxy.layers) {
+                        return None;
+                    }
+
+                    let hit = proxy.collider.shape_scaled().cast_ray_and_get_normal(
                         &proxy.isometry,
                         &ray,
                         self.max_distance,
                         self.solid,
-                    )
-                {
-                    hits.push(RayHitData {
+                    )?;
+
+                    Some(RayHitData {
                         entity: proxy.entity,
                         distance: hit.time_of_impact,
                         normal: hit.normal.into(),
-                    });
+                    })
+                })
+                .take(self.max_hits as usize);
 
-                    return hits.len() < self.max_hits as usize;
-                }
-                true
-            };
-
-            let mut visitor =
-                RayIntersectionsVisitor::new(&ray, self.max_distance, &mut leaf_callback);
-            query_pipeline.qbvh.traverse_depth_first(&mut visitor);
+            hits.extend(found_hits);
         }
     }
 }

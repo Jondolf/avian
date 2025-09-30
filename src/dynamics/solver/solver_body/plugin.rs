@@ -6,14 +6,14 @@ use bevy::{
 use super::{SolverBody, SolverBodyInertia};
 use crate::{
     AngularVelocity, LinearVelocity, PhysicsSchedule, Position, RigidBody, RigidBodyActiveFilter,
-    RigidBodyDisabled, Rotation, Sleeping, SolverSet, Vector,
+    RigidBodyDisabled, Rotation, Sleeping, SolverSystems, Vector,
     dynamics::solver::{SolverDiagnostics, solver_body::SolverBodyFlags},
     prelude::{ComputedAngularInertia, ComputedCenterOfMass, ComputedMass, Dominance, LockedAxes},
 };
 #[cfg(feature = "3d")]
 use crate::{
     MatExt,
-    dynamics::integrator::{IntegrationSet, integrate_positions},
+    dynamics::integrator::{IntegrationSystems, integrate_positions},
     prelude::SubstepSchedule,
 };
 
@@ -36,22 +36,20 @@ pub struct SolverBodyPlugin;
 
 impl Plugin for SolverBodyPlugin {
     fn build(&self, app: &mut App) {
-        app.register_type::<(SolverBody, SolverBodyInertia)>();
-
         // Add or remove solver bodies when `RigidBody` component is added or replaced.
         app.add_observer(on_insert_rigid_body);
 
         // Add a solver body for each dynamic and kinematic rigid body
         // when the associated rigid body is enabled or woken up.
         app.add_observer(
-            |trigger: Trigger<OnRemove, RigidBodyDisabled>,
+            |trigger: On<Remove, RigidBodyDisabled>,
              rb_query: Query<&RigidBody, Without<Sleeping>>,
              commands: Commands| {
-                add_solver_body::<Without<Sleeping>>(In(trigger.target()), rb_query, commands);
+                add_solver_body::<Without<Sleeping>>(In(trigger.entity), rb_query, commands);
             },
         );
         app.add_observer(
-            |trigger: Trigger<OnRemove, Disabled>,
+            |trigger: On<Remove, Disabled>,
              rb_query: Query<
                 &RigidBody,
                 (
@@ -67,15 +65,15 @@ impl Plugin for SolverBodyPlugin {
                     With<Disabled>,
                     Without<RigidBodyDisabled>,
                     Without<Sleeping>,
-                )>(In(trigger.target()), rb_query, commands);
+                )>(In(trigger.entity), rb_query, commands);
             },
         );
         app.add_observer(
-            |trigger: Trigger<OnRemove, Sleeping>,
+            |trigger: On<Remove, Sleeping>,
              rb_query: Query<&RigidBody, Without<RigidBodyDisabled>>,
              commands: Commands| {
                 add_solver_body::<Without<RigidBodyDisabled>>(
-                    In(trigger.target()),
+                    In(trigger.entity),
                     rb_query,
                     commands,
                 );
@@ -84,16 +82,16 @@ impl Plugin for SolverBodyPlugin {
 
         // Remove solver bodies when their associated rigid body is removed.
         app.add_observer(
-            |trigger: Trigger<OnRemove, RigidBody>, deferred_world: DeferredWorld| {
-                remove_solver_body(In(trigger.target()), deferred_world);
+            |trigger: On<Remove, RigidBody>, deferred_world: DeferredWorld| {
+                remove_solver_body(In(trigger.entity), deferred_world);
             },
         );
 
         // Remove solver bodies when their associated rigid body is disabled or put to sleep.
         app.add_observer(
-            |trigger: Trigger<OnAdd, (Disabled, RigidBodyDisabled, Sleeping)>,
+            |trigger: On<Add, (Disabled, RigidBodyDisabled, Sleeping)>,
              deferred_world: DeferredWorld| {
-                remove_solver_body(In(trigger.target()), deferred_world);
+                remove_solver_body(In(trigger.entity), deferred_world);
             },
         );
 
@@ -102,13 +100,13 @@ impl Plugin for SolverBodyPlugin {
             PhysicsSchedule,
             prepare_solver_bodies
                 .chain()
-                .in_set(SolverSet::PrepareSolverBodies),
+                .in_set(SolverSystems::PrepareSolverBodies),
         );
 
         // Write back solver body data to rigid bodies after the substepping loop.
         app.add_systems(
             PhysicsSchedule,
-            writeback_solver_bodies.in_set(SolverSet::Finalize),
+            writeback_solver_bodies.in_set(SolverSystems::Finalize),
         );
 
         // Update the world-space angular inertia of solver bodies right after position integration
@@ -117,30 +115,30 @@ impl Plugin for SolverBodyPlugin {
         app.add_systems(
             SubstepSchedule,
             update_solver_body_angular_inertia
-                .in_set(IntegrationSet::Position)
+                .in_set(IntegrationSystems::Position)
                 .after(integrate_positions),
         );
     }
 }
 
 fn on_insert_rigid_body(
-    trigger: Trigger<OnInsert, RigidBody>,
+    trigger: On<Insert, RigidBody>,
     bodies: Query<(&RigidBody, Has<SolverBody>), RigidBodyActiveFilter>,
     mut commands: Commands,
 ) {
-    let Ok((rb, has_solver_body)) = bodies.get(trigger.target()) else {
+    let Ok((rb, has_solver_body)) = bodies.get(trigger.entity) else {
         return;
     };
 
     if rb.is_static() && has_solver_body {
         // Remove the solver body if the rigid body is static.
         commands
-            .entity(trigger.target())
+            .entity(trigger.entity)
             .try_remove::<(SolverBody, SolverBodyInertia)>();
     } else if !rb.is_static() && !has_solver_body {
         // Create a new solver body if the rigid body is dynamic or kinematic.
         commands
-            .entity(trigger.target())
+            .entity(trigger.entity)
             .try_insert((SolverBody::default(), SolverBodyInertia::default()));
     }
 }

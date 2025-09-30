@@ -200,7 +200,7 @@ mod query_data;
 #[cfg(test)]
 mod tests;
 
-pub use plugin::{ForcePlugin, ForceSet};
+pub use plugin::{ForcePlugin, ForceSystems};
 pub use query_data::{Forces, ForcesItem, NonWakingForcesItem, RigidBodyForces};
 
 use crate::prelude::*;
