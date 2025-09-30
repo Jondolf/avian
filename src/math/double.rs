@@ -1,6 +1,6 @@
 use super::AdjustPrecision;
 use bevy_math::*;
-use glam_matrix_extensions::*;
+use glam_matrix_extras::*;
 
 /// The floating point number type used by Avian.
 pub type Scalar = f64;
