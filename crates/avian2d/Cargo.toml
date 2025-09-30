@@ -110,7 +110,10 @@ disqualified = { version = "1.0" }
 
 [dev-dependencies]
 examples_common_2d = { path = "../examples_common_2d" }
-bevy = { version = "0.17.0-rc", default-features = false, features = ["debug"] }
+bevy = { version = "0.17.0-rc", default-features = false, features = [
+    "debug",
+    "reflect_auto_register",
+] }
 bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy", features = [
     "approx",
 ] }
