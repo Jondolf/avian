@@ -824,9 +824,9 @@ mod tests {
     #[cfg(all(feature = "collider-from-mesh", feature = "bevy_scene"))]
     fn create_gltf_test_app() -> App {
         use bevy::{
+            camera::{primitives::Aabb, visibility::VisibilityPlugin},
             gltf::GltfPlugin,
             log::LogPlugin,
-            render::{primitives::Aabb, view::VisibilityPlugin},
         };
 
         let mut app = App::new();
