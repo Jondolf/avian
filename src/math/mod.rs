@@ -7,7 +7,7 @@
 #[cfg(feature = "f32")]
 mod single;
 use approx::abs_diff_ne;
-use glam_matrix_extensions::{SymmetricDMat2, SymmetricDMat3, SymmetricMat2, SymmetricMat3};
+use glam_matrix_extras::{SymmetricDMat2, SymmetricDMat3, SymmetricMat2, SymmetricMat3};
 #[cfg(feature = "f32")]
 pub use single::*;
 
