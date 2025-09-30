@@ -5,10 +5,9 @@
 use bevy::{
     app::{App, Plugin},
     ecs::{
-        component::HookContext,
         entity::Entity,
         entity_disabling::Disabled,
-        lifecycle::{Insert, Replace},
+        lifecycle::{HookContext, Insert, Replace},
         observer::On,
         query::{Changed, Has, Or, With, Without},
         resource::Resource,
