@@ -718,10 +718,6 @@ mod tests {
 
     #[cfg(all(feature = "collider-from-mesh", feature = "bevy_scene"))]
     #[test]
-    #[cfg_attr(
-        target_os = "linux",
-        ignore = "The plugin setup requires access to the GPU, which is not available in the linux test environment"
-    )]
     fn collider_constructor_hierarchy_inserts_correct_configs_on_scene() {
         use bevy::gltf::GltfMeshName;
         use parry::shape::ShapeType;
@@ -827,19 +823,30 @@ mod tests {
 
     #[cfg(all(feature = "collider-from-mesh", feature = "bevy_scene"))]
     fn create_gltf_test_app() -> App {
-        use bevy::{diagnostic::DiagnosticsPlugin, winit::WinitPlugin};
+        use bevy::{
+            gltf::GltfPlugin,
+            log::LogPlugin,
+            render::{primitives::Aabb, view::VisibilityPlugin},
+        };
 
-        // Todo: it would be best to disable all rendering-related plugins,
-        // but we have so far not succeeded in finding the right plugin combination
-        // that still results in `SceneInstanceReady` being triggered.
         let mut app = App::new();
         app.add_plugins((
-            DefaultPlugins
-                .build()
-                .disable::<WinitPlugin>()
-                .disable::<DiagnosticsPlugin>(),
-            PhysicsPlugins::default(),
-        ));
+            MinimalPlugins,
+            LogPlugin::default(),
+            AssetPlugin::default(),
+            ScenePlugin,
+            MeshPlugin,
+            TransformPlugin,
+            VisibilityPlugin,
+            GltfPlugin::default(),
+        ))
+        .init_asset::<StandardMaterial>()
+        .register_type::<Visibility>()
+        .register_type::<InheritedVisibility>()
+        .register_type::<ViewVisibility>()
+        .register_type::<Aabb>()
+        .register_type::<MeshMaterial3d<StandardMaterial>>()
+        .add_plugins(PhysicsPlugins::default());
         app.finish();
         app.cleanup();
         app
