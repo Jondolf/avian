@@ -89,10 +89,10 @@ bevy = { version = "0.16", default-features = false, features = [
     "bevy_log",
 ] }
 bevy_math = { version = "0.16", features = ["approx"] }
-glam_matrix_extensions = { git = "https://github.com/Jondolf/glam_matrix_extensions", features = [
+glam_matrix_extensions = { git = "https://github.com/Jondolf/glam_matrix_extensions", rev = "3dcfc3b", features = [
     "bevy_reflect",
 ] }
-bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy.git" }
+bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy.git", rev = "8a7412a" }
 bevy_transform_interpolation = { version = "0.2" }
 libm = { version = "0.2", optional = true }
 approx = "0.5"
@@ -115,7 +115,7 @@ bevy = { version = "0.16", default-features = false, features = [
     "bevy_gltf",
     "animation",
 ] }
-bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy.git", features = [
+bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy", rev = "8a7412a", features = [
     "approx",
 ] }
 criterion = { version = "0.5", features = ["html_reports"] }
