@@ -56,7 +56,7 @@ bevy_picking = ["bevy/bevy_picking"]
 serialize = [
     "dep:serde",
     "bevy/serialize",
-    "glam_matrix_extensions/serde",
+    "glam_matrix_extras/serde",
     "bevy_heavy/serialize",
     "bevy_transform_interpolation/serialize",
     "parry2d?/serde-serialize",
@@ -87,7 +87,7 @@ bevy = { version = "0.17.0-rc", default-features = false, features = [
     "bevy_log",
 ] }
 bevy_math = { version = "0.17.0-rc", features = ["approx"] }
-glam_matrix_extensions = { git = "https://github.com/Jondolf/glam_matrix_extensions", features = [
+glam_matrix_extras = { git = "https://github.com/Jondolf/glam_matrix_extras", features = [
     "bevy_reflect",
 ] }
 bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy.git" }
