@@ -748,10 +748,10 @@ mod tests {
                 SceneRoot(scene_handle),
                 ColliderConstructorHierarchy::new(ColliderConstructor::ConvexDecompositionFromMesh)
                     // Use a primitive collider for the left arm.
-                    .with_constructor_for_name("armL_mesh", PRIMITIVE_COLLIDER)
-                    .with_density_for_name("armL_mesh", 2.0)
+                    .with_constructor_for_name("armL_mesh.ferris_material", PRIMITIVE_COLLIDER)
+                    .with_density_for_name("armL_mesh.ferris_material", 2.0)
                     // Remove the right arm. Don't worry, crabs can regrow lost limbs!
-                    .without_constructor_for_name("armR_mesh"),
+                    .without_constructor_for_name("armR_mesh.ferris_material"),
                 RigidBody::Dynamic,
             ))
             .id();
