@@ -912,7 +912,7 @@ dependencies = [
 [[package]]
 name = "bevy_heavy"
 version = "0.2.0"
-source = "git+https://github.com/Jondolf/bevy_heavy.git#8c3a49783a22ed5635515834bb7277d5497a06f6"
+source = "git+https://github.com/Jondolf/bevy_heavy#8c3a49783a22ed5635515834bb7277d5497a06f6"
 dependencies = [
  "approx",
  "bevy_math 0.17.0-rc.2",
