@@ -26,7 +26,8 @@ use bevy::prelude::*;
 /// - A force, impulse, or acceleration is applied via [`Forces`], without using [`non_waking`].
 /// - The [`Gravity`] resource or [`GravityScale`] component is modified.
 ///
-/// A body and all bodies connected to it can also be forced to sleep or wake up using
+/// A body and all bodies connected to it can also be forced to sleep or wake up
+/// by manually adding or removing the [`Sleeping`] component, or by using
 /// the [`SleepBody`] and [`WakeBody`] commands.
 ///
 /// Sleeping can be disabled for an entity by adding the [`SleepingDisabled`] component.
