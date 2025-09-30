@@ -7,7 +7,7 @@ use bevy::{
     ecs::{
         entity::Entity,
         entity_disabling::Disabled,
-        lifecycle::{Insert, Replace},
+        lifecycle::{HookContext, Insert, Replace},
         observer::On,
         query::{Changed, Has, Or, With, Without},
         resource::Resource,
@@ -19,7 +19,7 @@ use bevy::{
             Command, Commands, Local, ParamSet, Query, Res, ResMut, SystemChangeTick, SystemState,
             lifetimeless::{SQuery, SResMut},
         },
-        world::{Mut, Ref, World},
+        world::{DeferredWorld, Mut, Ref, World},
     },
     log::warn,
     prelude::{Deref, DerefMut},
@@ -31,6 +31,7 @@ use crate::{
     dynamics::solver::{
         constraint_graph::ConstraintGraph,
         islands::{BodyIslandNode, IslandId, PhysicsIslands},
+        joint_graph::JointGraph,
         solver_body::SolverBody,
     },
     prelude::*,
@@ -49,9 +50,20 @@ impl Plugin for IslandSleepingPlugin {
         app.register_required_components::<SolverBody, SleepThreshold>();
         app.register_required_components::<SolverBody, SleepTimer>();
 
-        // Set up cached system state for sleeping and waking islands.
-        let cached_system_state = CachedSleepingSystemState(SystemState::new(app.world_mut()));
-        app.insert_resource(cached_system_state);
+        // Set up cached system states for sleeping and waking bodies or islands.
+        let cached_system_state1 = CachedBodySleepingSystemState(SystemState::new(app.world_mut()));
+        let cached_system_state2 =
+            CachedIslandSleepingSystemState(SystemState::new(app.world_mut()));
+        let cached_system_state3 = CachedIslandWakingSystemState(SystemState::new(app.world_mut()));
+        app.insert_resource(cached_system_state1);
+        app.insert_resource(cached_system_state2);
+        app.insert_resource(cached_system_state3);
+
+        // Set up hooks to automatically sleep/wake islands when `Sleeping` is added/removed.
+        app.world_mut()
+            .register_component_hooks::<Sleeping>()
+            .on_add(sleep_on_add_sleeping)
+            .on_remove(wake_on_remove_sleeping);
 
         app.add_observer(wake_on_replace_rigid_body);
         app.add_observer(wake_on_enable_rigid_body);
@@ -70,6 +82,44 @@ impl Plugin for IslandSleepingPlugin {
                 .in_set(PhysicsStepSystems::Sleeping),
         );
     }
+}
+
+fn sleep_on_add_sleeping(mut world: DeferredWorld, ctx: HookContext) {
+    let Some(body_island) = world.get::<BodyIslandNode>(ctx.entity) else {
+        return;
+    };
+
+    let island_id = body_island.island_id;
+
+    // Check if the island is already sleeping.
+    if let Some(island) = world
+        .get_resource::<PhysicsIslands>()
+        .and_then(|islands| islands.get(island_id))
+        && island.is_sleeping
+    {
+        return;
+    }
+
+    world.commands().queue(SleepBody(ctx.entity));
+}
+
+fn wake_on_remove_sleeping(mut world: DeferredWorld, ctx: HookContext) {
+    let Some(body_island) = world.get::<BodyIslandNode>(ctx.entity) else {
+        return;
+    };
+
+    let island_id = body_island.island_id;
+
+    // Check if the island is already awake.
+    if let Some(island) = world
+        .get_resource::<PhysicsIslands>()
+        .and_then(|islands| islands.get(island_id))
+        && !island.is_sleeping
+    {
+        return;
+    }
+
+    world.commands().queue(WakeBody(ctx.entity));
 }
 
 fn wake_on_replace_rigid_body(
@@ -207,7 +257,8 @@ fn sleep_islands(
             if island.is_sleeping {
                 wake_buffer.push(island.id);
             }
-        } else if !island.is_sleeping {
+        } else if !island.is_sleeping && island.constraints_removed == 0 {
+            // The island does not have a pending split, so it can go to sleep.
             sleep_buffer.push(island.id);
         }
     }
@@ -229,7 +280,65 @@ fn sleep_islands(
 }
 
 #[derive(Resource)]
-struct CachedSleepingSystemState(
+struct CachedBodySleepingSystemState(
+    SystemState<(
+        SQuery<&'static mut BodyIslandNode, Or<(With<Disabled>, Without<Disabled>)>>,
+        SQuery<&'static RigidBodyColliders>,
+        SResMut<PhysicsIslands>,
+        SResMut<ContactGraph>,
+        SResMut<JointGraph>,
+    )>,
+);
+
+/// A [`Command`] that forces a [`RigidBody`] and its [`PhysicsIsland`][super::PhysicsIsland] to be [`Sleeping`].
+pub struct SleepBody(pub Entity);
+
+impl Command for SleepBody {
+    fn apply(self, world: &mut World) {
+        if let Some(island_id) = world
+            .get::<BodyIslandNode>(self.0)
+            .map(|node| node.island_id)
+        {
+            world.try_resource_scope(|world, mut state: Mut<CachedBodySleepingSystemState>| {
+                let (
+                    mut body_islands,
+                    body_colliders,
+                    mut islands,
+                    mut contact_graph,
+                    mut joint_graph,
+                ) = state.0.get_mut(world);
+
+                let Some(island) = islands.get_mut(island_id) else {
+                    return;
+                };
+
+                // The island must be split before it can be woken up.
+                // Note that this is expensive.
+                if island.constraints_removed > 0 {
+                    islands.split_island(
+                        island_id,
+                        &mut body_islands,
+                        &body_colliders,
+                        &mut contact_graph,
+                        &mut joint_graph,
+                    );
+                }
+
+                // The ID of the body's island might have changed due to the split,
+                // so we need to retrieve it again.
+                let island_id = body_islands.get(self.0).map(|node| node.island_id).unwrap();
+
+                // Sleep the island.
+                SleepIslands(vec![island_id]).apply(world);
+            });
+        } else {
+            warn!("Tried to sleep body {:?} that does not exist", self.0);
+        }
+    }
+}
+
+#[derive(Resource)]
+struct CachedIslandSleepingSystemState(
     SystemState<(
         SQuery<(
             &'static BodyIslandNode,
@@ -242,25 +351,12 @@ struct CachedSleepingSystemState(
     )>,
 );
 
-/// A [`Command`] that forces a [`RigidBody`] and its [`PhysicsIsland`][super::PhysicsIsland] to be [`Sleeping`].
-pub struct SleepBody(pub Entity);
-
-impl Command for SleepBody {
-    fn apply(self, world: &mut World) {
-        if let Some(body_island) = world.get::<BodyIslandNode>(self.0) {
-            SleepIslands(vec![body_island.island_id]).apply(world);
-        } else {
-            warn!("Tried to sleep body {:?} that does not exist", self.0);
-        }
-    }
-}
-
 /// A [`Command`] that makes the [`PhysicsIsland`](super::PhysicsIsland)s with the given IDs sleep if they are not already sleeping.
 pub struct SleepIslands(pub Vec<IslandId>);
 
 impl Command for SleepIslands {
     fn apply(self, world: &mut World) {
-        world.try_resource_scope(|world, mut state: Mut<CachedSleepingSystemState>| {
+        world.try_resource_scope(|world, mut state: Mut<CachedIslandSleepingSystemState>| {
             let (bodies, mut islands, mut contact_graph, mut constraint_graph) =
                 state.0.get_mut(world);
 
@@ -329,6 +425,20 @@ impl Command for SleepIslands {
     }
 }
 
+#[derive(Resource)]
+struct CachedIslandWakingSystemState(
+    SystemState<(
+        SQuery<(
+            &'static BodyIslandNode,
+            &'static mut SleepTimer,
+            Option<&'static RigidBodyColliders>,
+        )>,
+        SResMut<PhysicsIslands>,
+        SResMut<ContactGraph>,
+        SResMut<ConstraintGraph>,
+    )>,
+);
+
 /// A [`Command`] that wakes up a [`RigidBody`] and its [`PhysicsIsland`](super::PhysicsIsland) if it is [`Sleeping`].
 pub struct WakeBody(pub Entity);
 
@@ -358,7 +468,7 @@ pub struct WakeIslands(pub Vec<IslandId>);
 
 impl Command for WakeIslands {
     fn apply(self, world: &mut World) {
-        world.try_resource_scope(|world, mut state: Mut<CachedSleepingSystemState>| {
+        world.try_resource_scope(|world, mut state: Mut<CachedIslandWakingSystemState>| {
             let (mut bodies, mut islands, mut contact_graph, mut constraint_graph) =
                 state.0.get_mut(world);
 
