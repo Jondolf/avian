@@ -779,7 +779,20 @@ mod tests {
             .map(|(name, density)| (name.to_string(), density.0))
             .collect();
 
-        assert_eq!(densities["eyes_mesh"], 1.0);
+        let colliders = app
+            .world_mut()
+            .query::<&Collider>()
+            .iter(app.world())
+            .count();
+
+        assert_eq!(
+            *densities.get("eyes_mesh").unwrap_or_else(|| {
+                println!("Densities: {densities:#?}");
+                println!("Colliders: {colliders:?}");
+                panic!("Could not find eyes_mesh")
+            }),
+            1.0
+        );
         assert_eq!(densities["armL_mesh"], 2.0);
         assert!(densities.get("armR_mesh").is_none());
 
