@@ -59,7 +59,7 @@ use bevy::{
 ///             DefaultPlugins,
 ///             PhysicsPlugins::default(),
 ///             // Enables debug rendering
-///             PhysicsDebugPlugin::default(),
+///             PhysicsDebugPlugin,
 ///         ))
 ///         // Overwrite default debug rendering configuration (optional)
 ///         .insert_gizmo_config(

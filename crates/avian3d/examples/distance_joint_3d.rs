@@ -8,7 +8,7 @@ fn main() {
             DefaultPlugins,
             ExampleCommonPlugin,
             PhysicsPlugins::default(),
-            PhysicsDebugPlugin::default(),
+            PhysicsDebugPlugin,
         ))
         .add_systems(Startup, setup)
         .run();
