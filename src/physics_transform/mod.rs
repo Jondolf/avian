@@ -229,6 +229,14 @@ pub fn transform_to_position(
     }
 }
 
+/// Marker component indicating that the `position_to_transform` system should be applied
+/// to this entity.
+///
+/// By default, the `position_to_transform` system only runs for entities that have a
+/// [`RigidBody`] component
+#[derive(Component)]
+pub struct ApplyPosToTransform;
+
 type PosToTransformComponents = (
     &'static mut Transform,
     &'static Position,
@@ -236,7 +244,10 @@ type PosToTransformComponents = (
     Option<&'static ChildOf>,
 );
 
-type PosToTransformFilter = (With<RigidBody>, Or<(Changed<Position>, Changed<Rotation>)>);
+type PosToTransformFilter = (
+    Or<(With<RigidBody>, With<ApplyPosToTransform>)>,
+    Or<(Changed<Position>, Changed<Rotation>)>,
+);
 
 type ParentComponents = (
     &'static GlobalTransform,
