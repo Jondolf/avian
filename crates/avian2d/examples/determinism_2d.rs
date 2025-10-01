@@ -35,7 +35,7 @@ fn main() {
         .add_plugins((
             DefaultPlugins,
             PhysicsPlugins::default().with_length_unit(0.5),
-            PhysicsDebugPlugin::default(),
+            PhysicsDebugPlugin,
         ))
         .init_resource::<Step>()
         .add_systems(Startup, (setup_scene, setup_ui))

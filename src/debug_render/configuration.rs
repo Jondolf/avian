@@ -21,7 +21,7 @@ use bevy::{color::palettes::css::*, prelude::*};
 ///             DefaultPlugins,
 ///             PhysicsPlugins::default(),
 ///             // Enables debug rendering
-///             PhysicsDebugPlugin::default(),
+///             PhysicsDebugPlugin,
 ///         ))
 ///         // Overwrite default debug rendering configuration (optional)
 ///         .insert_gizmo_config(
@@ -396,7 +396,7 @@ impl PhysicsGizmos {
 ///             DefaultPlugins,
 ///             PhysicsPlugins::default(),
 ///             // Enables debug rendering
-///             PhysicsDebugPlugin::default(),
+///             PhysicsDebugPlugin,
 ///         ))
 ///         .run();
 /// }
