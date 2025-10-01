@@ -340,6 +340,7 @@ fn init_collider_constructors(
 
         if let Some(collider) = collider {
             commands.entity(entity).insert(collider);
+            commands.trigger(ColliderConstructorReady { entity })
         } else {
             error!(
                 "Tried to add a collider to entity {name} via {constructor:#?}, \
@@ -473,6 +474,10 @@ fn init_collider_constructor_hierarchies(
         commands
             .entity(scene_entity)
             .remove::<ColliderConstructorHierarchy>();
+
+        commands.trigger(ColliderConstructorHierarchyReady {
+            entity: scene_entity,
+        })
     }
 }
 

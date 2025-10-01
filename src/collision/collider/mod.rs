@@ -42,6 +42,7 @@ mod constructor;
 #[cfg(feature = "default-collider")]
 pub use constructor::{
     ColliderConstructor, ColliderConstructorHierarchy, ColliderConstructorHierarchyConfig,
+    ColliderConstructorHierarchyReady, ColliderConstructorReady,
 };
 
 /// A trait for creating colliders from other types.

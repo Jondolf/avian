@@ -131,6 +131,29 @@ pub struct ColliderConstructorHierarchy {
     pub config: HashMap<String, Option<ColliderConstructorHierarchyConfig>>,
 }
 
+/// Triggered when a [`ColliderConstructor`] successfully inserted a [`Collider`].
+///
+/// The event is not triggered when the [`ColliderConstructor`] failed to construct the [`Collider`]
+/// or when there was already a [`Collider`] on the entity.
+#[derive(EntityEvent, Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+pub struct ColliderConstructorReady {
+    /// The entity that held the [`ColliderConstructor`].
+    pub entity: Entity,
+}
+
+/// Triggered when a [`ColliderConstructorHierarchy`] finished inserting all its [`Collider`]s.
+///
+/// Note that the event will still be triggered when when the hierarchy had no colliders to insert
+/// or failed to insert all of them, so this event is not a guarantee that there are actually
+/// any colliders in the scene.
+#[derive(EntityEvent, Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+pub struct ColliderConstructorHierarchyReady {
+    /// The entity that held the [`ColliderConstructorHierarchy`].
+    pub entity: Entity,
+}
+
 impl ColliderConstructorHierarchy {
     /// Creates a new [`ColliderConstructorHierarchy`] with the default [`ColliderConstructor`] used for
     /// generating colliders set to the given `default_constructor`.
