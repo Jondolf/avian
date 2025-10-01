@@ -244,7 +244,10 @@ type PosToTransformComponents = (
     Option<&'static ChildOf>,
 );
 
-type PosToTransformFilter = (Or<(With<RigidBody>, With<ApplyPosToTransform>)>, Or<(Changed<Position>, Changed<Rotation>)>);
+type PosToTransformFilter = (
+    Or<(With<RigidBody>, With<ApplyPosToTransform>)>,
+    Or<(Changed<Position>, Changed<Rotation>)>,
+);
 
 type ParentComponents = (
     &'static GlobalTransform,
