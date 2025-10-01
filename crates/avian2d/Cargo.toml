@@ -82,11 +82,11 @@ bench = false
 
 [dependencies]
 avian_derive = { path = "../avian_derive", version = "0.2" }
-bevy = { version = "0.17.0-rc", default-features = false, features = [
+bevy = { version = "0.17", default-features = false, features = [
     "std",
     "bevy_log",
 ] }
-bevy_math = { version = "0.17.0-rc", features = ["approx"] }
+bevy_math = { version = "0.17", features = ["approx"] }
 glam_matrix_extras = { git = "https://github.com/Jondolf/glam_matrix_extras", features = [
     "bevy_reflect",
 ] }
@@ -110,7 +110,7 @@ disqualified = { version = "1.0" }
 
 [dev-dependencies]
 examples_common_2d = { path = "../examples_common_2d" }
-bevy = { version = "0.17.0-rc", default-features = false, features = [
+bevy = { version = "0.17", default-features = false, features = [
     "debug",
     "reflect_auto_register",
 ] }
