@@ -460,32 +460,6 @@ fn debug_render_islands(
     let config = store.config::<PhysicsGizmos>().1;
 
     for island in islands.iter() {
-        // If the island is empty, skip rendering
-        if island.body_count == 0 {
-            continue;
-        }
-
-        let mut body = island.head_body;
-        let mut aabb: Option<ColliderAabb> = None;
-
-        // Compute the island's AABB by merging the AABBs of all bodies in the island.
-        while let Some(next_body) = body {
-            if let Ok((colliders, body_island)) = bodies.get(next_body) {
-                for collider in colliders.iter() {
-                    if let Ok(collider_aabb) = aabbs.get(collider) {
-                        aabb =
-                            Some(aabb.map_or(*collider_aabb, |aabb| aabb.merged(*collider_aabb)));
-                    }
-                }
-                body = body_island.next;
-            }
-        }
-
-        let Some(aabb) = aabb else {
-            continue;
-        };
-
-        // Render the island's AABB.
         if let Some(mut color) = config.island_color {
             // If the island is sleeping, multiply the color by the sleeping color multiplier
             if island.is_sleeping {
@@ -495,6 +469,35 @@ fn debug_render_islands(
                 }
             }
 
+            // If the island is empty, skip rendering
+            if island.body_count == 0 {
+                continue;
+            }
+
+            let mut body = island.head_body;
+            let mut aabb: Option<ColliderAabb> = None;
+
+            // Compute the island's AABB by merging the AABBs of all bodies in the island.
+            while let Some(next_body) = body {
+                if let Ok((colliders, body_island)) = bodies.get(next_body) {
+                    for collider in colliders.iter() {
+                        if let Ok(collider_aabb) = aabbs.get(collider) {
+                            aabb = Some(
+                                aabb.map_or(*collider_aabb, |aabb| aabb.merged(*collider_aabb)),
+                            );
+                        }
+                    }
+                    body = body_island.next;
+                } else {
+                    break;
+                }
+            }
+
+            let Some(aabb) = aabb else {
+                continue;
+            };
+
+            // Render the island's AABB.
             #[cfg(feature = "2d")]
             {
                 gizmos.cuboid(
