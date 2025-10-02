@@ -4,7 +4,7 @@
 
 use core::marker::PhantomData;
 
-#[cfg(feature = "collider-from-mesh")]
+#[cfg(all(feature = "collider-from-mesh", feature = "default-collider"))]
 use crate::collision::collider::cache::ColliderCache;
 use crate::{
     collision::broad_phase::BroadPhaseSystems,
