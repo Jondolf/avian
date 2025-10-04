@@ -54,7 +54,7 @@ use bevy::prelude::*;
 /// [simulation islands]: crate::dynamics::solver::islands
 /// [`IslandPlugin`]: crate::dynamics::solver::islands::IslandPlugin
 /// [`IslandSleepingPlugin`]: crate::dynamics::solver::islands::IslandSleepingPlugin
-#[derive(Component, Clone, Copy, Debug, Default, Reflect)]
+#[derive(Component, Clone, Copy, Debug, Default, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Component, Debug, Default)]
