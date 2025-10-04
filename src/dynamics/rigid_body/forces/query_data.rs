@@ -156,7 +156,7 @@ impl ForcesItem<'_, '_> {
 }
 
 impl<'w, 's> NonWakingForcesItem<'w, 's> {
-    /// Returns a [`ForcesItem`] that will wake up the body when applying forces, impulses, or accelerations.
+    /// Returns a [`ForcesItem`] that does not wake up the body when applying forces, impulses, or accelerations.
     #[inline]
     #[must_use]
     pub fn waking(self) -> ForcesItem<'w, 's> {
