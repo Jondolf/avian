@@ -521,6 +521,21 @@ pub trait RigidBodyForces: RigidBodyForcesInternal {
     fn angular_velocity_mut(&mut self) -> &mut AngularVector {
         self.ang_vel_mut()
     }
+
+    /// Returns the velocity of a point in world space on the body.
+    #[inline]
+    #[doc(alias = "linear_velocity_at_point")]
+    fn velocity_at_point(&self, world_point: Vector) -> Vector {
+        let offset = world_point - self.global_center_of_mass();
+        #[cfg(feature = "2d")]
+        {
+            self.linear_velocity() + self.angular_velocity() * offset.perp()
+        }
+        #[cfg(feature = "3d")]
+        {
+            self.linear_velocity() + self.angular_velocity().cross(offset)
+        }
+    }
 }
 
 /// A trait to provide internal getters and helpers for [`RigidBodyForces`].
