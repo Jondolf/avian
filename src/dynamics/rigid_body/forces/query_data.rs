@@ -378,6 +378,36 @@ pub trait RigidBodyForces: RigidBodyForcesInternal {
         }
     }
 
+    /// Applies a linear acceleration at the given point in world space. The unit is typically m/s².
+    ///
+    /// If the point is not at the center of mass, the acceleration will also generate an angular acceleration.
+    ///
+    /// The acceleration is applied continuously over the physics step and cleared afterwards.
+    ///
+    /// By default, a non-zero acceleration will wake up the body if it is sleeping. This can be prevented
+    /// by first calling [`ForcesItem::non_waking`] to get a [`NonWakingForcesItem`].
+    ///
+    /// # Note
+    ///
+    /// If the [`Transform`] of the body is modified before applying the acceleration,
+    /// the angular acceleration will be computed using an outdated global center of mass.
+    /// This may cause problems when applying a acceleration right after teleporting
+    /// an entity, as the angular acceleration could grow very large if the distance between the point
+    /// and old center of mass is large.
+    ///
+    /// In case this is causing problems, consider using the [`PhysicsTransformHelper`]
+    /// to update the global physics transform after modifying [`Transform`].
+    ///
+    /// [`Transform`]: bevy::transform::components::Transform
+    #[inline]
+    fn apply_linear_acceleration_at_point(&mut self, acceleration: Vector, world_point: Vector) {
+        self.apply_linear_acceleration(acceleration);
+        self.apply_angular_acceleration(cross(
+            world_point - self.global_center_of_mass(),
+            acceleration,
+        ));
+    }
+
     /// Applies a linear acceleration in local space, ignoring mass. The unit is typically m/s².
     ///
     /// The acceleration is applied continuously over the physics step and cleared afterwards.
@@ -486,13 +516,13 @@ pub trait RigidBodyForces: RigidBodyForcesInternal {
         }
     }
 
-    /// Returns the [`Position`] of the body
+    /// Returns the [`Position`] of the body.
     #[inline]
     fn position(&self) -> &Position {
         self.pos()
     }
 
-    /// Returns the [`Rotation`] of the body
+    /// Returns the [`Rotation`] of the body.
     #[inline]
     fn rotation(&self) -> &Rotation {
         self.rot()
