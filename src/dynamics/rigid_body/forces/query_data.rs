@@ -319,7 +319,7 @@ pub trait RigidBodyForces: RigidBodyForcesInternal {
     #[inline]
     fn apply_local_linear_impulse(&mut self, impulse: Vector) {
         if impulse != Vector::ZERO && self.try_wake_up() {
-            let world_impulse = self.rotation() * impulse;
+            let world_impulse = self.rot() * impulse;
             let effective_inverse_mass = self
                 .locked_axes()
                 .apply_to_vec(Vector::splat(self.inverse_mass()));
@@ -355,7 +355,7 @@ pub trait RigidBodyForces: RigidBodyForcesInternal {
     #[inline]
     fn apply_local_angular_impulse(&mut self, impulse: AngularVector) {
         if impulse != AngularVector::ZERO && self.try_wake_up() {
-            let world_impulse = self.rotation() * impulse;
+            let world_impulse = self.rot() * impulse;
             let effective_inverse_angular_inertia = self
                 .locked_axes()
                 .apply_to_angular_inertia(self.global_inverse_angular_inertia());
@@ -433,7 +433,7 @@ pub trait RigidBodyForces: RigidBodyForcesInternal {
 
         // Return the total world-space linear acceleration.
         self.locked_axes()
-            .apply_to_vec(world_linear_acceleration + self.rotation() * local_linear_acceleration)
+            .apply_to_vec(world_linear_acceleration + self.rot() * local_linear_acceleration)
     }
 
     /// Returns the angular acceleration that the body has accumulated
@@ -465,7 +465,7 @@ pub trait RigidBodyForces: RigidBodyForcesInternal {
 
         // Return the total world-space angular acceleration.
         self.locked_axes().apply_to_angular_velocity(
-            world_angular_acceleration + self.rotation() * local_angular_acceleration,
+            world_angular_acceleration + self.rot() * local_angular_acceleration,
         )
     }
 
@@ -484,6 +484,18 @@ pub trait RigidBodyForces: RigidBodyForcesInternal {
         {
             self.accumulated_local_acceleration_mut().angular = AngularVector::ZERO;
         }
+    }
+
+    /// Returns the [`Position`] of the body
+    #[inline]
+    fn position(&self) -> &Position {
+        self.pos()
+    }
+
+    /// Returns the [`Rotation`] of the body
+    #[inline]
+    fn rotation(&self) -> &Rotation {
+        self.rot()
     }
 
     /// Returns the [`LinearVelocity`] of the body in world space.
@@ -513,7 +525,8 @@ pub trait RigidBodyForces: RigidBodyForcesInternal {
 
 /// A trait to provide internal getters and helpers for [`RigidBodyForces`].
 trait RigidBodyForcesInternal {
-    fn rotation(&self) -> &Rotation;
+    fn pos(&self) -> &Position;
+    fn rot(&self) -> &Rotation;
     fn lin_vel(&self) -> Vector;
     fn lin_vel_mut(&mut self) -> &mut Vector;
     fn ang_vel(&self) -> AngularVector;
@@ -533,7 +546,11 @@ trait RigidBodyForcesInternal {
 
 impl RigidBodyForcesInternal for ForcesItem<'_, '_> {
     #[inline]
-    fn rotation(&self) -> &Rotation {
+    fn pos(&self) -> &Position {
+        self.position
+    }
+    #[inline]
+    fn rot(&self) -> &Rotation {
         self.rotation
     }
     #[inline]
@@ -607,8 +624,12 @@ impl RigidBodyForcesInternal for ForcesItem<'_, '_> {
 
 impl RigidBodyForcesInternal for NonWakingForcesItem<'_, '_> {
     #[inline]
-    fn rotation(&self) -> &Rotation {
-        self.0.rotation()
+    fn pos(&self) -> &Position {
+        self.0.position()
+    }
+    #[inline]
+    fn rot(&self) -> &Rotation {
+        self.0.rot()
     }
     #[inline]
     fn lin_vel(&self) -> Vector {
