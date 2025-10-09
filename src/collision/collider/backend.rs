@@ -622,9 +622,12 @@ fn update_aabb<C: AnyCollider>(
 pub fn update_collider_scale<C: ScalableCollider>(
     mut colliders: ParamSet<(
         // Root bodies
-        Query<(&Transform, &mut C), (Without<ChildOf>, Changed<Transform>)>,
+        Query<(&Transform, &mut C), (Without<ChildOf>, Or<(Changed<Transform>, Changed<C>)>)>,
         // Child colliders
-        Query<(&ColliderTransform, &mut C), (With<ChildOf>, Changed<ColliderTransform>)>,
+        Query<
+            (&ColliderTransform, &mut C),
+            (With<ChildOf>, Or<(Changed<ColliderTransform>, Changed<C>)>),
+        >,
     )>,
     config: Res<PhysicsTransformConfig>,
 ) {
