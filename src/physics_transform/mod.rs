@@ -234,7 +234,7 @@ pub fn transform_to_position(
 ///
 /// By default, the `position_to_transform` system only runs for entities that have a
 /// [`RigidBody`] component
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct ApplyPosToTransform;
 
 type PosToTransformComponents = (
