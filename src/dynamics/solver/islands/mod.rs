@@ -91,7 +91,7 @@ impl Plugin for IslandPlugin {
                 if rb.is_dynamic() || rb.is_kinematic() {
                     commands
                         .entity(trigger.entity)
-                        .insert(BodyIslandNode::default());
+                        .try_insert(BodyIslandNode::default());
                 }
             },
         );
@@ -113,7 +113,7 @@ impl Plugin for IslandPlugin {
                 if rb.is_dynamic() || rb.is_kinematic() {
                     commands
                         .entity(trigger.entity)
-                        .insert(BodyIslandNode::default());
+                        .try_insert(BodyIslandNode::default());
                 }
             },
         );
