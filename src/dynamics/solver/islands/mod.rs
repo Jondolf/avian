@@ -1286,12 +1286,7 @@ pub struct IslandNode<Id> {
 
 impl<Id> IslandNode<Id> {
     /// A placeholder [`IslandNode`] that has not been initialized yet.
-    pub const PLACEHOLDER: Self = Self {
-        island_id: IslandId::PLACEHOLDER,
-        prev: None,
-        next: None,
-        is_visited: false,
-    };
+    pub const PLACEHOLDER: Self = Self::new(IslandId::PLACEHOLDER);
 
     /// Creates a new [`IslandNode`] with the given island ID.
     #[inline]
