@@ -3,8 +3,10 @@
 //! Note that voxel colliders can also be created from meshes using methods such as
 //! [`Collider::voxelized_trimesh_from_mesh`], or by using [`ColliderConstructor::VoxelizedTrimeshFromMesh`].
 
+#![allow(clippy::unnecessary_cast)]
+
 use avian3d::{
-    math::{PI, Scalar, Vector},
+    math::{AsF32, PI, Scalar, Vector},
     prelude::*,
 };
 use bevy::{
@@ -53,7 +55,7 @@ fn setup(
     let (vertices, indices) = collider.shape().as_voxels().unwrap().to_trimesh();
     let vertices: Vec<[f32; 3]> = vertices
         .iter()
-        .map(|v| [v.x as Scalar, v.y as Scalar, v.z as Scalar])
+        .map(|v| [v.x as f32, v.y as f32, v.z as f32])
         .collect();
     let indices: Vec<u32> = indices.into_iter().flatten().collect();
     let mesh = Mesh::new(
@@ -72,10 +74,13 @@ fn setup(
         Friction::new(0.2),
         Mesh3d(meshes.add(mesh)),
         MeshMaterial3d(materials.add(Color::srgb(0.4, 0.6, 0.4))),
-        Transform::from_xyz(
-            -n as Scalar / 2.0 * voxel_size.x,
-            -5.0 * voxel_size.y,
-            -n as Scalar / 2.0 * voxel_size.z,
+        Transform::from_translation(
+            Vector::new(
+                -n as Scalar / 2.0 * voxel_size.x,
+                -5.0 * voxel_size.y,
+                -n as Scalar / 2.0 * voxel_size.z,
+            )
+            .f32(),
         ),
     ));
 
