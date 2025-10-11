@@ -4,7 +4,7 @@
 //! [`Collider::voxelized_trimesh_from_mesh`], or by using [`ColliderConstructor::VoxelizedTrimeshFromMesh`].
 
 use avian3d::{
-    math::{PI, Vector},
+    math::{PI, Scalar, Vector},
     prelude::*,
 };
 use bevy::{
@@ -39,9 +39,10 @@ fn setup(
     let n = 200;
     for i in 0..n {
         for j in 0..n {
-            let x = i as f32;
-            let z = j as f32;
-            let y = -40.0 * ((x / n as f32 * PI).sin() * (z / n as f32 * PI).sin()).clamp(0.1, 0.9);
+            let x = i as Scalar;
+            let z = j as Scalar;
+            let y = -40.0
+                * ((x / n as Scalar * PI).sin() * (z / n as Scalar * PI).sin()).clamp(0.1, 0.9);
             points.push(voxel_size * Vector::new(x, y, z));
         }
     }
@@ -50,7 +51,10 @@ fn setup(
 
     // Compute the mesh for rendering.
     let (vertices, indices) = collider.shape().as_voxels().unwrap().to_trimesh();
-    let vertices: Vec<[f32; 3]> = vertices.iter().map(|v| [v.x, v.y, v.z]).collect();
+    let vertices: Vec<[f32; 3]> = vertices
+        .iter()
+        .map(|v| [v.x as Scalar, v.y as Scalar, v.z as Scalar])
+        .collect();
     let indices: Vec<u32> = indices.into_iter().flatten().collect();
     let mesh = Mesh::new(
         PrimitiveTopology::TriangleList,
@@ -69,9 +73,9 @@ fn setup(
         Mesh3d(meshes.add(mesh)),
         MeshMaterial3d(materials.add(Color::srgb(0.4, 0.6, 0.4))),
         Transform::from_xyz(
-            -n as f32 / 2.0 * voxel_size.x,
+            -n as Scalar / 2.0 * voxel_size.x,
             -5.0 * voxel_size.y,
-            -n as f32 / 2.0 * voxel_size.z,
+            -n as Scalar / 2.0 * voxel_size.z,
         ),
     ));
 
