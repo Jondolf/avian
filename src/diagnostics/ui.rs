@@ -28,11 +28,14 @@ impl Plugin for PhysicsDiagnosticsUiPlugin {
             Update,
             (
                 update_diagnostics_ui_visibility,
-                update_counters,
-                update_timers,
-                update_graph_color_text,
-                update_diagnostic_row_visibility,
-                update_diagnostic_group_visibility,
+                (
+                    update_counters,
+                    update_timers,
+                    update_graph_color_text,
+                    update_diagnostic_row_visibility,
+                    update_diagnostic_group_visibility,
+                )
+                    .run_if(diagnostics_are_enabled),
             )
                 .chain(),
         );
@@ -569,4 +572,9 @@ fn update_diagnostic_group_visibility(
             Display::None
         };
     }
+}
+
+/// A run condition that returns true if the diagnostics UI is enabled.
+fn diagnostics_are_enabled(settings: Res<PhysicsDiagnosticsUiSettings>) -> bool {
+    settings.enabled
 }
