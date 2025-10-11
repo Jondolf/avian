@@ -1292,6 +1292,23 @@ impl<Id> IslandNode<Id> {
         next: None,
         is_visited: false,
     };
+
+    /// Creates a new [`IslandNode`] with the given island ID.
+    #[inline]
+    pub const fn new(island_id: IslandId) -> Self {
+        Self {
+            island_id,
+            prev: None,
+            next: None,
+            is_visited: false,
+        }
+    }
+
+    /// Returns the [`IslandId`] of the island that the node belongs to.
+    #[inline]
+    pub const fn island_id(&self) -> IslandId {
+        self.island_id
+    }
 }
 
 impl<Id> Default for IslandNode<Id> {
@@ -1309,6 +1326,12 @@ impl<Id: Copy> Copy for IslandNode<Id> {}
 pub struct BodyIslandNode(IslandNode<Entity>);
 
 impl BodyIslandNode {
+    /// Creates a new [`BodyIslandNode`] with the given island ID.
+    #[inline]
+    pub const fn new(island_id: IslandId) -> Self {
+        Self(IslandNode::new(island_id))
+    }
+
     // Initialize a new island when `BodyIslandNode` is added to a body.
     fn on_add(mut world: DeferredWorld, ctx: HookContext) {
         // Create a new island for the body.
