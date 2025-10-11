@@ -35,7 +35,7 @@ impl Plugin for PhysicsDiagnosticsUiPlugin {
                     update_diagnostic_row_visibility,
                     update_diagnostic_group_visibility,
                 )
-                    .run_if(diagnostics_are_enabled)
+                    .run_if(diagnostics_are_enabled),
             )
                 .chain(),
         );
