@@ -195,6 +195,10 @@ name = "trimesh_shapes_3d"
 required-features = ["3d", "default-collider", "bevy_scene"]
 
 [[example]]
+name = "voxels_3d"
+required-features = ["3d", "default-collider"]
+
+[[example]]
 name = "diagnostics"
 required-features = ["3d", "default-collider", "diagnostic_ui"]
 
