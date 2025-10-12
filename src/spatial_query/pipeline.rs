@@ -51,7 +51,7 @@ impl SpatialQueryPipeline {
         SpatialQueryPipeline::default()
     }
 
-    pub(crate) fn as_composite_shape<'a>(
+    pub(crate) fn as_composite_shape_internal<'a>(
         &'a self,
         query_filter: &'a SpatialQueryFilter,
     ) -> QueryPipelineAsCompositeShape<'a> {
@@ -61,7 +61,16 @@ impl SpatialQueryPipeline {
         }
     }
 
-    pub(crate) fn as_composite_shape_with_predicate<'a: 'b, 'b>(
+    /// Creates a parry [`TypedCompositeShape`] for this pipeline.
+    /// Can be used to implement custom spatial queries
+    pub fn as_composite_shape<'a>(
+        &'a self,
+        query_filter: &'a SpatialQueryFilter,
+    ) -> impl TypedCompositeShape {
+        self.as_composite_shape_internal(query_filter)
+    }
+
+    pub(crate) fn as_composite_shape_with_predicate_internal<'a: 'b, 'b>(
         &'a self,
         query_filter: &'a SpatialQueryFilter,
         predicate: &'a dyn Fn(Entity) -> bool,
@@ -71,6 +80,16 @@ impl SpatialQueryPipeline {
             query_filter,
             predicate,
         }
+    }
+
+    /// Creates a parry [`TypedCompositeShape`] for this pipeline, with a predicate.
+    /// Can be used to implement custom spatial queries
+    pub fn as_composite_shape_with_predicate<'a>(
+        &'a self,
+        query_filter: &'a SpatialQueryFilter,
+        predicate: &'a dyn Fn(Entity) -> bool,
+    ) -> impl TypedCompositeShape {
+        self.as_composite_shape_with_predicate_internal(query_filter, predicate)
     }
 
     /// Updates the associated acceleration structures with a new set of entities.
@@ -111,6 +130,16 @@ impl SpatialQueryPipeline {
         });
 
         self.bvh = Bvh::from_iter(BvhBuildStrategy::Binned, aabbs);
+    }
+
+    /// Get the entity corresponding to a given index in the pipeline
+    pub fn entity(&self, index: usize) -> Entity {
+        self.proxies[index].entity
+    }
+
+    /// Get a dyn reference to the query dispatcher used in this pipeline
+    pub fn dispatcher_ref(&self) -> &dyn QueryDispatcher {
+        self.dispatcher.as_ref()
     }
 
     /// Casts a [ray](spatial_query#raycasting) and computes the closest [hit](RayHitData) with a collider.
@@ -493,7 +522,7 @@ impl SpatialQueryPipeline {
         let shape_direction = direction.adjust_precision().into();
 
         loop {
-            let composite = self.as_composite_shape(&query_filter);
+            let composite = self.as_composite_shape_internal(&query_filter);
             let pipeline_shape = CompositeShapeRef(&composite);
 
             let hit = pipeline_shape
