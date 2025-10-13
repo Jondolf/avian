@@ -41,7 +41,7 @@ Below are some of the current features of Avian.
   - Collider generation for meshes and entire scenes
   - Collision events
   - Access to colliding entities
-  - Filtering and modifying collisions with custom systems
+  - Filtering and modifying collisions with collision hooks
   - Manual contact queries and intersection tests
 - Constraints and joints
   - Several built-in joint types: fixed, distance, prismatic, revolute, spherical
@@ -52,7 +52,7 @@ Below are some of the current features of Avian.
   - Flexible `SpatialQuery` system parameter
   - Spatial query filters
 - `Transform` interpolation and extrapolation for fixed timesteps
-- Debug rendering for colliders, AABBs, contacts, joints, sleeping, axes and spatial queries
+- Debug rendering for colliders, AABBs, contacts, joints, spatial queries, and more
 - Configurable scheduling and high customizability
 - Highly modular plugin architecture, freely extend and replace parts of the engine
 - Support for custom collision backends
@@ -74,11 +74,11 @@ First, add `avian2d` or `avian3d` to your dependencies in `Cargo.toml`:
 ```toml
 # For 2D applications:
 [dependencies]
-avian2d = "0.3"
+avian2d = "0.4"
 
 # For 3D applications:
 [dependencies]
-avian3d = "0.3"
+avian3d = "0.4"
 
 # If you want to use the most up-to-date version, you can follow the main branch:
 [dependencies]
@@ -161,7 +161,7 @@ cargo run --example cubes --no-default-features --features "3d f64 parry-f64"
 
 | Bevy    | Avian  |
 | ------- | ------ |
-| 0.17    | `main` |
+| 0.17    | 0.4    |
 | 0.16    | 0.3    |
 | 0.15    | 0.2    |
 | 0.14    | 0.1    |
@@ -178,16 +178,6 @@ cargo run --example cubes --no-default-features --features "3d f64 parry-f64"
   | 0.10 | 0.1       |
 
 </details>
-
-## Future Features
-
-- Flags for what types of collisions are active, like collisions against specific rigid body types, sensors or parents
-- Performance optimization (better broad phase, parallel solver, proper SIMD...)
-- Joint motors
-- Articulations, aka. multibody joints
-- Proper cross-platform determinism
-- Soft bodies (cloth and deformable solids)
-- Maybe fluid simulation
 
 ## Contributing
 
