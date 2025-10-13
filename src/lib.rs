@@ -21,11 +21,11 @@
 //! ```toml
 //! # For 2D applications:
 //! [dependencies]
-//! avian2d = "0.3"
+//! avian2d = "0.4"
 //!
 //! # For 3D applications:
 //! [dependencies]
-//! avian3d = "0.3"
+//! avian3d = "0.4"
 //!
 //! # If you want to use the most up-to-date version, you can follow the main branch:
 //! [dependencies]
@@ -39,7 +39,7 @@
 //! [dependencies]
 //! # Add 3D Avian with double-precision floating point numbers.
 //! # `parry-f64` enables collision detection using Parry.
-//! avian3d = { version = "0.3", default-features = false, features = ["3d", "f64", "parry-f64", "xpbd_joints"] }
+//! avian3d = { version = "0.4", default-features = false, features = ["3d", "f64", "parry-f64", "xpbd_joints"] }
 //! ```
 //!
 //! ## Feature Flags
@@ -245,8 +245,7 @@
 //! for Bevy
 //! - It has poor docs.rs documentation, and the documentation on rapier.rs is often outdated and
 //! missing features
-//! - It is hard to extend as it's not very modular or composable in design
-//! - Overall, it doesn't have a native ECS-like feel outside of its public API
+//! - Overall, it doesn't have a native ECS-like feel
 //!
 //! Avian on the other hand is built *for* Bevy *with* Bevy, and it uses the ECS for both the internals
 //! and the public API. This removes the need for a separate physics world, reduces overhead, and makes
@@ -279,15 +278,32 @@
 //!
 //! ## Why is performance so bad?
 //!
-//! Make sure you are building your project in release mode using `cargo build --release`.
+//! It is highly recommended to enable some optimizations for debug builds, or to run your project
+//! in release mode. This can have over a 100x performance impact in some cases.
 //!
-//! You can further optimize builds by setting the number of codegen units in your `Cargo.toml` to 1,
+//! Add the following to your `Cargo.toml` to enable optimizations for debug builds:
+//!
+//! ```toml
+//! # Enable a small amount of optimization in the dev profile.
+//! [profile.dev]
+//! opt-level = 1
+//!
+//! # Enable a large amount of optimization in the dev profile for dependencies.
+//! [profile.dev.package."*"]
+//! opt-level = 3
+//! ```
+//!
+//! You can also further optimize release builds by setting the number of codegen units to `1`,
 //! although this will also increase build times.
 //!
 //! ```toml
 //! [profile.release]
 //! codegen-units = 1
 //! ```
+//!
+//! If you still have performance issues, consider enabling the [`PhysicsDiagnosticsPlugin`]
+//! and [`PhysicsDiagnosticsUiPlugin`] (requires the `diagnostic_ui` feature) to see where time is being spent.
+//! See the [diagnostics](diagnostics) module for more information.
 //!
 //! ## Why does movement look choppy?
 //!
@@ -353,7 +369,7 @@
 //!
 //! ## Is there a character controller?
 //!
-//! Avian does not have a built-in character controller, so if you need one,
+//! Avian does not have a built-in character controller yet, so if you need one,
 //! you will need to implement it yourself. However, third party character controllers
 //! like [`bevy_tnua`](https://github.com/idanarye/bevy-tnua) support Avian, and [`bevy_mod_wanderlust`](https://github.com/PROMETHIA-27/bevy_mod_wanderlust)
 //! and others are also likely to get Avian support soon.
@@ -410,7 +426,7 @@
 //!
 //! ## Something else?
 //!
-//! Physics engines are very large and Avian is young, so stability issues and bugs are to be expected.
+//! Physics engines are very large and Avian is still young, so stability issues and bugs are to be expected.
 //!
 //! If you encounter issues, please consider first taking a look at the
 //! [issues on GitHub](https://github.com/Jondolf/avian/issues) and
