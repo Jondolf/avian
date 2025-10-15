@@ -13,6 +13,8 @@ use crate::prelude::*;
 /// The builder can configure different subdivision levels for different shapes.
 /// If a shape was not explicitly configured, the builder will use [`Self::fallback_subdivs`].
 ///
+/// Shapes with rounded corners such as [`Collider::round_cuboid`] will be subdivided as if they were not rounded.
+///
 /// # Example
 ///
 /// ```
@@ -148,13 +150,7 @@ impl TrimeshBuilder {
                 .try_into()
                 .unwrap_or_else(|_| panic!("Ball theta subdivisions must be non-zero")),
             phi.try_into()
-                .map(|phi| {
-                    assert!(
-                        phi >= 2.try_into().unwrap(),
-                        "Ball phi subdivisions must be at least 2"
-                    );
-                    phi
-                })
+                .inspect(|phi| assert!(phi.get() >= 2, "Ball phi subdivisions must be at least 2"))
                 .unwrap_or_else(|_| panic!("Ball phi subdivisions must be non-zero")),
         ));
         self
@@ -172,6 +168,12 @@ impl TrimeshBuilder {
                 .try_into()
                 .unwrap_or_else(|_| panic!("Capsule theta subdivisions must be non-zero")),
             phi.try_into()
+                .inspect(|phi| {
+                    assert!(
+                        phi.get() >= 2,
+                        "Capsule phi subdivisions must be at least 2"
+                    )
+                })
                 .unwrap_or_else(|_| panic!("Capsule phi subdivisions must be non-zero")),
         ));
         self
