@@ -22,9 +22,7 @@ pub use cache::ColliderCachePlugin;
 pub mod collider_hierarchy;
 pub mod collider_transform;
 #[cfg(all(feature = "3d", feature = "parry"))]
-mod trimesh_builder;
-#[cfg(all(feature = "3d", feature = "parry"))]
-pub use trimesh_builder::*;
+pub mod trimesh_builder;
 
 mod layers;
 pub use layers::*;
