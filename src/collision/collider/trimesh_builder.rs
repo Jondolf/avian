@@ -26,19 +26,19 @@ use crate::prelude::*;
 /// let trimesh = collider.trimesh_builder().build().unwrap();
 ///
 /// // Using extra subdivions
-/// let trimesh = collider.trimesh_builder().ball_subdivs(20).build().unwrap();
+/// let trimesh = collider.trimesh_builder().ball_subdivs(20, 20).build().unwrap();
 ///
 /// // Setting different subdivions for different shapes
 /// let trimesh = collider
 ///     .trimesh_builder()
-///     .ball_subdivs(20)
+///     .ball_subdivs(20, 20)
 ///     .capsule_subdivs(10, 5)
 ///     .fallback_subdivs(15)
 ///     .build()
 ///     .unwrap();
 ///
 /// // Generating the trimesh with a transformation
-/// let trimesh = collider.trimesh_builder().translated([1.0, 0.0, 0.0]).build().unwrap();
+/// let trimesh = collider.trimesh_builder().translated(Vec3::new(1.0, 0.0, 0.0)).build().unwrap();
 /// ```
 #[derive(Debug, Clone)]
 pub struct TrimeshBuilder {
