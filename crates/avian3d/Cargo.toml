@@ -52,7 +52,7 @@ parry-f64 = ["f64", "dep:parry3d-f64", "default-collider"]
 # Enables the XPBD constraint solver for joints.
 xpbd_joints = []
 
-collider-from-mesh = ["bevy/bevy_render", "3d"]
+collider-from-mesh = ["bevy/bevy_mesh", "3d"]
 bevy_scene = ["bevy/bevy_scene"]
 bevy_picking = ["bevy/bevy_picking"]
 serialize = [

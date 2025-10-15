@@ -21,6 +21,10 @@ mod cache;
 pub use cache::ColliderCachePlugin;
 pub mod collider_hierarchy;
 pub mod collider_transform;
+#[cfg(feature = "3d")]
+mod trimesh_builder;
+#[cfg(feature = "3d")]
+pub use trimesh_builder::*;
 
 mod layers;
 pub use layers::*;
