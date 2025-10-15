@@ -44,9 +44,9 @@ use crate::prelude::*;
 pub struct TrimeshBuilder {
     /// The shape to be converted into a triangle mesh.
     pub shape: SharedShape,
-    /// The position of the shape in world space. The default is [0, 0, 0].
+    /// The position of the shape. The default is [0, 0, 0].
     pub position: Position,
-    /// The rotation of the shape in world space. The default is the identity rotation.
+    /// The rotation of the shape. The default is the identity rotation.
     pub rotation: Rotation,
     /// Whether a failure to trimesh a subshape in a compound shape should fail the entire build process.
     /// Default is true.
@@ -71,7 +71,7 @@ pub struct TrimeshBuilder {
 /// A generic triangle mesh representation.
 #[derive(Debug, Clone, PartialEq, Reflect, Default)]
 pub struct Trimesh {
-    /// The vertices in world space
+    /// The vertices in
     pub vertices: Vec<Vector>,
     /// The indices in counter-clockwise winding
     pub indices: Vec<[u32; 3]>,
