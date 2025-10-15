@@ -54,9 +54,9 @@ pub struct TrimeshBuilder {
     /// The number of subdivisions to use for shapes that do not have a specific subdivision count.
     /// Default is 16.
     pub fallback_subdivs: NonZeroU32,
-    /// The number of subdivisions for shapes that derive from a ball.
+    /// The number of subdivisions for shapes that derive from a sphere.
     /// Default is None.
-    pub ball_subdivs: Option<(NonZeroU32, NonZeroU32)>,
+    pub sphere_subdivs: Option<(NonZeroU32, NonZeroU32)>,
     /// The number of subdivisions for shapes that derive from a capsule.
     /// Default is None.
     pub capsule_subdivs: Option<(NonZeroU32, NonZeroU32)>,
@@ -110,7 +110,7 @@ impl TrimeshBuilder {
             fail_on_compound_error: true,
             // arbitrary number
             fallback_subdivs: 16_u32.try_into().unwrap(),
-            ball_subdivs: None,
+            sphere_subdivs: None,
             capsule_subdivs: None,
             cylinder_subdivs: None,
             cone_subdivs: None,
@@ -145,7 +145,7 @@ impl TrimeshBuilder {
         theta: impl TryInto<NonZeroU32>,
         phi: impl TryInto<NonZeroU32>,
     ) -> &mut Self {
-        self.ball_subdivs = Some((
+        self.sphere_subdivs = Some((
             theta
                 .try_into()
                 .unwrap_or_else(|_| panic!("Ball theta subdivisions must be non-zero")),
@@ -231,8 +231,8 @@ impl TrimeshBuilder {
             }
             // Need subdivisions
             TypedShape::Ball(ball) => ball.to_trimesh(
-                self.subdivs(|t| t.ball_subdivs?.0.into()),
-                self.subdivs(|t| t.ball_subdivs?.1.into()),
+                self.subdivs(|t| t.sphere_subdivs?.0.into()),
+                self.subdivs(|t| t.sphere_subdivs?.1.into()),
             ),
             TypedShape::Capsule(capsule) => capsule.to_trimesh(
                 self.subdivs(|t| t.capsule_subdivs?.0.into()),
