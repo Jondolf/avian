@@ -1,6 +1,6 @@
 //! Types used for creating triangle meshes from [`Collider`]s.
 
-use std::num::NonZeroU32;
+use core::num::NonZeroU32;
 
 use bevy::prelude::*;
 use parry::shape::{SharedShape, TypedShape};
@@ -11,7 +11,7 @@ use crate::prelude::*;
 /// An ergonomic builder for triangle meshes from [`Collider`]s.
 ///
 /// The builder can configure different subdivision levels for different shapes.
-/// If a shape was not explicitly configured, the builder will use [Self::fallback_subdivs].
+/// If a shape was not explicitly configured, the builder will use [`Self::fallback_subdivs`].
 ///
 /// # Example
 ///
@@ -90,7 +90,7 @@ impl Trimesh {
     }
 }
 
-/// An error that can occur when building a triangle mesh with [`TrimeshBuilder::build].
+/// An error that can occur when building a triangle mesh with [`TrimeshBuilder::build`].
 #[derive(Debug, Error)]
 pub enum TrimeshBuilderError {
     /// The shape is not supported by the builder.
@@ -303,7 +303,7 @@ impl TrimeshBuilder {
                 .into_iter()
                 .map(|v| pos.0 + Vector::from(self.rotation * Vector::from(v)))
                 .collect(),
-            indices: indices.into_iter().map(|i| i.into()).collect(),
+            indices,
         })
     }
 }
@@ -336,7 +336,7 @@ impl From<Trimesh> for Mesh {
             ),
         );
         mesh.insert_indices(Indices::U32(
-            trimesh.indices.into_iter().flat_map(|i| i).collect(),
+            trimesh.indices.into_iter().flatten().collect(),
         ));
         mesh.compute_normals();
         if let Err(err) = mesh.generate_tangents() {
