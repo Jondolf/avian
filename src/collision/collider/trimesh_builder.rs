@@ -242,9 +242,10 @@ impl TrimeshBuilder {
             // Compounds need to be unpacked
             TypedShape::Compound(compound) => {
                 let mut sub_builder = self.clone();
-                return Ok(compound.shapes().iter().fold(
-                    Trimesh::default(),
-                    move |mut compound_trimesh, (sub_pos, shape)| {
+                return compound.shapes().iter().fold(
+                    Ok(Trimesh::default()),
+                    move |compound_trimesh, (sub_pos, shape)| {
+                        let mut compound_trimesh = compound_trimesh?;
                         sub_builder.shape = shape.clone();
                         sub_builder.position = Position(
                             self.position.0 + self.rotation * Vector::from(sub_pos.translation),
@@ -257,17 +258,20 @@ impl TrimeshBuilder {
                         let trimesh = match sub_builder.build() {
                             Ok(trimesh) => trimesh,
                             Err(error) => {
-                                warn!("Failed to convert compound sub-shape to trimesh: {error}");
-                                return compound_trimesh;
+                                return if self.fail_on_compound_error {
+                                    Err(error)
+                                } else {
+                                    Ok(compound_trimesh)
+                                };
                             }
                         };
 
                         compound_trimesh.extend(trimesh);
 
                         // No need to track recursive compounds because parry panics on nested compounds anyways lol
-                        compound_trimesh
+                        Ok(compound_trimesh)
                     },
-                ));
+                );
             }
             // Rounded shapes ignore the rounding and use the inner shape
             TypedShape::RoundCuboid(round_shape) => round_shape.inner_shape.to_trimesh(),
