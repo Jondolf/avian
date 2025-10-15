@@ -211,7 +211,10 @@ impl TrimeshBuilder {
     }
 
     /// Builds the trimesh from the configured settings.
-    /// Returns an error if the shape is not supported. If the shape is a compound, errors in
+    ///
+    /// Returns an error if the shape is not supported.
+    /// If the shape is a compound, errors in a subshape will either be ignored or fail the entire build process
+    /// depending on the value of [`Self::fail_on_compound_error`].
     pub fn build(&self) -> Result<Trimesh, TrimeshBuilderError> {
         let (vertices, indices) = match self.shape.as_typed_shape() {
             // Simple cases
