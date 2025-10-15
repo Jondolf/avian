@@ -117,15 +117,15 @@ impl TrimeshBuilder {
         }
     }
 
-    /// Translates the mesh.
+    /// Translates the mesh. Subsequent calls to this method will add to the previous translation.
     pub fn translated(&mut self, position: impl Into<Position>) -> &mut Self {
-        self.position = position.into();
+        self.position.0 += position.into().0;
         self
     }
 
-    /// Rotates the mesh.
+    /// Rotates the mesh. Subsequent calls to this method will add to the previous rotation.
     pub fn rotated(&mut self, rotation: impl Into<Rotation>) -> &mut Self {
-        self.rotation = rotation.into();
+        self.rotation = rotation.into() * self.rotation;
         self
     }
 
