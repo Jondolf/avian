@@ -228,11 +228,7 @@ impl From<Trimesh> for Mesh {
             ),
         );
         mesh.insert_indices(Indices::U32(
-            trimesh
-                .indices
-                .into_iter()
-                .flat_map(|i| i.map(|i| i as u32))
-                .collect(),
+            trimesh.indices.into_iter().flat_map(|i| i).collect(),
         ));
         mesh.compute_normals();
         if let Err(err) = mesh.generate_tangents() {
