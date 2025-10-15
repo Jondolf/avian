@@ -18,7 +18,7 @@ use crate::prelude::*;
 /// # Example
 ///
 /// ```
-/// use avian3d::prelude::*;
+/// # use avian3d::{prelude::*, math::Vector};
 ///
 /// let collider = Collider::sphere(1.0);
 ///
@@ -38,7 +38,7 @@ use crate::prelude::*;
 ///     .unwrap();
 ///
 /// // Generating the trimesh with a transformation
-/// let trimesh = collider.trimesh_builder().translated(Vec3::new(1.0, 0.0, 0.0)).build().unwrap();
+/// let trimesh = collider.trimesh_builder().translated(Vector::new(1.0, 0.0, 0.0)).build().unwrap();
 /// ```
 #[derive(Debug, Clone)]
 pub struct TrimeshBuilder {
@@ -386,7 +386,7 @@ mod tests {
         let trimesh = collider
             .trimesh_builder()
             .fallback_subdivs(2)
-            .translated(Vec3::new(3.0, -2.0, 0.0))
+            .translated(Vector::new(3.0, -2.0, 0.0))
             .rotated(Quat::from_rotation_y(-3.0))
             .build()
             .unwrap();
