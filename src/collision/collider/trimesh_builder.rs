@@ -25,14 +25,14 @@ use crate::prelude::*;
 /// // Using default settings
 /// let trimesh = collider.trimesh_builder().build().unwrap();
 ///
-/// // Using extra subdivions
+/// // Using extra subdivisions
 /// let trimesh = collider
 ///     .trimesh_builder()
 ///     .sphere_subdivisions(20, 20)
 ///     .build()
 ///     .unwrap();
 ///
-/// // Setting different subdivions for different shapes
+/// // Setting different subdivisions for different shapes
 /// let trimesh = collider
 ///     .trimesh_builder()
 ///     .sphere_subdivisions(20, 20)
