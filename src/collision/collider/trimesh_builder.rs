@@ -11,7 +11,7 @@ use crate::prelude::*;
 /// An ergonomic builder for triangle meshes from [`Collider`]s.
 ///
 /// The builder can configure different subdivision levels for different shapes.
-/// If a shape was not explicitly configured, the builder will use [`Self::fallback_subdivs`].
+/// If a shape was not explicitly configured, the builder will use [`Self::fallback_subdivisions`].
 ///
 /// Shapes with rounded corners such as [`Collider::round_cuboid`] will be subdivided as if they were not rounded.
 ///
@@ -26,14 +26,14 @@ use crate::prelude::*;
 /// let trimesh = collider.trimesh_builder().build().unwrap();
 ///
 /// // Using extra subdivions
-/// let trimesh = collider.trimesh_builder().ball_subdivs(20, 20).build().unwrap();
+/// let trimesh = collider.trimesh_builder().ball_subdivisions(20, 20).build().unwrap();
 ///
 /// // Setting different subdivions for different shapes
 /// let trimesh = collider
 ///     .trimesh_builder()
-///     .ball_subdivs(20, 20)
-///     .capsule_subdivs(10, 5)
-///     .fallback_subdivs(15)
+///     .ball_subdivisions(20, 20)
+///     .capsule_subdivisions(10, 5)
+///     .fallback_subdivisions(15)
 ///     .build()
 ///     .unwrap();
 ///
@@ -53,19 +53,19 @@ pub struct TrimeshBuilder {
     pub fail_on_compound_error: bool,
     /// The number of subdivisions to use for shapes that do not have a specific subdivision count.
     /// Default is 16.
-    pub fallback_subdivs: NonZeroU32,
+    pub fallback_subdivisions: NonZeroU32,
     /// The number of subdivisions for shapes that derive from a sphere.
     /// Default is None.
-    pub sphere_subdivs: Option<(NonZeroU32, NonZeroU32)>,
+    pub sphere_subdivisions: Option<(NonZeroU32, NonZeroU32)>,
     /// The number of subdivisions for shapes that derive from a capsule.
     /// Default is None.
-    pub capsule_subdivs: Option<(NonZeroU32, NonZeroU32)>,
+    pub capsule_subdivision: Option<(NonZeroU32, NonZeroU32)>,
     /// The number of subdivisions for shapes that derive from a cylinder.
     /// Default is None.
-    pub cylinder_subdivs: Option<NonZeroU32>,
+    pub cylinder_subdivisions: Option<NonZeroU32>,
     /// The number of subdivisions for shapes that derive from a cone.
     /// Default is None.
-    pub cone_subdivs: Option<NonZeroU32>,
+    pub cone_subdivisions: Option<NonZeroU32>,
 }
 
 /// A generic triangle mesh representation.
@@ -109,11 +109,11 @@ impl TrimeshBuilder {
             rotation: default(),
             fail_on_compound_error: true,
             // arbitrary number
-            fallback_subdivs: 16_u32.try_into().unwrap(),
-            sphere_subdivs: None,
-            capsule_subdivs: None,
-            cylinder_subdivs: None,
-            cone_subdivs: None,
+            fallback_subdivisions: 16_u32.try_into().unwrap(),
+            sphere_subdivisions: None,
+            capsule_subdivision: None,
+            cylinder_subdivisions: None,
+            cone_subdivisions: None,
         }
     }
 
@@ -131,8 +131,8 @@ impl TrimeshBuilder {
 
     /// Sets the fallback subdivision count for shapes that don't have a specific subdivision count.
     /// Default is 16.
-    pub fn fallback_subdivs(&mut self, subdivs: impl TryInto<NonZeroU32>) -> &mut Self {
-        self.fallback_subdivs = subdivs
+    pub fn fallback_subdivisions(&mut self, subdivisions: impl TryInto<NonZeroU32>) -> &mut Self {
+        self.fallback_subdivisions = subdivisions
             .try_into()
             .unwrap_or_else(|_| panic!("Fallback subdivision count must be non-zero"));
         self
@@ -140,12 +140,12 @@ impl TrimeshBuilder {
 
     /// Sets the subdivision count for ball shapes. `theta` is the number of subdivisions along the
     /// latitude, and `phi` is the number of subdivisions along the longitude.
-    pub fn ball_subdivs(
+    pub fn ball_subdivisions(
         &mut self,
         theta: impl TryInto<NonZeroU32>,
         phi: impl TryInto<NonZeroU32>,
     ) -> &mut Self {
-        self.sphere_subdivs = Some((
+        self.sphere_subdivisions = Some((
             theta
                 .try_into()
                 .unwrap_or_else(|_| panic!("Ball theta subdivisions must be non-zero")),
@@ -158,12 +158,12 @@ impl TrimeshBuilder {
 
     /// Sets the subdivision count for capsule shapes. `theta` is the number of subdivisions along the
     /// latitude, and `phi` is the number of subdivisions along the longitude.
-    pub fn capsule_subdivs(
+    pub fn capsule_subdivisions(
         &mut self,
         theta: impl TryInto<NonZeroU32>,
         phi: impl TryInto<NonZeroU32>,
     ) -> &mut Self {
-        self.capsule_subdivs = Some((
+        self.capsule_subdivision = Some((
             theta
                 .try_into()
                 .unwrap_or_else(|_| panic!("Capsule theta subdivisions must be non-zero")),
@@ -180,9 +180,9 @@ impl TrimeshBuilder {
     }
 
     /// Sets the subdivision count for cylinder shapes.
-    pub fn cylinder_subdivs(&mut self, subdivs: impl TryInto<NonZeroU32>) -> &mut Self {
-        self.cylinder_subdivs = Some(
-            subdivs
+    pub fn cylinder_subdivisions(&mut self, subdivisions: impl TryInto<NonZeroU32>) -> &mut Self {
+        self.cylinder_subdivisions = Some(
+            subdivisions
                 .try_into()
                 .unwrap_or_else(|_| panic!("Cylinder subdivisions must be non-zero")),
         );
@@ -190,9 +190,9 @@ impl TrimeshBuilder {
     }
 
     /// Sets the subdivision count for cone shapes.
-    pub fn cone_subdivs(&mut self, subdivs: impl TryInto<NonZeroU32>) -> &mut Self {
-        self.cone_subdivs = Some(
-            subdivs
+    pub fn cone_subdivisions(&mut self, subdivisions: impl TryInto<NonZeroU32>) -> &mut Self {
+        self.cone_subdivisions = Some(
+            subdivisions
                 .try_into()
                 .unwrap_or_else(|_| panic!("Cone subdivisions must be non-zero")),
         );
@@ -206,8 +206,8 @@ impl TrimeshBuilder {
         self
     }
 
-    fn subdivs(&self, get: impl Fn(&Self) -> Option<NonZeroU32>) -> u32 {
-        get(self).unwrap_or(self.fallback_subdivs).into()
+    fn subdivisions(&self, get: impl Fn(&Self) -> Option<NonZeroU32>) -> u32 {
+        get(self).unwrap_or(self.fallback_subdivisions).into()
     }
 
     /// Builds the trimesh from the configured settings.
@@ -231,17 +231,17 @@ impl TrimeshBuilder {
             }
             // Need subdivisions
             TypedShape::Ball(ball) => ball.to_trimesh(
-                self.subdivs(|t| t.sphere_subdivs?.0.into()),
-                self.subdivs(|t| t.sphere_subdivs?.1.into()),
+                self.subdivisions(|t| t.sphere_subdivisions?.0.into()),
+                self.subdivisions(|t| t.sphere_subdivisions?.1.into()),
             ),
             TypedShape::Capsule(capsule) => capsule.to_trimesh(
-                self.subdivs(|t| t.capsule_subdivs?.0.into()),
-                self.subdivs(|t| t.capsule_subdivs?.1.into()),
+                self.subdivisions(|t| t.capsule_subdivision?.0.into()),
+                self.subdivisions(|t| t.capsule_subdivision?.1.into()),
             ),
             TypedShape::Cylinder(cylinder) => {
-                cylinder.to_trimesh(self.subdivs(|t| t.cylinder_subdivs))
+                cylinder.to_trimesh(self.subdivisions(|t| t.cylinder_subdivisions))
             }
-            TypedShape::Cone(cone) => cone.to_trimesh(self.subdivs(|t| t.cone_subdivs)),
+            TypedShape::Cone(cone) => cone.to_trimesh(self.subdivisions(|t| t.cone_subdivisions)),
             // Compounds need to be unpacked
             TypedShape::Compound(compound) => {
                 let mut sub_builder = self.clone();
@@ -288,10 +288,10 @@ impl TrimeshBuilder {
             TypedShape::RoundConvexPolyhedron(round_shape) => round_shape.inner_shape.to_trimesh(),
             TypedShape::RoundCylinder(round_shape) => round_shape
                 .inner_shape
-                .to_trimesh(self.subdivs(|t| t.cylinder_subdivs)),
+                .to_trimesh(self.subdivisions(|t| t.cylinder_subdivisions)),
             TypedShape::RoundCone(round_shape) => round_shape
                 .inner_shape
-                .to_trimesh(self.subdivs(|t| t.cone_subdivs)),
+                .to_trimesh(self.subdivisions(|t| t.cone_subdivisions)),
             // Not supported
             TypedShape::Segment(segment) => {
                 return Err(TrimeshBuilderError::UnsupportedShape(format!(
@@ -388,7 +388,7 @@ mod tests {
         ]);
         let trimesh = collider
             .trimesh_builder()
-            .fallback_subdivs(2)
+            .fallback_subdivisions(2)
             .translated(Vector::new(3.0, -2.0, 0.0))
             .rotated(Quat::from_rotation_y(-3.0))
             .build()
