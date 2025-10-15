@@ -26,19 +26,27 @@ use crate::prelude::*;
 /// let trimesh = collider.trimesh_builder().build().unwrap();
 ///
 /// // Using extra subdivions
-/// let trimesh = collider.trimesh_builder().ball_subdivisions(20, 20).build().unwrap();
+/// let trimesh = collider
+///     .trimesh_builder()
+///     .sphere_subdivisions(20, 20)
+///     .build()
+///     .unwrap();
 ///
 /// // Setting different subdivions for different shapes
 /// let trimesh = collider
 ///     .trimesh_builder()
-///     .ball_subdivisions(20, 20)
+///     .sphere_subdivisions(20, 20)
 ///     .capsule_subdivisions(10, 5)
 ///     .fallback_subdivisions(15)
 ///     .build()
 ///     .unwrap();
 ///
 /// // Generating the trimesh with a transformation
-/// let trimesh = collider.trimesh_builder().translated(Vector::new(1.0, 0.0, 0.0)).build().unwrap();
+/// let trimesh = collider
+///     .trimesh_builder()
+///     .translated(Vector::new(1.0, 0.0, 0.0))
+///     .build()
+///     .unwrap();
 /// ```
 #[derive(Debug, Clone)]
 pub struct TrimeshBuilder {
@@ -138,9 +146,9 @@ impl TrimeshBuilder {
         self
     }
 
-    /// Sets the subdivision count for ball shapes. `theta` is the number of subdivisions along the
+    /// Sets the subdivision count for sphere shapes. `theta` is the number of subdivisions along the
     /// latitude, and `phi` is the number of subdivisions along the longitude.
-    pub fn ball_subdivisions(
+    pub fn sphere_subdivisions(
         &mut self,
         theta: impl TryInto<NonZeroU32>,
         phi: impl TryInto<NonZeroU32>,
@@ -148,10 +156,12 @@ impl TrimeshBuilder {
         self.sphere_subdivisions = Some((
             theta
                 .try_into()
-                .unwrap_or_else(|_| panic!("Ball theta subdivisions must be non-zero")),
+                .unwrap_or_else(|_| panic!("Sphere theta subdivisions must be non-zero")),
             phi.try_into()
-                .inspect(|phi| assert!(phi.get() >= 2, "Ball phi subdivisions must be at least 2"))
-                .unwrap_or_else(|_| panic!("Ball phi subdivisions must be non-zero")),
+                .inspect(|phi| {
+                    assert!(phi.get() >= 2, "Sphere phi subdivisions must be at least 2")
+                })
+                .unwrap_or_else(|_| panic!("Sphere phi subdivisions must be non-zero")),
         ));
         self
     }
