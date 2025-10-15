@@ -242,10 +242,9 @@ impl TrimeshBuilder {
             // Compounds need to be unpacked
             TypedShape::Compound(compound) => {
                 let mut sub_builder = self.clone();
-                return compound.shapes().iter().fold(
-                    Ok(Trimesh::default()),
-                    move |compound_trimesh, (sub_pos, shape)| {
-                        let mut compound_trimesh = compound_trimesh?;
+                return compound.shapes().iter().try_fold(
+                    Trimesh::default(),
+                    move |mut compound_trimesh, (sub_pos, shape)| {
                         sub_builder.shape = shape.clone();
                         sub_builder.position = Position(
                             self.position.0 + self.rotation * Vector::from(sub_pos.translation),
