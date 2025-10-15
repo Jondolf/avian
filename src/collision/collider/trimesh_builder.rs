@@ -148,6 +148,13 @@ impl TrimeshBuilder {
                 .try_into()
                 .unwrap_or_else(|_| panic!("Ball theta subdivisions must be non-zero")),
             phi.try_into()
+                .map(|phi| {
+                    assert!(
+                        phi >= 2.try_into().unwrap(),
+                        "Ball phi subdivisions must be at least 2"
+                    );
+                    phi
+                })
                 .unwrap_or_else(|_| panic!("Ball phi subdivisions must be non-zero")),
         ));
         self
@@ -357,5 +364,62 @@ mod tests {
         let trimesh = collider.trimesh_builder().build().unwrap();
         assert_eq!(trimesh.vertices.len(), 8);
         assert_eq!(trimesh.indices.len(), 12);
+    }
+
+    #[test]
+    fn rasterizes_compound() {
+        let a = Collider::cuboid(1.0, 2.0, 3.0);
+        let b = Collider::sphere(0.4);
+        let collider = Collider::compound(vec![
+            (Vector::new(1.0, 2.0, 3.0), Quat::from_rotation_z(0.2), a),
+            (
+                Vector::new(-12.0, 4.0, -0.01),
+                Quat::from_rotation_x(0.1),
+                b,
+            ),
+        ]);
+        let trimesh = collider
+            .trimesh_builder()
+            .fallback_subdivs(2)
+            .build()
+            .unwrap();
+        assert_eq!(
+            trimesh.vertices,
+            vec![
+                Vector::new(0.70863605, 0.92059875, 4.5),
+                Vector::new(0.70863605, 0.92059875, 1.4999999),
+                Vector::new(1.6887026, 1.1192681, 1.4999999),
+                Vector::new(1.6887026, 1.1192681, 4.5),
+                Vector::new(0.31129736, 2.880732, 4.5),
+                Vector::new(0.31129736, 2.880732, 1.4999999),
+                Vector::new(1.291364, 3.0794013, 1.4999999),
+                Vector::new(1.291364, 3.0794013, 4.5),
+                Vector::new(-12.0, 3.6019983, -0.049933366),
+                Vector::new(-11.6, 4.0, -0.01),
+                Vector::new(-12.4, 4.0, -0.010000034),
+                Vector::new(-12.0, 4.3980017, 0.029933369)
+            ]
+        );
+        assert_eq!(
+            trimesh.indices,
+            vec![
+                [4, 5, 0],
+                [5, 1, 0],
+                [5, 6, 1],
+                [6, 2, 1],
+                [6, 7, 3],
+                [2, 6, 3],
+                [7, 4, 0],
+                [3, 7, 0],
+                [0, 1, 2],
+                [3, 0, 2],
+                [7, 6, 5],
+                [4, 7, 5],
+                [8, 9, 10],
+                [8, 10, 9],
+                [9, 11, 10],
+                [10, 11, 9],
+            ]
+        );
     }
 }
