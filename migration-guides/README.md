@@ -38,9 +38,7 @@ Migration guides should reflect the complete experience of migrating from the la
 If there are *multiple* breaking changes layered on top of each other, you should edit the existing migration guide, rather than write a new one.
 
 While some brave users live on Avian's `main` branch, we can trust them to use the draft migration guides and read the PRs in question if needed.
-
-As a result, each draft migration should be given a clear name.
-These titles should reflect the name of the old feature that was broken or changed.
+As a result, each draft migration should be given a clear name. These titles should reflect the name of the old feature that was broken or changed.
 
 Right below the title, you should also include the PR number(s) associated with the change.
 An example might look like this:
