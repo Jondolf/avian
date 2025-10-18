@@ -340,7 +340,7 @@ impl ShapeCaster {
     ) {
         // TODO: This clone is here so that the excluded entities in the original `query_filter` aren't modified.
         //       We could remove this if shapecasting could compute multiple hits without just doing casts in a loop.
-        //       See https://github.com/Jondolf/avian/issues/403.
+        //       See https://github.com/avianphysics/avian/issues/403.
         let mut query_filter = self.query_filter.clone();
 
         if self.ignore_self {

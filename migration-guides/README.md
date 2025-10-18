@@ -46,7 +46,7 @@ An example might look like this:
 ```md
 ## Sleeping and Simulation Islands
 
-PRs: [#809](https://github.com/Jondolf/avian/pull/809)
+PRs: [#809](https://github.com/avianphysics/avian/pull/809)
 
 Content goes here
 ```

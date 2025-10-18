@@ -5,7 +5,7 @@ edition = "2024"
 license = "MIT OR Apache-2.0"
 authors = ["Joona Aalto <jondolf.dev@gmail.com>"]
 description = "Benchmarks for Avian Physics"
-repository = "https://github.com/Jondolf/avian"
+repository = "https://github.com/avianphysics/avian"
 readme = "README.md"
 
 [features]

@@ -165,7 +165,7 @@
 //! This is required for sleeping and the `JointCollisionDisabled` component to work.
 //!
 //! You can find a working example of a custom constraint
-//! [here](https://github.com/Jondolf/avian/blob/main/crates/avian3d/examples/custom_constraint.rs).
+//! [here](https://github.com/avianphysics/avian/blob/main/crates/avian3d/examples/custom_constraint.rs).
 //!
 //! [`EntityConstraint`]: crate::dynamics::joints::EntityConstraint
 //!
@@ -338,7 +338,7 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize> {
     /// computations and correction applying logic yourself.
     ///
     /// You can find a working example of a custom constraint
-    /// [here](https://github.com/Jondolf/avian/blob/main/crates/avian3d/examples/custom_constraint.rs).
+    /// [here](https://github.com/avianphysics/avian/blob/main/crates/avian3d/examples/custom_constraint.rs).
     fn solve(
         &mut self,
         bodies: [&mut SolverBody; ENTITY_COUNT],
