@@ -121,8 +121,8 @@ use derive_more::From;
 /// You can take a look at the [`basic_dynamic_character`] and [`basic_kinematic_character`]
 /// examples for a simple implementation.
 ///
-/// [`basic_dynamic_character`]: https://github.com/Jondolf/avian/blob/42fb8b21c756a7f4dd91071597dc251245ddaa8f/crates/avian3d/examples/basic_dynamic_character.rs
-/// [`basic_kinematic_character`]: https://github.com/Jondolf/avian/blob/42fb8b21c756a7f4dd91071597dc251245ddaa8f/crates/avian3d/examples/basic_kinematic_character.rs
+/// [`basic_dynamic_character`]: https://github.com/avianphysics/avian/blob/42fb8b21c756a7f4dd91071597dc251245ddaa8f/crates/avian3d/examples/basic_dynamic_character.rs
+/// [`basic_kinematic_character`]: https://github.com/avianphysics/avian/blob/42fb8b21c756a7f4dd91071597dc251245ddaa8f/crates/avian3d/examples/basic_kinematic_character.rs
 ///
 /// # Mass Properties
 ///

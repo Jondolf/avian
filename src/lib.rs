@@ -2,7 +2,7 @@
 //!
 //! **Avian** is an ECS-driven 2D and 3D physics engine for the [Bevy game engine](https://bevyengine.org/).
 //!
-//! Check out the [GitHub repository](https://github.com/Jondolf/avian)
+//! Check out the [GitHub repository](https://github.com/avianphysics/avian)
 //! for more information about the design, read the [Getting Started](#getting-started)
 //! guide below to get up to speed, and take a look at the [Table of Contents](#table-of-contents)
 //! for an overview of the engine's features and their documentation.
@@ -29,7 +29,7 @@
 //!
 //! # If you want to use the most up-to-date version, you can follow the main branch:
 //! [dependencies]
-//! avian3d = { git = "https://github.com/Jondolf/avian", branch = "main" }
+//! avian3d = { git = "https://github.com/avianphysics/avian", branch = "main" }
 //! ```
 //!
 //! You can specify features by disabling the default features and manually adding
@@ -115,8 +115,8 @@
 //! }
 //! ```
 //!
-//! You can find lots of [usage examples](https://github.com/Jondolf/avian#more-examples)
-//! in the project's [repository](https://github.com/Jondolf/avian).
+//! You can find lots of [usage examples](https://github.com/avianphysics/avian#more-examples)
+//! in the project's [repository](https://github.com/avianphysics/avian).
 //!
 //! # Table of Contents
 //!
@@ -386,13 +386,13 @@
 //!
 #![cfg_attr(
     feature = "2d",
-    doc = "[`dynamic_character_2d`]: https://github.com/Jondolf/avian/tree/main/crates/avian2d/examples/dynamic_character_2d
-[`kinematic_character_2d`]: https://github.com/Jondolf/avian/tree/main/crates/avian2d/examples/kinematic_character_2d"
+    doc = "[`dynamic_character_2d`]: https://github.com/avianphysics/avian/tree/main/crates/avian2d/examples/dynamic_character_2d
+[`kinematic_character_2d`]: https://github.com/avianphysics/avian/tree/main/crates/avian2d/examples/kinematic_character_2d"
 )]
 #![cfg_attr(
     feature = "3d",
-    doc = "[`dynamic_character_3d`]: https://github.com/Jondolf/avian/tree/main/crates/avian3d/examples/dynamic_character_3d
-[`kinematic_character_3d`]: https://github.com/Jondolf/avian/tree/main/crates/avian3d/examples/kinematic_character_3d"
+    doc = "[`dynamic_character_3d`]: https://github.com/avianphysics/avian/tree/main/crates/avian3d/examples/dynamic_character_3d
+[`kinematic_character_3d`]: https://github.com/avianphysics/avian/tree/main/crates/avian3d/examples/kinematic_character_3d"
 )]
 //!
 //! ## Why are there separate `Position` and `Rotation` components?
@@ -429,8 +429,8 @@
 //! Physics engines are very large and Avian is still young, so stability issues and bugs are to be expected.
 //!
 //! If you encounter issues, please consider first taking a look at the
-//! [issues on GitHub](https://github.com/Jondolf/avian/issues) and
-//! [open a new issue](https://github.com/Jondolf/avian/issues/new) if there already isn't one regarding your problem.
+//! [issues on GitHub](https://github.com/avianphysics/avian/issues) and
+//! [open a new issue](https://github.com/avianphysics/avian/issues/new) if there already isn't one regarding your problem.
 //!
 //! You can also come and say hello on the [Bevy Discord server](https://discord.com/invite/gMUk5Ph).
 //! There, you can find an Avian Physics topic on the `#ecosystem-crates` channel where you can ask questions.
@@ -439,9 +439,9 @@
 //!
 //! Avian is free and open source. All code in the Avian repository is dual-licensed under either:
 //!
-//! - MIT License ([LICENSE-MIT](https://github.com/Jondolf/avian/blob/main/LICENSE-MIT)
+//! - MIT License ([LICENSE-MIT](https://github.com/avianphysics/avian/blob/main/LICENSE-MIT)
 //! or <http://opensource.org/licenses/MIT>)
-//! - Apache License, Version 2.0 ([LICENSE-APACHE](https://github.com/Jondolf/avian/blob/main/LICENSE-APACHE)
+//! - Apache License, Version 2.0 ([LICENSE-APACHE](https://github.com/avianphysics/avian/blob/main/LICENSE-APACHE)
 //! or <http://www.apache.org/licenses/LICENSE-2.0>)
 //!
 //! at your option.
@@ -720,7 +720,7 @@ use prelude::*;
 /// ```
 ///
 /// You can find a full working example
-/// [here](https://github.com/Jondolf/avian/blob/main/crates/avian3d/examples/custom_broad_phase.rs).
+/// [here](https://github.com/avianphysics/avian/blob/main/crates/avian3d/examples/custom_broad_phase.rs).
 pub struct PhysicsPlugins {
     schedule: Interned<dyn ScheduleLabel>,
     length_unit: Scalar,

@@ -1,4 +1,4 @@
-//! Provides derive implementations for [Avian Physics](https://github.com/Jondolf/avian).
+//! Provides derive implementations for [Avian Physics](https://github.com/avianphysics/avian).
 
 use proc_macro::TokenStream;
 
