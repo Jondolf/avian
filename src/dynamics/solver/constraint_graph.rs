@@ -225,8 +225,7 @@ impl ConstraintGraph {
             // Constraints involving only non-static bodies cannot be in colors reserved
             // for constraints involving static bodies. This helps reduce tunneling through
             // static geometry by solving static contacts last.
-            for i in 0..DYNAMIC_COLOR_COUNT {
-                let color = &mut self.colors[i];
+            for (i, color) in self.colors.iter_mut().enumerate().take(DYNAMIC_COLOR_COUNT) {
                 if color.body_set.get(body1.index_u32() as usize)
                     || color.body_set.get(body2.index_u32() as usize)
                 {
