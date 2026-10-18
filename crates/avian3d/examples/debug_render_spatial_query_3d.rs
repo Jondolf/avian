@@ -14,20 +14,17 @@ fn main() {
 }
 
 fn scene() -> impl SceneList {
-    bsn_list![
-        (
-            Camera3d
-            template_value(Transform::from_xyz(10.0, 10.0, 10.0).looking_at(Vec3::ZERO, Vec3::Y))
-        ),
-        (
-            Mesh3d(asset_value(Cuboid::new(8.0, 1.0, 1.0)))
-            MeshMaterial3d::<StandardMaterial>(asset_value(Color::WHITE))
-            template_value(RigidBody::Kinematic)
-            Collider::cuboid(8.0, 1.0, 1.0)
-            Transform::from_xyz(0.0, 0.0, -6.0)
-            AngularVelocity(Vec3::new(0.0, 0.5, 0.0))
-        ),
-    ]
+    bsn_list! {
+        Camera3d
+        Transform::from_xyz(10.0, 10.0, 10.0).looking_at(Vec3::ZERO, Vec3::Y)
+        --
+        Mesh3d(asset_value(Cuboid::new(8.0, 1.0, 1.0)))
+        MeshMaterial3d::<StandardMaterial>(asset_value(Color::WHITE))
+        RigidBody::Kinematic
+        Collider::cuboid(8.0, 1.0, 1.0)
+        Transform::from_xyz(0.0, 0.0, -6.0)
+        AngularVelocity(Vec3::new(0.0, 0.5, 0.0))
+    }
 }
 
 fn cast(space: SpatialQuery) {
