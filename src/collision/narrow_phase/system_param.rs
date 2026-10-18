@@ -257,12 +257,11 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     );
 
                     contact_edge.flags.set(ContactEdgeFlags::TOUCHING, true);
+
+                    // Clear the status change flags.
                     contact_pair
                         .flags
                         .set(ContactPairFlags::STARTED_TOUCHING, false);
-
-                    // The contact pair should start generating constraints.
-                    // Doing this here fixes #1067
                     contact_pair
                         .flags
                         .set(ContactPairFlags::STARTED_GENERATING_CONSTRAINTS, false);
@@ -299,6 +298,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     );
 
                     contact_edge.flags.set(ContactEdgeFlags::TOUCHING, false);
+
+                    // Clear the status change flags.
                     contact_pair
                         .flags
                         .set(ContactPairFlags::STOPPED_TOUCHING, false);
