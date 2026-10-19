@@ -86,7 +86,7 @@ libm = { version = "0.2", optional = true }
 approx = "0.5"
 parry2d = { version = "0.31", optional = true }
 parry2d-f64 = { version = "0.31", optional = true }
-obvhs = { version = "0.3" }
+obvhs = { version = "0.4" }
 serde = { version = "1", features = ["derive"], optional = true }
 derive_more = "2"
 thiserror = "2"
