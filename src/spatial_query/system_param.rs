@@ -61,9 +61,22 @@ pub struct SpatialQuery<'w, 's> {
     colliders: Query<'w, 's, (&'static Position, &'static Rotation, &'static Collider)>,
     aabbs: Query<'w, 's, &'static ColliderAabb>,
     collider_trees: Res<'w, ColliderTrees>,
+    #[cfg(feature = "debug-plugin")]
+    tracked_queries: Option<Res<'w, TrackedSpatialQueries>>,
 }
 
 impl SpatialQuery<'_, '_> {
+    /// Records a spatial query for debug rendering if tracking is enabled.
+    #[cfg(feature = "debug-plugin")]
+    #[inline]
+    fn track(&self, query: impl FnOnce() -> TrackedSpatialQuery) {
+        if let Some(tracked_queries) = &self.tracked_queries
+            && tracked_queries.enabled
+        {
+            tracked_queries.borrow_local_mut().push(query());
+        }
+    }
+
     /// Casts a [ray](spatial_query#raycasting) and computes the closest [hit](RayHitData) with a collider.
     /// If there are no hits, `None` is returned.
     ///
@@ -116,7 +129,18 @@ impl SpatialQuery<'_, '_> {
         solid: bool,
         filter: &SpatialQueryFilter,
     ) -> Option<RayHitData> {
-        self.cast_ray_predicate(origin, direction, max_distance, solid, filter, &|_| true)
+        let out =
+            self.cast_ray_predicate(origin, direction, max_distance, solid, filter, &|_| true);
+
+        #[cfg(feature = "debug-plugin")]
+        self.track(|| TrackedSpatialQuery::Raycast {
+            origin,
+            direction,
+            max_distance,
+            hits: out.iter().cloned().collect(),
+        });
+
+        out
     }
 
     /// Casts a [ray](spatial_query#raycasting) and computes the closest [hit](RayHitData) with a collider.
@@ -294,6 +318,14 @@ impl SpatialQuery<'_, '_> {
             }
         });
 
+        #[cfg(feature = "debug-plugin")]
+        self.track(|| TrackedSpatialQuery::Raycast {
+            origin,
+            direction,
+            max_distance,
+            hits: hits.clone(),
+        });
+
         hits
     }
 
@@ -452,7 +484,10 @@ impl SpatialQuery<'_, '_> {
         config: &ShapeCastConfig,
         filter: &SpatialQueryFilter,
     ) -> Option<ShapeHitData> {
-        self.cast_shape_predicate(
+        #[cfg(feature = "debug-plugin")]
+        let shape_rotation = shape_rotation.into();
+
+        let out = self.cast_shape_predicate(
             shape,
             origin,
             shape_rotation,
@@ -460,7 +495,19 @@ impl SpatialQuery<'_, '_> {
             config,
             filter,
             &|_| true,
-        )
+        );
+
+        #[cfg(feature = "debug-plugin")]
+        self.track(|| TrackedSpatialQuery::Shapecast {
+            shape: shape.clone(),
+            origin,
+            rotation: shape_rotation,
+            direction,
+            max_distance: config.max_distance,
+            hits: out.iter().cloned().collect(),
+        });
+
+        out
     }
 
     /// Casts a [shape](spatial_query#shapecasting) with a given rotation and computes the closest [hit](ShapeHitData)
@@ -661,6 +708,8 @@ impl SpatialQuery<'_, '_> {
         filter: &SpatialQueryFilter,
     ) -> Vec<ShapeHitData> {
         let mut hits = Vec::new();
+        #[cfg(feature = "debug-plugin")]
+        let shape_rotation = shape_rotation.into();
 
         self.shape_hits_callback(
             shape,
@@ -678,6 +727,16 @@ impl SpatialQuery<'_, '_> {
                 }
             },
         );
+
+        #[cfg(feature = "debug-plugin")]
+        self.track(|| TrackedSpatialQuery::Shapecast {
+            shape: shape.clone(),
+            origin,
+            rotation: shape_rotation,
+            direction,
+            max_distance: config.max_distance,
+            hits: hits.clone(),
+        });
 
         hits
     }
@@ -847,7 +906,17 @@ impl SpatialQuery<'_, '_> {
         solid: bool,
         filter: &SpatialQueryFilter,
     ) -> Option<PointProjection> {
-        self.project_point_predicate(point, solid, filter, &|_| true)
+        let out = self.project_point_predicate(point, solid, filter, &|_| true);
+
+        #[cfg(feature = "debug-plugin")]
+        if let Some(projection) = &out {
+            self.track(|| TrackedSpatialQuery::PointProjection {
+                point,
+                projection: projection.point,
+            });
+        }
+
+        out
     }
 
     /// Finds the [projection](spatial_query#point-projection) of a given point on the closest [collider](Collider).
@@ -1181,6 +1250,8 @@ impl SpatialQuery<'_, '_> {
         filter: &SpatialQueryFilter,
     ) -> Vec<Entity> {
         let mut intersections = vec![];
+        #[cfg(feature = "debug-plugin")]
+        let shape_rotation = shape_rotation.into();
 
         self.shape_intersections_callback(
             shape,
@@ -1192,6 +1263,14 @@ impl SpatialQuery<'_, '_> {
                 true
             },
         );
+
+        #[cfg(feature = "debug-plugin")]
+        self.track(|| TrackedSpatialQuery::ShapeIntersections {
+            shape: shape.clone(),
+            position: shape_position,
+            rotation: shape_rotation,
+            hits: intersections.clone(),
+        });
 
         intersections
     }

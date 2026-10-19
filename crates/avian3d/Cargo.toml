@@ -26,7 +26,6 @@ default = [
 f64 = []
 
 debug-plugin = ["bevy/bevy_gizmos", "bevy/bevy_render"]
-simd = ["parry3d?/simd8", "parry3d-f64?/simd8"]
 parallel = ["bevy/multi_threaded", "parry3d?/parallel", "parry3d-f64?/parallel"]
 enhanced-determinism = [
     "dep:libm",
@@ -75,18 +74,20 @@ bench = false
 
 [dependencies]
 avian_derive = { path = "../avian_derive", version = "0.2" }
-bevy = { version = "0.19.0", default-features = false, features = [
+bevy = { version = "0.20", default-features = false, features = [
     "std",
     "bevy_log",
 ] }
-bevy_math = { version = "0.19.0", features = ["approx"] }
-glam_matrix_extras = { version = "0.3", features = ["bevy_reflect"] }
-bevy_heavy = { version = "0.5" }
-bevy_transform_interpolation = { version = "0.5" }
+bevy_curve = { version = "0.20", features = ["approx"] }
+bevy_math = { version = "0.20", features = ["approx"] }
+bevy_shape = { version = "0.20", features = ["approx"] }
+glam_matrix_extras = { version = "0.4", features = ["bevy_reflect"] }
+bevy_heavy = { version = "0.6" }
+bevy_transform_interpolation = { version = "0.6" }
 libm = { version = "0.2", optional = true }
 approx = "0.5"
-parry3d = { version = "=0.30.2-glamx0.2-b", optional = true }
-parry3d-f64 = { version = "=0.30.2-glamx0.2-b", optional = true }
+parry3d = { version = "0.31", optional = true }
+parry3d-f64 = { version = "0.31", optional = true }
 obvhs = { version = "0.3" }
 serde = { version = "1", features = ["derive"], optional = true }
 derive_more = "2"
@@ -99,10 +100,10 @@ disqualified = { version = "1.0" }
 
 [dev-dependencies]
 examples_common_3d = { path = "../examples_common_3d" }
-bevy = { version = "0.19.0", features = ["3d", "ui", "https", "bevy_feathers"] }
-bevy_heavy = { version = "0.5", features = ["approx"] }
+bevy = { version = "0.20", features = ["3d", "ui", "https", "bevy_feathers"] }
+bevy_heavy = { version = "0.6", features = ["approx"] }
 criterion = { version = "0.8", features = ["html_reports"] }
-bevy_mod_debugdump = { version = "0.16" }
+bevy_mod_debugdump = { version = "0.17" }
 rand = "0.10"
 
 [lints]
@@ -204,6 +205,10 @@ required-features = ["3d", "default-collider", "diagnostic_ui"]
 [[example]]
 name = "debugdump_3d"
 required-features = ["3d", "debug-plugin"]
+
+[[example]]
+name = "debug_render_spatial_query_3d"
+required-features = ["3d", "debug-plugin", "bevy_scene"]
 
 [[bench]]
 name = "velocity_projection"

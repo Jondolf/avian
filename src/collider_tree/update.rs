@@ -67,7 +67,7 @@ impl<C: AnyCollider> Plugin for ColliderTreeUpdatePlugin<C> {
 
         // Initialize `ColliderAabb` for colliders.
         app.add_observer(
-            |trigger: On<Add, C>,
+            |trigger: On<Add<C>>,
              mut query: Query<(
                 &C,
                 &Position,
@@ -128,21 +128,21 @@ impl<C: AnyCollider> Plugin for ColliderTreeUpdatePlugin<C> {
         // 11. On replace `RigidBodyDisabled`, set/unset proxy flag.
 
         // Case 1
-        app.add_observer(add_to_tree_on::<Insert, (C, ColliderOf), Without<ColliderDisabled>>);
+        app.add_observer(add_to_tree_on::<Insert<(C, ColliderOf)>, Without<ColliderDisabled>>);
 
         // Case 2
         // Note: We also include disabled entities here for the edge case where
         //       we despawn a disabled collider, which causes Case 4 to trigger first.
         //       Ideally Case 4 would not trigger for despawned entities.
         // TODO: Clean up the edge case described above.
-        app.add_observer(remove_from_tree_on::<Remove, C, Allow<Disabled>>);
+        app.add_observer(remove_from_tree_on::<Remove<C>, Allow<Disabled>>);
 
         // Case 3
         app.add_observer(
-            |trigger: On<Remove, ColliderOf>,
+            |trigger: On<Remove<ColliderOf>>,
              mut collider_query: Query<
                 (
-                    &ColliderTreeProxyKey,
+                    &mut ColliderTreeProxyKey,
                     &EnlargedAabb,
                     Option<&CollisionLayers>,
                     Has<Sensor>,
@@ -156,7 +156,7 @@ impl<C: AnyCollider> Plugin for ColliderTreeUpdatePlugin<C> {
                 let entity = trigger.entity;
 
                 let Ok((
-                    proxy_key,
+                    mut proxy_key,
                     enlarged_aabb,
                     layers,
                     is_sensor,
@@ -172,7 +172,7 @@ impl<C: AnyCollider> Plugin for ColliderTreeUpdatePlugin<C> {
                 if tree.remove_proxy(proxy_key.id()).is_none() {
                     return;
                 }
-                moved_proxies.remove(proxy_key);
+                moved_proxies.remove(&proxy_key);
 
                 // If the collider still exists, move it to the standalone tree.
                 let proxy = ColliderTreeProxy {
@@ -192,6 +192,9 @@ impl<C: AnyCollider> Plugin for ColliderTreeUpdatePlugin<C> {
                 let new_proxy_key =
                     ColliderTreeProxyKey::new(proxy_id, ColliderTreeType::Standalone);
 
+                // Store the new proxy key.
+                *proxy_key = new_proxy_key;
+
                 // Mark the proxy as moved.
                 moved_proxies.insert(new_proxy_key);
             },
@@ -200,19 +203,19 @@ impl<C: AnyCollider> Plugin for ColliderTreeUpdatePlugin<C> {
         // Cases 4
         // Note: We use `Discard` here to run before Case 2.
         app.add_observer(
-            add_to_tree_on::<Discard, Disabled, (Without<ColliderDisabled>, Allow<Disabled>)>,
+            add_to_tree_on::<Discard<Disabled>, (Without<ColliderDisabled>, Allow<Disabled>)>,
         );
-        app.add_observer(add_to_tree_on::<Discard, ColliderDisabled, ()>);
+        app.add_observer(add_to_tree_on::<Discard<ColliderDisabled>, ()>);
 
         // Case 5
         app.add_observer(
-            remove_from_tree_on::<Add, Disabled, (Without<ColliderDisabled>, Allow<Disabled>)>,
+            remove_from_tree_on::<Add<Disabled>, (Without<ColliderDisabled>, Allow<Disabled>)>,
         );
-        app.add_observer(remove_from_tree_on::<Add, ColliderDisabled, ()>);
+        app.add_observer(remove_from_tree_on::<Add<ColliderDisabled>, ()>);
 
         // Case 6
         app.add_observer(
-            |trigger: On<Insert, RigidBody>,
+            |trigger: On<Insert<RigidBody>>,
              body_query: Query<(&RigidBody, &RigidBodyColliders, Has<RigidBodyDisabled>)>,
              mut collider_query: Query<
                 (
@@ -288,7 +291,7 @@ impl<C: AnyCollider> Plugin for ColliderTreeUpdatePlugin<C> {
 
         // Case 7
         app.add_observer(
-            |trigger: On<Add, Sensor>,
+            |trigger: On<Add<Sensor>>,
              mut collider_query: Query<&ColliderTreeProxyKey, Without<ColliderDisabled>>,
              mut trees: ResMut<ColliderTrees>| {
                 let entity = trigger.entity;
@@ -308,7 +311,7 @@ impl<C: AnyCollider> Plugin for ColliderTreeUpdatePlugin<C> {
 
         // Case 8
         app.add_observer(
-            |trigger: On<Remove, Sensor>,
+            |trigger: On<Remove<Sensor>>,
              mut collider_query: Query<&ColliderTreeProxyKey, Without<ColliderDisabled>>,
              mut trees: ResMut<ColliderTrees>| {
                 let entity = trigger.entity;
@@ -328,7 +331,7 @@ impl<C: AnyCollider> Plugin for ColliderTreeUpdatePlugin<C> {
 
         // Case 9
         app.add_observer(
-            |trigger: On<Insert, CollisionLayers>,
+            |trigger: On<Insert<CollisionLayers>>,
              mut collider_query: Query<
                 (&ColliderTreeProxyKey, Option<&CollisionLayers>),
                 Without<ColliderDisabled>,
@@ -351,7 +354,7 @@ impl<C: AnyCollider> Plugin for ColliderTreeUpdatePlugin<C> {
 
         // Case 10
         app.add_observer(
-            |trigger: On<Insert, ActiveCollisionHooks>,
+            |trigger: On<Insert<ActiveCollisionHooks>>,
              mut collider_query: Query<
                 (&ColliderTreeProxyKey, Option<&ActiveCollisionHooks>),
                 Without<ColliderDisabled>,
@@ -378,7 +381,7 @@ impl<C: AnyCollider> Plugin for ColliderTreeUpdatePlugin<C> {
 
         // Case 11
         app.add_observer(
-            |trigger: On<Discard, RigidBodyDisabled>,
+            |trigger: On<Discard<RigidBodyDisabled>>,
              body_query: Query<(&RigidBodyColliders, Has<RigidBodyDisabled>)>,
              mut collider_query: Query<&ColliderTreeProxyKey, Without<ColliderDisabled>>,
              mut trees: ResMut<ColliderTrees>| {
@@ -408,8 +411,8 @@ impl<C: AnyCollider> Plugin for ColliderTreeUpdatePlugin<C> {
 }
 
 /// Adds a collider to the appropriate collider tree when the event `E` is triggered.
-fn add_to_tree_on<E: EntityEvent, B: Bundle, F: QueryFilter>(
-    trigger: On<E, B>,
+fn add_to_tree_on<E: EventPattern<Event: EntityEvent>, F: QueryFilter>(
+    trigger: On<E>,
     body_query: Query<(&RigidBody, Has<RigidBodyDisabled>), Allow<Disabled>>,
     mut collider_query: Query<
         (
@@ -501,8 +504,8 @@ fn add_to_tree_on<E: EntityEvent, B: Bundle, F: QueryFilter>(
 }
 
 /// Removes a collider from its collider tree when the event `E` is triggered.
-fn remove_from_tree_on<E: EntityEvent, B: Bundle, F: QueryFilter>(
-    trigger: On<E, B>,
+fn remove_from_tree_on<E: EventPattern<Event: EntityEvent>, F: QueryFilter>(
+    trigger: On<E>,
     mut collider_query: Query<&mut ColliderTreeProxyKey, F>,
     mut trees: ResMut<ColliderTrees>,
     mut moved_proxies: ResMut<MovedProxies>,
@@ -1091,4 +1094,66 @@ fn update_tree(
 fn clear_moved_proxies(mut moved_proxies: ResMut<MovedProxies>, mut trees: ResMut<ColliderTrees>) {
     moved_proxies.clear();
     trees.iter_trees_mut().for_each(|t| t.moved_proxies.clear());
+}
+
+#[cfg(test)]
+#[cfg(feature = "default-collider")]
+mod tests {
+    use super::*;
+    use bevy::time::TimeUpdateStrategy;
+    use core::time::Duration;
+
+    /// Removing a collider's rigid body (Case 3) moves its proxy to the
+    /// standalone tree. The `ColliderTreeProxyKey` on the entity has to follow,
+    /// or the entity is left addressing a slot in the old tree that it no
+    /// longer owns.
+    #[test]
+    fn removing_rigid_body_updates_proxy_key() {
+        let mut app = App::new();
+        app.add_plugins((
+            MinimalPlugins,
+            TransformPlugin,
+            PhysicsPlugins::default(),
+            bevy::asset::AssetPlugin::default(),
+            #[cfg(feature = "collider-from-mesh")]
+            bevy::mesh::MeshPlugin,
+        ))
+        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f64(
+            1.0 / 60.0,
+        )));
+        app.finish();
+
+        fn proxy_key(app: &App, entity: Entity) -> ColliderTreeProxyKey {
+            *app.world().get::<ColliderTreeProxyKey>(entity).unwrap()
+        }
+
+        let collider = app
+            .world_mut()
+            .spawn((
+                RigidBody::Static,
+                Collider::capsule(0.5, 2.0),
+                Transform::default(),
+            ))
+            .id();
+        app.update();
+
+        assert!(proxy_key(&app, collider).is_static());
+
+        app.world_mut().entity_mut(collider).remove::<RigidBody>();
+        app.update();
+
+        let key = proxy_key(&app, collider);
+        let trees = app.world().resource::<ColliderTrees>();
+        assert!(
+            key.is_standalone(),
+            "proxy key should point to the standalone tree after the body is removed, got {key:?}"
+        );
+        assert_eq!(
+            trees.get_proxy(key).map(|p| p.collider),
+            Some(collider),
+            "proxy key should resolve to this collider's own proxy"
+        );
+        assert_eq!(trees.static_tree.proxies.len(), 0);
+        assert_eq!(trees.standalone_tree.proxies.len(), 1);
+    }
 }

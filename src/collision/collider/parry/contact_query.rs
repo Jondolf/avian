@@ -439,7 +439,7 @@ pub fn distance(
         &isometry2,
         collider2.shape_scaled().0.as_ref(),
     )
-    .map(|distance| distance.f32())
+    .map(|distance| distance.distance.f32())
 }
 
 /// Tests whether two [`Collider`]s are intersecting each other.
@@ -508,6 +508,7 @@ pub fn intersection_test(
         &isometry2,
         collider2.shape_scaled().0.as_ref(),
     )
+    .map(|intersection| intersection.intersecting)
 }
 
 /// The way the [time of impact](time_of_impact) computation was terminated.
