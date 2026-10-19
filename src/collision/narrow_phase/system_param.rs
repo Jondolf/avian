@@ -141,7 +141,7 @@ pub enum ContactStatusChange {
         /// The second body in the contact.
         body2: Entity,
         /// The signed change in the number of manifolds.
-        delta: i16,
+        delta: i32,
     },
 }
 
@@ -905,7 +905,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 // Record how many manifolds were added or removed.
                 // This is used to add or remove contact constraints in the `ConstraintGraph` for persistent contacts.
                 contacts.manifold_count_change =
-                    (contacts.manifolds.len() as i32 - old_manifolds.len() as i32) as i16;
+                    contacts.manifolds.len() as i32 - old_manifolds.len() as i32;
 
                 // TODO: For unmatched contacts, apply any leftover impulses from the previous frame.
 
