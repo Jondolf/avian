@@ -9,7 +9,7 @@ use obvhs::{
 };
 
 use crate::{
-    collider_tree::{Bvh2Ext, ProxyId},
+    collider_tree::ProxyId,
     data_structures::stable_vec::StableVec,
     prelude::{ActiveCollisionHooks, CollisionLayers},
 };
@@ -223,7 +223,7 @@ impl ColliderTree {
         let id = self.proxies.push(proxy) as u32;
 
         // Insert the proxy into the BVH.
-        self.bvh.insert_primitive_greedy(aabb, id);
+        self.bvh.insert_primitive(aabb, id);
 
         // Add to moved proxies.
         self.moved_proxies.push(ProxyId::new(id));
