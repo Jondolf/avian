@@ -154,7 +154,7 @@ pub struct ContactPair {
     /// This is used to manage contact constraint updates for persistent contacts in the [`ConstraintGraph`].
     ///
     /// [`ConstraintGraph`]: crate::dynamics::solver::constraint_graph::ConstraintGraph
-    pub(crate) manifold_count_change: i16,
+    pub(crate) manifold_count_change: i32,
     /// A speculative contact distance used to predict contacts before they happen.
     /// Used for [Continuous Collision Detection (CCD)](dynamics::ccd).
     ///
