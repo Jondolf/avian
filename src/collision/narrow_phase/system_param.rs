@@ -401,7 +401,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
     {
         let length_unit = self.length_unit.0;
-        let config_changed = self.config.is_changed();
         let contact_tolerance = length_unit * self.config.contact_tolerance;
         let recycle_distance = length_unit * self.config.recycle_distance;
         let recycle_distance_non_touching = recycle_distance.min(contact_tolerance);
@@ -409,11 +408,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         let recycle_angle_cos = ops::cos(self.config.recycle_angle);
         #[cfg(feature = "3d")]
         let recycle_angular_distance = ops::cos(self.config.recycle_angle * 0.5).squared();
-        #[cfg(feature = "3d")]
-        let cluster_angle_cos =
-            ops::cos(self.config.cluster_angle.clamp(0.0, core::f32::consts::PI));
-        #[cfg(feature = "3d")]
-        let match_angle_cos = ops::cos(self.config.match_angle.clamp(0.0, core::f32::consts::PI));
         let inv_delta_secs = delta_secs.recip();
 
         // Contact bit vecs must be sized based on the full contact capacity,
@@ -598,8 +592,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 // but allows larger relative motion, and has fewer tuning parameters (distance and angle).
                 // This has a huge impact on the performance and stability of stacks and resting bodies.
                 'recycle: {
-                    if recycle_distance <= 0.0 || config_changed {
-                        // Recycling is disabled, or the configuration requires recomputing contacts.
+                    if recycle_distance <= 0.0 {
+                        // Recycling is disabled.
                         break 'recycle;
                     }
 
@@ -804,8 +798,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 let max_contact_distance = collision_margin_sum + speculative_distance;
 
                 // Save the old manifolds for warm starting.
-                #[allow(unused_mut)]
-                let mut old_manifolds = contacts.manifolds.clone();
+                let old_manifolds = contacts.manifolds.clone();
 
                 // TODO: It'd be good to persist the manifolds and let Parry match contacts.
                 //       This isn't currently done because it requires using Parry's contact manifold type.
@@ -871,34 +864,14 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         }
                     });
 
-                    // Prune to at most 4 contact points per manifold.
-                    // If contact clustering is enabled, this is done after clustering instead.
+                    // Prune extra contact points.
                     #[cfg(feature = "3d")]
-                    if !self.config.cluster_contacts && manifold.points.len() > 4 {
+                    if manifold.points.len() > 4 {
                         manifold.prune_points();
                     }
 
                     !manifold.points.is_empty()
                 });
-
-                #[cfg(feature = "3d")]
-                if self.config.cluster_contacts {
-                    super::contact_clustering::cluster_manifolds(
-                        &mut contacts.manifolds,
-                        cluster_angle_cos,
-                        contact_tolerance * 0.25,
-                    );
-
-                    // Merged points share the cluster's normal, which can differ from the original.
-                    for manifold in &mut contacts.manifolds {
-                        for point in &mut manifold.points {
-                            let relative_velocity = relative_linear_velocity
-                                + ang_vel2.cross(point.anchor2)
-                                - ang_vel1.cross(point.anchor1);
-                            point.normal_speed = relative_velocity.dot(manifold.normal);
-                        }
-                    }
-                }
 
                 // Check if the colliders are now touching.
                 let mut touching = !contacts.manifolds.is_empty();
@@ -914,29 +887,15 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
 
                 contacts.flags.set(ContactPairFlags::TOUCHING, touching);
 
-                #[cfg(feature = "2d")]
-                let cluster_contacts = false;
-                #[cfg(feature = "3d")]
-                let cluster_contacts = self.config.cluster_contacts;
+                // TODO: Manifold reduction
 
-                // Unclustered dense meshes are too expensive to match exhaustively.
-                if self.config.match_contacts && (cluster_contacts || contacts.manifolds.len() <= 4)
-                {
+                // TODO: This condition is pretty arbitrary, mainly to skip dense trimeshes.
+                //       If we let Parry handle contact matching, this wouldn't be needed.
+                if contacts.manifolds.len() <= 4 && self.config.match_contacts {
                     // TODO: Cache this?
                     let distance_threshold = 0.1 * self.length_unit.0;
 
                     for manifold in contacts.manifolds.iter_mut() {
-                        #[cfg(feature = "3d")]
-                        if cluster_contacts {
-                            super::contact_clustering::match_contact_cluster(
-                                manifold,
-                                &mut old_manifolds,
-                                match_angle_cos,
-                                distance_threshold,
-                            );
-                            continue;
-                        }
-
                         for previous_manifold in old_manifolds.iter() {
                             manifold.match_contacts(&previous_manifold.points, distance_threshold);
                         }

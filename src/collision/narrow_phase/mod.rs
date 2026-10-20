@@ -17,8 +17,6 @@
 //!
 //! [`ContactConstraint`]: dynamics::solver::contact::ContactConstraint
 
-#[cfg(feature = "3d")]
-mod contact_clustering;
 mod system_param;
 use system_param::ContactStatusBits;
 #[cfg(feature = "parallel")]
@@ -206,39 +204,6 @@ pub struct NarrowPhaseConfig {
     #[cfg_attr(feature = "3d", doc = "Default: 0.175 (approximately 10 degrees)")]
     pub recycle_angle: f32,
 
-    /// If `true`, contact manifolds with normals within [`cluster_angle`](Self::cluster_angle)
-    /// from each other are merged before contact modification hooks and constraint generation.
-    ///
-    /// This can significantly reduce solver work for triangle meshes and other shapes
-    /// that generate many manifolds. For example, a box on a heavily tessellated triangle mesh
-    /// may generate hundreds of manifolds, but only a few clusters, each with only up to 4 contact points.
-    ///
-    /// If [`CollisionHooks::modify_contacts`] requires access to all manifolds,
-    /// for example to implement per-manifold friction, then this should be set to `false`.
-    ///
-    /// Default: `true`
-    #[cfg(feature = "3d")]
-    pub cluster_contacts: bool,
-
-    /// The maximum angle (in radians) between a manifold's normal and the first normal
-    /// in a contact cluster at which the manifolds can be merged.
-    ///
-    /// Values are clamped to the range `[0, pi]`.
-    ///
-    /// Default: 5 degrees (`0.08726646` radians)
-    #[cfg(feature = "3d")]
-    pub cluster_angle: f32,
-
-    /// The maximum angle (in radians) between current and previous manifold normals
-    /// when matching clustered contact points for warm starting.
-    ///
-    /// This tolerance is independent of [`cluster_angle`](Self::cluster_angle).
-    /// Values are clamped to the range `[0, pi]`.
-    ///
-    /// Default: ~5.7 degrees (`0.1` radians)
-    #[cfg(feature = "3d")]
-    pub match_angle: f32,
-
     /// If `true`, the current contacts will be matched with the previous contacts
     /// based on feature IDs or contact positions, and the contact impulses from
     /// the previous frame will be copied over for the new contacts.
@@ -261,12 +226,6 @@ impl Default for NarrowPhaseConfig {
             recycle_angle: 0.2,
             #[cfg(feature = "3d")]
             recycle_angle: 0.175,
-            #[cfg(feature = "3d")]
-            cluster_contacts: true,
-            #[cfg(feature = "3d")]
-            cluster_angle: 5.0_f32.to_radians(),
-            #[cfg(feature = "3d")]
-            match_angle: 0.1,
             match_contacts: true,
         }
     }
